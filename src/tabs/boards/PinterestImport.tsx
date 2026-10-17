@@ -16,7 +16,7 @@ export function PinterestImport({ boardId, onClose, onBoard }: { boardId: string
 
   useEffect(() => { if (pending) setData(pending); }, [pending]);
   // Set the javascript: URL directly (React warns about javascript: hrefs in JSX).
-  useEffect(() => { link.current?.setAttribute('href', bookmarkletHref(location.origin)); }, []);
+  useEffect(() => { link.current?.setAttribute('href', bookmarkletHref(location.origin + location.pathname)); }, []);
 
   const readPaste = (text: string) => {
     setPaste(text);

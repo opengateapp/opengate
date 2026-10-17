@@ -46,6 +46,7 @@ export const usePinterestInbox = create<{ pending: PinterestExport | null; set: 
 function bookmarklet() {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const APP = '__APP_ORIGIN__';
+  const APP_URL = '__APP_URL__'; // can be under a path, e.g. a GitHub Pages project site
   const say = (m: string) => {
     let el = document.getElementById('slateline-pin-status');
     if (!el) {
@@ -308,7 +309,7 @@ function bookmarklet() {
     const json = JSON.stringify(data, (k, v) => (k === 'data' ? undefined : v));
     try { await navigator.clipboard.writeText(json); } catch { /* clipboard may be blocked */ }
     say(`Open Gate: sending ${total} pins in ${named} section${named === 1 ? '' : 's'}…`);
-    const w = window.open(`${APP}/#pinterest`, 'slateline');
+    const w = window.open(`${APP_URL}#pinterest`, 'slateline');
     let acked = false;
     const onMsg = (e: MessageEvent) => {
       if (e.origin === APP && e.data && e.data.type === 'slateline-pinterest-ack') {
@@ -325,8 +326,11 @@ function bookmarklet() {
   })().catch((e) => say(`Open Gate import failed: ${e && e.message}`));
 }
 
-export function bookmarkletHref(appOrigin: string): string {
-  const src = `(${bookmarklet.toString()})()`.replace('__APP_ORIGIN__', appOrigin);
+/** `appUrl` is the app's full address (origin + path); messages are checked against its origin. */
+export function bookmarkletHref(appUrl: string): string {
+  const u = new URL(appUrl);
+  const page = u.origin + u.pathname.replace(/[^/]*$/, '');
+  const src = `(${bookmarklet.toString()})()`.replace('__APP_ORIGIN__', u.origin).replace('__APP_URL__', page);
   return 'javascript:' + encodeURIComponent(src);
 }
 

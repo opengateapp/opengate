@@ -42,6 +42,11 @@ describe('pinterest bookmarklet', () => {
     expect(src).toContain('http://localhost:5173');
     expect(() => new Function(src)).not.toThrow();
   });
+  it('opens the app under its path (GitHub Pages project sites)', () => {
+    const src = decodeURIComponent(bookmarkletHref('https://me.github.io/open-gate/index.html').slice('javascript:'.length));
+    expect(src).toMatch(/APP_URL = ["']https:\/\/me\.github\.io\/open-gate\/["']/);
+    expect(src).toMatch(/APP = ["']https:\/\/me\.github\.io["']/);
+  });
   it('recognizes exported boards', () => {
     expect(isPinterestExport({ source: 'pinterest', board: { name: 'x', url: '' }, sections: [] })).toBe(true);
     expect(isPinterestExport({ sections: [] })).toBe(false);
