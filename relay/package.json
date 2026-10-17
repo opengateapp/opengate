@@ -1,0 +1,16 @@
+{
+  "name": "open-gate-relay",
+  "private": true,
+  "description": "Encrypted collaboration relay for Open Gate projects (Cloudflare Workers + Durable Objects).",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "wrangler": "4.147.0",
+    "@cloudflare/workers-types": "4.20260702.1"
+  }
+}

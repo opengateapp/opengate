@@ -1,0 +1,541 @@
+// Core project model. Everything in a project references scenes, shots, elements
+// and cast by stable id, so each tab stays in sync with the script.
+
+export type Id = string;
+export type ISODate = string; // YYYY-MM-DD (local calendar date, no time zone)
+
+/** Script element types, shared by the editor, parsers, paginator and exporters. */
+export type ElementType =
+  | 'sceneHeading'
+  | 'action'
+  | 'character'
+  | 'parenthetical'
+  | 'dialogue'
+  | 'transition'
+  | 'centered'
+  | 'shot'
+  | 'lyric'
+  | 'pageBreak';
+
+/** A flat, format-neutral script line produced by importers. */
+export interface ScriptLine {
+  type: ElementType;
+  text: string;
+  /** Character cue that is the second half of a dual-dialogue pair. */
+  dual?: boolean;
+  /** Scene number forced by the source file (e.g. Fountain #12A#). */
+  sceneNumber?: string;
+}
+
+export interface TitlePage {
+  title: string;
+  credit: string;
+  author: string;
+  source: string;
+  draftDate: string;
+  contact: string;
+  /** Logo image (media id), its width as % of the page, and where it sits. */
+  logoId?: Id;
+  logoScale?: number;
+  logoPosition?: 'title' | 'top' | 'above' | 'below';
+}
+
+export type TimeOfDay = 'DAY' | 'NIGHT' | 'DAWN' | 'DUSK' | 'AFTERNOON' | 'CUSTOM';
+export type IntExt = 'INT' | 'EXT' | 'INT/EXT';
+
+/** Scene facts derived from the script document (never stored). */
+export interface DerivedScene {
+  id: Id;
+  index: number; // 0-based script order
+  number: string; // displayed scene number (locked or auto)
+  heading: string;
+  intExt: IntExt;
+  set: string; // location / set name from the heading
+  time: TimeOfDay;
+  timeLabel: string; // raw time text from the heading ("CONTINUOUS", "LATER"…)
+  characters: string[]; // normalized speaking characters
+  taggedElementIds: Id[];
+  shotIds: Id[];
+  firstAction: string;
+  eighths: number;
+  startPage: number;
+  endPage: number;
+}
+
+/** User-entered production data per scene; survives script edits. */
+export interface SceneMeta {
+  synopsis?: string;
+  estimatedMinutes?: number; // overrides eighths × 15
+  eighthsOverride?: number;
+  locationId?: Id;
+  /** Non-speaking cast added by hand in the breakdown. */
+  extraCast?: string[];
+  timeOverride?: TimeOfDay;
+  notes?: string;
+}
+
+export interface Category {
+  id: Id;
+  name: string;
+  color: string; // hex
+  builtIn?: boolean;
+}
+
+/** A breakdown element (prop, wardrobe item, vehicle…). Cast lives in the roster. */
+export interface BreakdownElement {
+  id: Id;
+  categoryId: Id;
+  name: string;
+  notes?: string;
+  /** Scenes linked by hand (in addition to scenes where the element is tagged in the text). */
+  sceneIds: Id[];
+}
+
+export interface DateRange {
+  start: ISODate;
+  end: ISODate;
+}
+
+export interface CastMember {
+  id: Id;
+  castNumber: number;
+  characterName: string; // normalized, matches DerivedScene.characters
+  actorName: string;
+  phone?: string;
+  email?: string;
+  unavailable: DateRange[];
+}
+
+export interface Location {
+  id: Id;
+  setName: string; // matches DerivedScene.set (case-insensitive)
+  realName: string;
+  address: string;
+  notes?: string;
+  /** Location manager fields (all optional for older projects). */
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  status?: 'scouting' | 'hold' | 'confirmed' | 'passed';
+  permit?: string;
+  parking?: string;
+  power?: string;
+  restrooms?: string;
+  nearestHospital?: string;
+  fee?: string;
+  photoIds?: Id[];
+}
+
+export interface CrewMember {
+  id: Id;
+  name: string;
+  role: string;
+  phone?: string;
+  dailyDefault?: boolean;
+}
+
+export interface Shot {
+  id: Id;
+  sceneId: Id | null;
+  order: number;
+  shotNumber: string; // e.g. "1A"
+  setup: string;
+  name: string;
+  subject: string;
+  shotType: string;
+  angle: string;
+  lens: string;
+  move: string;
+  equipment: string;
+  focus: string;
+  lighting: string;
+  sound: string;
+  vfx: string;
+  action: string;
+  duration: string;
+  priority: string;
+  notes: string;
+  /** Script text this shot is anchored to (kept in sync via a shot mark in the doc). */
+  quote: string;
+  color: string;
+}
+
+export type BannerKind = 'companyMove' | 'meal' | 'notice' | 'custom';
+export type MealKind = 'lunch' | 'snack' | 'dinner' | 'second';
+
+export interface SceneStrip {
+  kind: 'scene';
+  sceneId: Id;
+  customStart?: string; // "HH:MM" 24h; empty → cascades
+  completed?: boolean;
+}
+
+export interface BannerStrip {
+  kind: 'banner';
+  id: Id;
+  bannerKind: BannerKind;
+  meal?: MealKind;
+  title: string;
+  note?: string;
+  color: string;
+  minutes: number;
+  customStart?: string;
+}
+
+export type StripItem = SceneStrip | BannerStrip;
+
+export interface DayTimes {
+  generalCall?: string; // "HH:MM"
+  readyToShoot?: string;
+  lunch?: string;
+  wrap?: string;
+}
+
+export interface ShootDay {
+  id: Id;
+  date: ISODate;
+  items: StripItem[];
+  blackout?: boolean;
+  times: DayTimes;
+  notes?: string;
+}
+
+export interface ScheduleLock {
+  lockedAt: string;
+  workingDays: Record<string, ISODate[]>;
+}
+
+export type ColorSlot =
+  | 'intDay' | 'extDay' | 'intNight' | 'extNight' | 'intDawn' | 'extDawn'
+  | 'intDusk' | 'extDusk' | 'intAfternoon' | 'extAfternoon' | 'custom';
+
+export interface Schedule {
+  startDate: ISODate;
+  endDate: ISODate;
+  days: ShootDay[]; // one per calendar date in range, sorted
+  lock?: ScheduleLock;
+  colors: Partial<Record<ColorSlot, string>>;
+}
+
+export interface CalendarEvent {
+  id: Id;
+  date: ISODate;
+  title: string;
+  start?: string; // "HH:MM"
+  end?: string;
+  color: string;
+  kind: 'prep' | 'scout' | 'rehearsal' | 'travel' | 'meeting' | 'other';
+  notes?: string;
+}
+
+// ---- Call sheets (fields after CineSched's CallSheetData) ----
+
+/** One cast row on a call sheet. Blank scene numbers / status / on-set fall back to live values. */
+export interface CastCall {
+  id: Id;
+  characterName: string;
+  actorName: string;
+  sceneNumbers: string; // "" → today's scenes for this character
+  status: string; // "" → DOOD code (SW / W / WF / SWF)
+  pickup: string; // "HH:MM"
+  hmu: string;
+  onSet: string; // "" → ready to shoot / general call
+  wrap: string;
+  loc: string; // location number on this sheet; "" → auto
+  /** Special instructions for this actor. */
+  notes?: string;
+}
+
+export interface CrewCall {
+  id: Id;
+  crewId?: Id;
+  role: string;
+  name: string;
+  call: string; // "" → general call
+  phone: string;
+  email?: string;
+}
+
+export interface CallSheetLocation {
+  id: Id;
+  name: string;
+  address: string;
+}
+
+// ---- Call sheet page layout (all optional so older sheets keep working) ----
+
+export type CallSheetSectionKind = 'scenes' | 'cast' | 'crew' | 'notes' | 'locations' | 'advance' | 'table';
+
+export interface CallSheetSection {
+  id: Id;
+  kind: CallSheetSectionKind;
+  title: string;
+  hidden?: boolean;
+  /** Custom tables. */
+  columns?: string[];
+  rows?: { id: Id; cells: string[] }[];
+  /** Notes boxes: left and right columns. */
+  text?: string;
+  text2?: string;
+}
+
+export interface CallSheetInfoRow {
+  id: Id;
+  label: string;
+  value: string;
+  /** Blank values show this live value (lunch from the schedule, sun times, weather). */
+  bind?: 'lunch' | 'sunrise' | 'sunset' | 'weather' | 'wrap' | 'readyToShoot';
+}
+
+export interface CallSheetContact {
+  id: Id;
+  role: string;
+  name: string;
+  phone: string;
+}
+
+/** Scene rows added by hand (beyond the day's strips). */
+export interface CallSheetExtraScene {
+  id: Id;
+  scene: string;
+  set: string;
+  description: string;
+  cast: string;
+  dn: string;
+  pages: string;
+  notes: string;
+}
+
+/** Per-day call sheet. General call, ready-to-shoot, lunch and wrap live on the ShootDay
+ *  (day.times) so the stripboard and the call sheet never disagree. Scenes always come from the day's strips. */
+export interface CallSheet {
+  workDaySchedule: string;
+  quote: string;
+  snack: string;
+  dinner: string;
+  weatherTemp: string;
+  weatherCondition: string;
+  weatherPrecipWind: string;
+  sunTimes: string;
+  /** "lat, lon" used to compute sunrise / sunset. */
+  coords: string;
+  basecamp: string;
+  nearestHospital: string;
+  locations: CallSheetLocation[];
+  cast: CastCall[];
+  crew: CrewCall[];
+  notes: string;
+  // Page layout
+  fileName?: string;
+  productionTitle?: string;
+  logoId?: Id;
+  companyInfo?: string;
+  keyContacts?: CallSheetContact[];
+  infoRows?: CallSheetInfoRow[];
+  topNotes?: string;
+  showMap?: boolean;
+  sections?: CallSheetSection[];
+  /** Location / notes column of the scenes table, by scene id. */
+  sceneNotes?: Record<Id, string>;
+  extraScenes?: CallSheetExtraScene[];
+}
+
+// ---- Storyboard ----
+
+/** A storyboard frame hanging on a shot. Images live as Blobs in IndexedDB (store/media.ts)
+ *  and in the project file's media/ folder; the project only holds their ids. */
+export interface StoryboardFrame {
+  id: Id;
+  shotId: Id;
+  order: number;
+  /** Uploaded background image. */
+  imageId?: Id;
+  /** Transparent PNG drawing layer drawn over the image. */
+  drawingId?: Id;
+  /** Bumped whenever a media blob is rewritten, so thumbnails refresh. */
+  rev: number;
+  caption: string;
+  /** Set plan / reference box: an uploaded photo and a drawing layer over it. */
+  refImageId?: Id;
+  refDrawingId?: Id;
+  /** Formatted description (docs schema JSON). Its plain text is kept in the shot's Action field. */
+  descDoc?: unknown;
+}
+
+export interface StoryboardSettings {
+  /** Panels per page: 1, 2 or 3 stack full-width panels with a set-plan box; 4 and 6 are grids. */
+  perPage: 1 | 2 | 3 | 4 | 6;
+  showReference: boolean;
+}
+
+// ---- Plan: contacts and tasks ----
+
+export type ContactKind = 'crew' | 'cast' | 'vendor' | 'location' | 'agent' | 'other';
+
+/** People and companies other than the cast / crew rosters (which stay in cast[] / crew[]). */
+export interface Contact {
+  id: Id;
+  name: string;
+  kind: ContactKind;
+  role: string;
+  company: string;
+  phone: string;
+  email: string;
+  notes: string;
+}
+
+export interface Task {
+  id: Id;
+  title: string;
+  done: boolean;
+  due?: ISODate;
+  /** Contact, cast or crew id (free text allowed). */
+  assignee?: string;
+  department?: string;
+  priority?: 'high' | 'normal' | 'low';
+  notes?: string;
+  order: number;
+}
+
+// ---- Write: documents and A/V scripts ----
+
+export interface DocFile {
+  id: Id;
+  title: string;
+  /** ProseMirror JSON of the docs schema (script/docSchema.ts). */
+  doc: unknown;
+  updatedAt: string;
+}
+
+export interface AVRow {
+  id: Id;
+  /** Optional segment heading shown above the row (acts like a scene for A/V scripts). */
+  segment?: string;
+  video: string;
+  audio: string;
+  duration: string; // "0:15"
+  shotType?: string;
+  /** Screenplay scene this row was imported from (so re-importing only adds new scenes). */
+  sceneId?: Id;
+}
+
+export interface AVScript {
+  id: Id;
+  title: string;
+  rows: AVRow[];
+  updatedAt: string;
+}
+
+// ---- Visualize: mood boards and whiteboards ----
+
+export type BoardItemType = 'image' | 'note' | 'text' | 'link' | 'swatch' | 'shape' | 'frame' | 'stroke';
+
+export interface BoardItem {
+  id: Id;
+  type: BoardItemType;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+  /** Image stored in IndexedDB (media). */
+  imageId?: Id;
+  /** Remote image URL when the image could not be copied (e.g. blocked by the host). */
+  imageUrl?: string;
+  /** Where the image/link came from (original website). */
+  sourceUrl?: string;
+  /** Pinterest pin page, for pins imported from Pinterest. */
+  pinUrl?: string;
+  caption?: string;
+  text?: string;
+  color?: string;
+  shape?: 'rect' | 'ellipse' | 'arrow' | 'line';
+  /** Stroke points relative to x/y. */
+  points?: number[];
+  strokeWidth?: number;
+  /** Links into the production: these make the image show up in breakdown, shots and locations. */
+  sceneIds?: Id[];
+  locationIds?: Id[];
+  characters?: string[];
+  shotIds?: Id[];
+}
+
+export interface Board {
+  id: Id;
+  title: string;
+  kind: 'mood' | 'whiteboard';
+  items: BoardItem[];
+  /** Live collaboration room id when shared. */
+  roomId?: string;
+  updatedAt: string;
+}
+
+export interface ProductionInfo {
+  company: string;
+  director: string;
+  producer: string;
+  ad: string;
+  contactPhone: string;
+  defaultCall: string;
+  defaultLunch: string;
+}
+
+/** An invite link the owner created (kept locally so it can be copied again; the relay only stores its hash). */
+export interface ShareLink {
+  token: string;
+  label: string;
+  /** Channels this link may change: ['*'] = everything, [] = view only. */
+  write: string[];
+  created: string;
+}
+
+/** This person's access to a shared project. Never synced; travels in linked .opengate files. */
+export interface ShareInfo {
+  relay: string;
+  room: string;
+  /** End-to-end encryption key (base64url). Only ever in links and on this device. */
+  key: string;
+  /** Link token, or the owner's admin secret. */
+  token: string;
+  admin: boolean;
+  /** Channels this person may change, as the relay reported it. */
+  write: string[];
+  links?: ShareLink[];
+  /** Set by the owner when sharing starts, until the first upload is done. */
+  fresh?: boolean;
+  joinedAt: string;
+}
+
+export interface Project {
+  schemaVersion: number;
+  id: Id;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  production: ProductionInfo;
+  titlePage: TitlePage;
+  /** ProseMirror document JSON (see script/schema.ts). */
+  scriptDoc: unknown;
+  sceneNumbersLocked: boolean;
+  sceneMeta: Record<Id, SceneMeta>;
+  categories: Category[];
+  elements: BreakdownElement[];
+  cast: CastMember[];
+  locations: Location[];
+  crew: CrewMember[];
+  shots: Shot[];
+  schedule: Schedule;
+  events: CalendarEvent[];
+  /** Call sheet per shoot day, keyed by ShootDay.id. */
+  callSheets: Record<Id, CallSheet>;
+  storyboard: StoryboardFrame[];
+  storyboardSettings?: StoryboardSettings;
+  contacts: Contact[];
+  tasks: Task[];
+  docs: DocFile[];
+  avScripts: AVScript[];
+  boards: Board[];
+  notes: string;
+  /** Present when this project is shared through a relay. */
+  share?: ShareInfo;
+}

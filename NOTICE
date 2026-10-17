@@ -1,0 +1,25 @@
+Open Gate
+Copyright (C) 2026 Open Gate contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See LICENSE.
+
+Portions of the scheduling logic (stripboard timeline cascade, conflict and
+schedule-lock scanning, strip color palette, date-range shifting, CineSched
+project import) are derived from CineSched 5.0, GPL-3.0:
+  - CineSched, original app by Christopher Tempel
+    https://github.com/ChrisTempel/CineSched
+  - Stripboard, calendar, banners and PDF exports by alucardGonza
+    https://github.com/alucardGonza/CineSched_D.G.D
+
+Screenplay element rules (Tab/Enter flow, import classifier), shot list fields
+and option lists are based on the free tools by Inwood Park Productions:
+"Don't Pay For Screenwriting Software", "Don't Pay For Storyboarding Software"
+and "Shot List for Free" — https://github.com/InwoodParkProductions
+
+Third-party libraries (see package.json) keep their own licenses:
+React, ProseMirror, Zustand, Immer, Dexie (MIT / Apache-2.0), pdf.js (Apache-2.0),
+jsPDF (MIT), JSZip (MIT / GPL-3.0 dual), mammoth (BSD-2-Clause),
+SheetJS Community Edition (Apache-2.0).
