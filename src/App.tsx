@@ -12,6 +12,8 @@ import { SetupTab } from './tabs/SetupTab';
 import { ShootTab } from './tabs/ShootTab';
 import { StoryboardTab } from './tabs/StoryboardTab';
 import { DoodView } from './tabs/reports/DoodView';
+import { BudgetTab } from './tabs/budget/BudgetTab';
+import { ExpensesTab } from './tabs/budget/ExpensesTab';
 import { CallSheetsView } from './tabs/reports/CallSheetsView';
 import { SidesView } from './tabs/reports/SidesView';
 import { DocsTab } from './tabs/DocsTab';
@@ -33,10 +35,11 @@ import { AccessBanner } from './components/share/AccessBanner';
 import { startSync, stopSync, currentSync } from './sync/engine';
 import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
-export type SectionId = 'write' | 'breakdown' | 'plan' | 'visualize' | 'shoot' | 'settings';
+export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'settings';
 export type TabId =
   | 'screenplay' | 'av' | 'docs'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
+  | 'budget' | 'expenses'
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots'
   | 'callsheets' | 'locations' | 'reports'
@@ -53,6 +56,10 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'stripboard', label: 'Stripboard', hint: 'Order scenes into shoot days' },
     { id: 'dood', label: 'Day Out of Days', hint: 'Cast work days across the shoot' },
     { id: 'sides', label: 'Script Sides', hint: 'Each day’s pages for cast and crew' },
+  ] },
+  { id: 'budget', label: 'Budget', tabs: [
+    { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
+    { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
   ] },
   { id: 'plan', label: 'Plan', tabs: [
     { id: 'contacts', label: 'Contacts', hint: 'Cast, crew, vendors and other contacts' },
@@ -203,6 +210,8 @@ export function App() {
         {tab === 'stripboard' && <ScheduleTab />}
         {tab === 'dood' && <DoodView />}
         {tab === 'sides' && <SidesView />}
+        {tab === 'budget' && <BudgetTab />}
+        {tab === 'expenses' && <ExpensesTab />}
         {tab === 'contacts' && <ContactsTab />}
         {tab === 'calendar' && <CalendarTab />}
         {tab === 'tasks' && <TasksTab />}

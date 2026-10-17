@@ -19,7 +19,7 @@ export async function deleteMedia(ids: string[]): Promise<void> {
   await db.media.bulkDelete(ids);
 }
 
-export const MEDIA_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg' };
+export const MEDIA_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'application/pdf': 'pdf' };
 export const EXT_TYPE: Record<string, string> = Object.fromEntries(Object.entries(MEDIA_EXT).map(([t, e]) => [e, t]));
 
 // Small in-memory version counter so every thumbnail of a blob refreshes when it's rewritten.

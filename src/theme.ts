@@ -6,7 +6,9 @@ import { create } from 'zustand';
 export type ThemeMode = 'light' | 'dark' | 'system';
 /** User colors for one mode. Missing values keep the built-in theme. */
 export interface Palette { bg?: string; panel?: string; text?: string; accent?: string; /** Open Gate logo color (defaults to the text color). */ logo?: string }
-export interface ThemePrefs { mode: ThemeMode; light: Palette; dark: Palette }
+export interface ThemePrefs { mode: ThemeMode; light: Palette; dark: Palette; saved: SavedTheme[] }
+/** A custom appearance the user saved under a name. */
+export interface SavedTheme { id: string; name: string; light: Palette; dark: Palette }
 
 const KEY = 'slateline.theme';
 
@@ -27,20 +29,68 @@ export const PRESETS: { name: string; light: Palette; dark: Palette }[] = [
 function load(): ThemePrefs {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? '');
-    if (v && (v.mode === 'light' || v.mode === 'dark' || v.mode === 'system')) return { mode: v.mode, light: v.light ?? {}, dark: v.dark ?? {} };
+    if (v && (v.mode === 'light' || v.mode === 'dark' || v.mode === 'system')) return { mode: v.mode, light: v.light ?? {}, dark: v.dark ?? {}, saved: parseThemes(v.saved) };
   } catch { /* defaults */ }
-  return { mode: 'system', light: {}, dark: {} };
+  return { mode: 'system', light: {}, dark: {}, saved: [] };
 }
+
+const COLOR = /^#[0-9a-f]{6}$/i;
+function cleanPalette(p: unknown): Palette {
+  const out: Palette = {};
+  if (p && typeof p === 'object') {
+    for (const k of ['bg', 'panel', 'text', 'accent', 'logo'] as const) {
+      const v = (p as Record<string, unknown>)[k];
+      if (typeof v === 'string' && COLOR.test(v)) out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** Reads saved themes from storage or an imported file, dropping anything malformed. */
+export function parseThemes(input: unknown): SavedTheme[] {
+  const list = Array.isArray(input) ? input : (input && typeof input === 'object' && Array.isArray((input as { themes?: unknown }).themes) ? (input as { themes: unknown[] }).themes : []);
+  return list
+    .filter((t): t is Record<string, unknown> => !!t && typeof t === 'object' && typeof (t as { name?: unknown }).name === 'string')
+    .map((t) => ({ id: typeof t.id === 'string' ? t.id : crypto.randomUUID(), name: String(t.name).slice(0, 60), light: cleanPalette(t.light), dark: cleanPalette(t.dark) }));
+}
+
+/** A themes file other browsers can import. */
+export function exportThemes(saved: SavedTheme[]): string {
+  return JSON.stringify({ app: 'open-gate', kind: 'themes', version: 1, themes: saved.map(({ name, light, dark }) => ({ name, light, dark })) }, null, 2);
+}
+
+export const samePalettes = (a: { light: Palette; dark: Palette }, b: { light: Palette; dark: Palette }) =>
+  JSON.stringify(cleanPalette(a.light)) === JSON.stringify(cleanPalette(b.light)) && JSON.stringify(cleanPalette(a.dark)) === JSON.stringify(cleanPalette(b.dark));
 
 export const useTheme = create<ThemePrefs & {
   setMode: (m: ThemeMode) => void;
   setColor: (which: 'light' | 'dark', key: keyof Palette, value: string | undefined) => void;
   setPalettes: (light: Palette, dark: Palette) => void;
-}>((set) => ({
+  saveTheme: (name: string) => void;
+  renameTheme: (id: string, name: string) => void;
+  deleteTheme: (id: string) => void;
+  /** Adds themes from a file; names already used get a number. Returns how many were added. */
+  importThemes: (json: unknown) => number;
+}>((set, get) => ({
   ...load(),
   setMode: (mode) => set({ mode }),
   setColor: (which, key, value) => set((s) => ({ [which]: { ...s[which], [key]: value } }) as Partial<ThemePrefs>),
   setPalettes: (light, dark) => set({ light: { ...light }, dark: { ...dark } }),
+  saveTheme: (name) => set((s) => ({ saved: [...s.saved, { id: crypto.randomUUID(), name: name.trim().slice(0, 60) || 'My theme', light: { ...s.light }, dark: { ...s.dark } }] })),
+  renameTheme: (id, name) => set((s) => ({ saved: s.saved.map((t) => (t.id === id ? { ...t, name: name.trim().slice(0, 60) || t.name } : t)) })),
+  deleteTheme: (id) => set((s) => ({ saved: s.saved.filter((t) => t.id !== id) })),
+  importThemes: (json) => {
+    const incoming = parseThemes(json).filter((t) => !get().saved.some((x) => samePalettes(x, t)));
+    const names = new Set(get().saved.map((t) => t.name));
+    const added = incoming.map((t) => {
+      let name = t.name; let i = 2;
+      while (names.has(name)) name = `${t.name} ${i++}`;
+      names.add(name);
+      return { ...t, id: crypto.randomUUID(), name };
+    });
+    set((s) => ({ saved: [...s.saved, ...added] }));
+    return added.length;
+  },
 }));
 
 const media = () => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null);
@@ -82,7 +132,7 @@ export function applyTheme(prefs: ThemePrefs = useTheme.getState()) {
 export function startTheme() {
   applyTheme();
   useTheme.subscribe((s) => {
-    try { localStorage.setItem(KEY, JSON.stringify({ mode: s.mode, light: s.light, dark: s.dark })); } catch { /* ignore */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ mode: s.mode, light: s.light, dark: s.dark, saved: s.saved })); } catch { /* ignore */ }
     applyTheme(s);
   });
   media()?.addEventListener('change', () => applyTheme());

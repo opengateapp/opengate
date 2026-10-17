@@ -1,8 +1,9 @@
 import type { Category, ColorSlot, Project, Schedule } from './types';
 import { newId } from './ids';
+import { newBudget } from '../budget/accounts';
 import { addDays, dateRange, todayISO } from './dates';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Industry-standard breakdown categories and their conventional highlight colors. */
 export const DEFAULT_CATEGORIES: Category[] = [
@@ -105,6 +106,7 @@ export function newProject(title = 'Untitled Screenplay'): Project {
     docs: [],
     avScripts: [],
     boards: [],
+    budget: newBudget(),
     notes: '',
   };
 }

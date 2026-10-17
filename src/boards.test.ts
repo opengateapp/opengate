@@ -62,6 +62,20 @@ describe('invite links', () => {
     expect(parseInvite(link)).toEqual(inv);
     expect(parseInvite('#join=garbage')).toBeNull();
   });
+  it('carries the budget key only in links that share the budget', async () => {
+    const base = { relay: 'https://r.dev', room: 'abcdefghijklmnopqrst', token: 't', key: 'k', projectId: 'p', title: 'x', write: ['*'] };
+    expect(parseInvite(inviteUrl(base, 'https://a/'))).toEqual(base);
+    expect(parseInvite(inviteUrl({ ...base, budgetKey: 'bk' }, 'https://a/'))?.budgetKey).toBe('bk');
+    const { useSync, canWrite, budgetVisible } = await import('./sync/state');
+    useSync.setState({ write: ['*'], admin: false, budget: false });
+    expect(canWrite('plan')).toBe(true);
+    expect(canWrite('budget')).toBe(false); // "everything" never includes the budget
+    expect(budgetVisible()).toBe(false);
+    useSync.setState({ write: ['budget'], budget: true });
+    expect(canWrite('budget')).toBe(true);
+    expect(budgetVisible()).toBe(true);
+    useSync.setState({ write: null, admin: false, budget: true });
+  });
   it('turns relay addresses into websocket hosts', () => {
     expect(relayHost('open-gate-relay.me.workers.dev')).toEqual({ host: 'open-gate-relay.me.workers.dev', protocol: 'wss' });
     expect(relayHost('http://localhost:8787')).toEqual({ host: 'localhost:8787', protocol: 'ws' });
@@ -77,14 +91,16 @@ describe('contacts', () => {
   });
 });
 
-describe('project migration v3', () => {
+describe('project migration', () => {
   it('adds plan, docs, A/V and boards to older projects', () => {
     const old = { ...newProject('Old') } as Record<string, unknown>;
     for (const k of ['contacts', 'tasks', 'docs', 'avScripts', 'boards']) delete old[k];
     const p = migrate(old);
     expect(p.boards).toEqual([]);
     expect(p.tasks).toEqual([]);
-    expect(p.schemaVersion).toBe(3);
+    expect(p.schemaVersion).toBe(4);
+    expect(p.budget.accounts.length).toBeGreaterThan(20);
+    expect(p.budget.lines).toEqual([]);
   });
   it('bundles board images and location photos in project files', () => {
     const p = newProject('x');
@@ -102,6 +118,21 @@ describe('appearance', () => {
     expect(css).toContain('--accent:#ff0000');
     expect(css).toContain('--logo:#00ff00');
     expect(paletteCss('light', {})).toBe('');
+  });
+  it('saves, exports and imports named themes', async () => {
+    const { useTheme, exportThemes, parseThemes } = await import('./theme');
+    useTheme.setState({ light: { accent: '#112233' }, dark: { bg: '#000000', accent: '#ffcc00' }, saved: [] });
+    useTheme.getState().saveTheme('Night shoot');
+    const [th] = useTheme.getState().saved;
+    expect(th).toMatchObject({ name: 'Night shoot', light: { accent: '#112233' }, dark: { accent: '#ffcc00' } });
+    const file = JSON.parse(exportThemes(useTheme.getState().saved));
+    expect(file.themes).toEqual([{ name: 'Night shoot', light: { accent: '#112233' }, dark: { bg: '#000000', accent: '#ffcc00' } }]);
+    // Same colors again are skipped; a different theme with a taken name gets a number.
+    expect(useTheme.getState().importThemes(file)).toBe(0);
+    expect(useTheme.getState().importThemes({ themes: [{ name: 'Night shoot', light: { accent: '#abcdef' }, dark: {} }] })).toBe(1);
+    expect(useTheme.getState().saved.map((t) => t.name)).toEqual(['Night shoot', 'Night shoot 2']);
+    // Junk is dropped.
+    expect(parseThemes([{ name: 'x', light: { accent: 'red; } body { display:none' } }, 42])).toEqual([{ id: expect.any(String), name: 'x', light: {}, dark: {} }]);
   });
 });
 

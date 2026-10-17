@@ -9,6 +9,8 @@ import { toast } from '../components/common';
 import { CallSheetsView } from './reports/CallSheetsView';
 import { DoodView } from './reports/DoodView';
 import { exportStoryboardPdf } from './storyboard/render';
+import { exportBudget } from './budget/BudgetTab';
+import { budgetVisible } from '../sync/state';
 
 /** Reports hub: schedules, call sheets, Day Out of Days, sides, breakdown sheets, storyboards. */
 export function ShootTab() {
@@ -67,6 +69,10 @@ export function ShootTab() {
     { title: 'Stripboard', desc: 'Color-coded strips by day with end-of-day totals.', action: run(() => pdf('strip')) },
     { title: 'Breakdown report', desc: 'Every scene with its elements by category (CSV).', action: () => download(`${name} - breakdown.csv`, breakdownCsv(p, getDerived()), 'text/csv') },
     { title: 'Shot list', desc: 'All shots in script order (CSV).', action: () => download(`${name} - shot list.csv`, shotListCsv(p, getDerived()), 'text/csv') },
+    ...(budgetVisible() ? [
+      { title: 'Budget (PDF)', desc: 'Top sheet and every line by account, with targets and actuals when you use them.', action: run(() => exportBudget(latest(), 'pdf')), disabled: !p.budget.lines.length },
+      { title: 'Budget (Excel)', desc: 'Top sheet, detail with live formulas, and expenses.', action: run(() => exportBudget(latest(), 'xlsx')), disabled: !p.budget.lines.length },
+    ] : []),
     { title: 'Calendar (.ics)', desc: 'Shoot days and events for Google / Apple / Outlook.', action: () => download(`${name} schedule.ics`, buildICS(p, getDerived()), 'text/calendar') },
   ];
   return (

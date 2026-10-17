@@ -10,14 +10,18 @@ import { DurableObject } from 'cloudflare:workers';
 //
 //   admin secret  — the project owner; can create and revoke links
 //   link token    — stored here only as a SHA-256 hash, with the channels it may write
+//                   and the restricted channels it may read
 //
-// Channels: script, write, breakdown, plan, visualize, shoot, settings.
+// Channels: script, write, breakdown, plan, visualize, shoot, settings, budget.
+// The budget is restricted: it's only sent to the owner and to links that were given it
+// (it's also encrypted with a separate key that only those links carry).
 
 interface Env { ROOMS: DurableObjectNamespace }
-interface Perms { write: string[]; admin: boolean; h?: string }
+interface Perms { write: string[]; read?: string[]; admin: boolean; h?: string }
 interface Attachment { c: string; perms: Perms }
 
-const CHANNELS = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings'];
+const CHANNELS = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'];
+const RESTRICTED = ['budget'];
 const CHUNK = 900_000;
 const MAX_MEDIA = 25_000_000;
 const CORS = {
@@ -35,7 +39,8 @@ async function sha256(s: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const canWrite = (p: Perms, ch: string) => p.admin || p.write.includes('*') || p.write.includes(ch);
+const canWrite = (p: Perms, ch: string) => p.admin || p.write.includes(ch) || (p.write.includes('*') && !RESTRICTED.includes(ch));
+const canRead = (p: Perms, ch: string) => p.admin || !RESTRICTED.includes(ch) || p.write.includes(ch) || !!p.read?.includes(ch);
 
 export class Room extends DurableObject<Env> {
   sql: SqlStorage;
@@ -51,6 +56,8 @@ export class Room extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS snap (ch TEXT, i INTEGER, upTo INTEGER, d TEXT, PRIMARY KEY (ch, i));
       CREATE TABLE IF NOT EXISTS media (id TEXT, i INTEGER, d BLOB, PRIMARY KEY (id, i));
     `);
+    // Rooms made before budgets: add the read column.
+    if (!this.sql.exec("SELECT 1 FROM pragma_table_info('links') WHERE name = 'read'").toArray().length) this.sql.exec('ALTER TABLE links ADD COLUMN read TEXT');
   }
 
   private meta(k: string): string | null {
@@ -63,8 +70,8 @@ export class Room extends DurableObject<Env> {
     if (!token) return null;
     const h = await sha256(token);
     if (h === this.meta('adminHash')) return { write: ['*'], admin: true, h };
-    const r = this.sql.exec('SELECT write FROM links WHERE hash = ?', h).toArray()[0];
-    return r ? { write: JSON.parse(r.write as string), admin: false, h } : null;
+    const r = this.sql.exec('SELECT write, read FROM links WHERE hash = ?', h).toArray()[0];
+    return r ? { write: JSON.parse(r.write as string), read: r.read ? JSON.parse(r.read as string) : [], admin: false, h } : null;
   }
 
   private latest(ch: string): number {
@@ -83,7 +90,10 @@ export class Room extends DurableObject<Env> {
     this.sql.exec('INSERT INTO log (ch, s, d) VALUES (?, ?, ?)', ch, s, d);
     this.sql.exec('INSERT INTO seq (ch, s) VALUES (?, ?) ON CONFLICT(ch) DO UPDATE SET s = excluded.s', ch, s);
     const msg = JSON.stringify({ t: 'log', ch, e: [[s, d]] });
-    for (const ws of this.ctx.getWebSockets()) if (ws !== except) { try { ws.send(msg); } catch { /* closed */ } }
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws === except || !canRead((ws.deserializeAttachment() as Attachment).perms, ch)) continue;
+      try { ws.send(msg); } catch { /* closed */ }
+    }
     return s;
   }
 
@@ -117,18 +127,19 @@ export class Room extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
 
-    if (action === 'whoami') return json({ write: perms.write, admin: perms.admin });
+    if (action === 'whoami') return json({ write: perms.write, read: perms.read ?? [], admin: perms.admin });
 
     if (action === 'links') {
       if (!perms.admin) return fail(403, 'only the project owner can manage links');
       if (req.method === 'GET') {
-        return json(this.sql.exec('SELECT hash, label, write, created FROM links ORDER BY created').toArray().map((r) => ({ hash: r.hash, label: r.label, write: JSON.parse(r.write as string), created: r.created })));
+        return json(this.sql.exec('SELECT hash, label, write, read, created FROM links ORDER BY created').toArray().map((r) => ({ hash: r.hash, label: r.label, write: JSON.parse(r.write as string), read: r.read ? JSON.parse(r.read as string) : [], created: r.created })));
       }
       if (req.method === 'POST') {
-        const b = (await req.json()) as { hash?: string; label?: string; write?: string[] };
+        const b = (await req.json()) as { hash?: string; label?: string; write?: string[]; read?: string[] };
         if (!b.hash || !/^[0-9a-f]{64}$/.test(b.hash) || !Array.isArray(b.write)) return fail(400, 'bad link');
         const write = b.write.filter((c) => c === '*' || CHANNELS.includes(c));
-        this.sql.exec('INSERT OR REPLACE INTO links (hash, label, write, created) VALUES (?, ?, ?, ?)', b.hash, (b.label ?? '').slice(0, 120), JSON.stringify(write), Date.now());
+        const read = (Array.isArray(b.read) ? b.read : []).filter((c) => RESTRICTED.includes(c));
+        this.sql.exec('INSERT OR REPLACE INTO links (hash, label, write, read, created) VALUES (?, ?, ?, ?, ?)', b.hash, (b.label ?? '').slice(0, 120), JSON.stringify(write), JSON.stringify(read), Date.now());
         return json({ ok: true });
       }
       if (req.method === 'DELETE' && arg) {
@@ -152,6 +163,7 @@ export class Room extends DurableObject<Env> {
     // Snapshots: a writer uploads the full (encrypted) state of a channel; older log entries are dropped.
     if (action === 'snap' && arg && CHANNELS.includes(arg)) {
       if (req.method === 'GET') {
+        if (!canRead(perms, arg)) return fail(403, 'not shared with this link');
         const rows = this.sql.exec('SELECT upTo, d FROM snap WHERE ch = ? ORDER BY i', arg).toArray();
         if (!rows.length) return fail(404, 'no snapshot');
         return json({ upTo: rows[0].upTo, d: rows.map((r) => r.d).join('') });
@@ -203,6 +215,7 @@ export class Room extends DurableObject<Env> {
     try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { return; }
     if (m.t === 'sub') {
       for (const ch of CHANNELS) {
+        if (!canRead(a.perms, ch)) continue;
         // since = last update this client has (-1: it has nothing yet, not even the starting snapshot).
         const since = m.since?.[ch] ?? -1;
         const hasSnap = this.sql.exec('SELECT 1 FROM snap WHERE ch = ? AND i = 0', ch).toArray().length > 0;
@@ -220,7 +233,8 @@ export class Room extends DurableObject<Env> {
         }
         if (batch.length) ws.send(JSON.stringify({ t: 'log', ch, e: batch }));
       }
-      ws.send(JSON.stringify({ t: 'ready', perms: { write: a.perms.write, admin: a.perms.admin }, latest: Object.fromEntries(CHANNELS.map((c) => [c, this.latest(c)])) }));
+      const readable = CHANNELS.filter((c) => canRead(a.perms, c));
+      ws.send(JSON.stringify({ t: 'ready', perms: { write: a.perms.write, read: a.perms.read ?? [], admin: a.perms.admin }, latest: Object.fromEntries(readable.map((c) => [c, this.latest(c)])) }));
       return;
     }
     if (m.t === 'up' && m.ch && m.d && CHANNELS.includes(m.ch)) {

@@ -21,5 +21,10 @@ export function migrate(input: unknown): Project {
   for (const k of ['contacts', 'tasks', 'docs', 'avScripts', 'boards'] as const) {
     (out as unknown as Record<string, unknown>)[k] = Array.isArray(p[k]) ? p[k] : [];
   }
+  // v4: budget
+  const b = p.budget as Partial<Project['budget']> | undefined;
+  out.budget = b && typeof b === 'object'
+    ? { ...base.budget, ...b, accounts: b.accounts?.length ? b.accounts : base.budget.accounts, lines: b.lines ?? [], fringes: b.fringes ?? base.budget.fringes, scenarios: b.scenarios ?? [], expenses: b.expenses ?? [] }
+    : base.budget;
   return out;
 }

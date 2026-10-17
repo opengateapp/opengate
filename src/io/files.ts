@@ -38,6 +38,7 @@ export function mediaIds(p: Project): string[] {
     ...p.storyboard.flatMap((f) => [f.refImageId, f.refDrawingId]),
     ...Object.values(p.callSheets).map((c) => c.logoId),
     p.titlePage.logoId,
+    ...(p.budget?.expenses ?? []).map((e) => e.receiptId),
   ].filter((x): x is string => !!x))];
 }
 
@@ -51,6 +52,7 @@ function remapMedia(p: Project, remap: Map<string, string>): Project {
     locations: p.locations.map((l) => ({ ...l, photoIds: l.photoIds?.map((x) => re(x)!) })),
     callSheets: Object.fromEntries(Object.entries(p.callSheets).map(([k, c]) => [k, { ...c, logoId: re(c.logoId) }])),
     titlePage: { ...p.titlePage, logoId: re(p.titlePage.logoId) },
+    budget: p.budget && { ...p.budget, expenses: p.budget.expenses.map((e) => ({ ...e, receiptId: re(e.receiptId) })) },
   };
 }
 

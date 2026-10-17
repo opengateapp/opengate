@@ -22,10 +22,14 @@ export function relayHost(url: string): { host: string; protocol: 'ws' | 'wss' }
   } catch { return null; }
 }
 
-export interface Invite { relay: string; room: string; token: string; key: string; projectId: string; title: string; write: string[] }
+export interface Invite {
+  relay: string; room: string; token: string; key: string; projectId: string; title: string; write: string[];
+  /** The budget's key, only in links the owner shared the budget through. */
+  budgetKey?: string;
+}
 
 export function inviteUrl(inv: Invite, base = `${location.origin}${location.pathname}`): string {
-  const payload = { v: 1, r: inv.relay, m: inv.room, t: inv.token, k: inv.key, p: inv.projectId, n: inv.title, w: inv.write };
+  const payload = { v: 1, r: inv.relay, m: inv.room, t: inv.token, k: inv.key, p: inv.projectId, n: inv.title, w: inv.write, ...(inv.budgetKey ? { b: inv.budgetKey } : {}) };
   return `${base}#join=${b64url(new TextEncoder().encode(JSON.stringify(payload)))}`;
 }
 
@@ -35,7 +39,7 @@ export function parseInvite(hashOrUrl: string): Invite | null {
   try {
     const j = JSON.parse(new TextDecoder().decode(fromB64url(m[1])));
     if (j.v !== 1 || !j.r || !j.m || !j.t || !j.k || !j.p) return null;
-    return { relay: j.r, room: j.m, token: j.t, key: j.k, projectId: j.p, title: j.n || 'Shared project', write: Array.isArray(j.w) ? j.w : [] };
+    return { relay: j.r, room: j.m, token: j.t, key: j.k, projectId: j.p, title: j.n || 'Shared project', write: Array.isArray(j.w) ? j.w : [], ...(typeof j.b === 'string' && j.b ? { budgetKey: j.b } : {}) };
   } catch { return null; }
 }
 
@@ -52,26 +56,33 @@ export async function startSharing(relay: string): Promise<void> {
   const room = randomSecret(18);
   const secret = randomSecret(24);
   const key = await newKey();
+  const budgetKey = await newKey();
   await initRoom(relay, room, await sha256Hex(secret));
   setRelay(relay);
-  const share: ShareInfo = { relay, room, key, token: secret, admin: true, write: ['*'], links: [], fresh: true, joinedAt: new Date().toISOString() };
+  const share: ShareInfo = { relay, room, key, budgetKey, token: secret, admin: true, write: ['*'], links: [], fresh: true, joinedAt: new Date().toISOString() };
   useStore.getState().update((d) => { d.share = share; }, null);
 }
 
-/** Owner: a new invite link. write: ['*'] = edit everything, [] = view only, or a list of channels. */
-export async function createLink(label: string, write: string[]): Promise<{ link: ShareLink; url: string }> {
+/**
+ * Owner: a new invite link. write: ['*'] = edit everything, [] = view only, or a list of channels.
+ * budget: whether the link can see ('view') or change ('edit') the budget; it's never included in "everything".
+ */
+export async function createLink(label: string, write: string[], budget: 'none' | 'view' | 'edit' = 'none'): Promise<{ link: ShareLink; url: string }> {
   const p = useStore.getState().project!;
   const share = p.share!;
   const token = randomSecret(24);
-  await admin(share, 'POST', 'links', { hash: await sha256Hex(token), label, write });
-  const link: ShareLink = { token, label, write, created: new Date().toISOString() };
+  const w = budget === 'edit' ? [...write.filter((c) => c !== 'budget'), 'budget'] : write.filter((c) => c !== 'budget');
+  const read = budget === 'none' ? [] : ['budget'];
+  await admin(share, 'POST', 'links', { hash: await sha256Hex(token), label, write: w, read });
+  const link: ShareLink = { token, label, write: w, read, created: new Date().toISOString() };
   useStore.getState().update((d) => { d.share!.links = [...(d.share!.links ?? []), link]; }, null);
   return { link, url: linkUrl(p, link) };
 }
 
 export function linkUrl(p: Project, link: ShareLink): string {
   const s = p.share!;
-  return inviteUrl({ relay: s.relay, room: s.room, token: link.token, key: s.key, projectId: p.id, title: p.title, write: link.write });
+  const budget = (link.read ?? []).includes('budget') || link.write.includes('budget');
+  return inviteUrl({ relay: s.relay, room: s.room, token: link.token, key: s.key, projectId: p.id, title: p.title, write: link.write, budgetKey: budget ? s.budgetKey : undefined });
 }
 
 export async function revokeLink(token: string): Promise<void> {

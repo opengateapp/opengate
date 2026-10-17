@@ -486,6 +486,8 @@ export interface ShareLink {
   label: string;
   /** Channels this link may change: ['*'] = everything, [] = view only. */
   write: string[];
+  /** Restricted channels this link may see (the budget). */
+  read?: string[];
   created: string;
 }
 
@@ -495,6 +497,8 @@ export interface ShareInfo {
   room: string;
   /** End-to-end encryption key (base64url). Only ever in links and on this device. */
   key: string;
+  /** Separate key for the budget; only people the owner shared the budget with have it. */
+  budgetKey?: string;
   /** Link token, or the owner's admin secret. */
   token: string;
   admin: boolean;
@@ -504,6 +508,84 @@ export interface ShareInfo {
   /** Set by the owner when sharing starts, until the first upload is done. */
   fresh?: boolean;
   joinedAt: string;
+}
+
+// ---------- Budget ----------
+
+/** Top-sheet groups: above the line, below the line (production), post, other. */
+export type BudgetGroup = 'atl' | 'btl' | 'post' | 'other';
+export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each';
+/** Where a linked line's quantity comes from. */
+export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays';
+
+export interface BudgetAccount {
+  id: Id;
+  code: string;
+  name: string;
+  group: BudgetGroup;
+  /** Top-down allocation for this account (amount). */
+  target?: number;
+}
+
+export interface BudgetLine {
+  id: Id;
+  accountId: Id;
+  description: string;
+  /** Amount of units (days, weeks…); for linked lines this follows the breakdown and schedule. */
+  qty: number;
+  units: BudgetUnits;
+  /** Multiplier (people, items, episodes). */
+  x: number;
+  rate: number;
+  fringeIds: Id[];
+  notes?: string;
+  /** Imported from the breakdown; `auto` keeps the quantity in step with the script and schedule. */
+  link?: { kind: BudgetLinkKind; id?: Id; auto: boolean };
+}
+
+/** Payroll taxes, union pension & health…: a percentage of the lines it's applied to. */
+export interface BudgetFringe {
+  id: Id;
+  name: string;
+  pct: number;
+  /** Most of each line's amount the fringe applies to (wage caps). */
+  cap?: number;
+}
+
+/** A what-if version of the budget: changes on top of the base lines. */
+export interface BudgetScenario {
+  id: Id;
+  name: string;
+  /** Overrides the shoot length for lines that are per shoot day. */
+  shootDays?: number;
+  overrides: Record<Id, { qty?: number; x?: number; rate?: number; removed?: boolean }>;
+  added: BudgetLine[];
+}
+
+export interface BudgetExpense {
+  id: Id;
+  date: ISODate;
+  vendor: string;
+  description: string;
+  amount: number;
+  accountId: Id;
+  lineId?: Id;
+  /** Receipt photo or PDF (media id). */
+  receiptId?: Id;
+  paid: boolean;
+  method?: string;
+}
+
+export interface Budget {
+  currency: string;
+  accounts: BudgetAccount[];
+  lines: BudgetLine[];
+  fringes: BudgetFringe[];
+  contingencyPct: number;
+  /** Top-down total to plan against. */
+  targetTotal?: number;
+  scenarios: BudgetScenario[];
+  expenses: BudgetExpense[];
 }
 
 export interface Project {
@@ -535,6 +617,7 @@ export interface Project {
   docs: DocFile[];
   avScripts: AVScript[];
   boards: Board[];
+  budget: Budget;
   notes: string;
   /** Present when this project is shared through a relay. */
   share?: ShareInfo;

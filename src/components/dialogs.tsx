@@ -51,7 +51,7 @@ export function DialogHost() {
     }>
       {pending.message && <p>{pending.message}</p>}
       {pending.kind === 'text' && (
-        <input autoFocus value={text} placeholder={pending.placeholder} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') accept(); }} />
+        <input autoFocus onFocus={(e) => e.currentTarget.select()} value={text} placeholder={pending.placeholder} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') accept(); }} />
       )}
     </Modal>
   );

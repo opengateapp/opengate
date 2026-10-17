@@ -5,7 +5,9 @@ import type { Project } from '../model/types';
 // Inside a channel, data is stored as small entries (one per contact, strip day, shot,
 // board item …) so two people editing different things never overwrite each other.
 
-export const CHANNELS = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings'] as const;
+export const CHANNELS = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'] as const;
+/** Channels only sent to people the owner shared them with (encrypted with their own key). */
+export const RESTRICTED: readonly Channel[] = ['budget'];
 export type Channel = (typeof CHANNELS)[number];
 
 /** App sections a link can be limited to, and the channels each one may write. */
@@ -18,6 +20,7 @@ export const SECTION_CHANNELS: Record<string, Channel[]> = {
   visualize: ['visualize', 'script'],
   shoot: ['shoot'],
   settings: ['settings'],
+  budget: ['budget'],
 };
 
 export const SECTION_LABELS: Record<string, string> = {
@@ -27,10 +30,11 @@ export const SECTION_LABELS: Record<string, string> = {
   visualize: 'Visualize (storyboards, mood boards, shot lists)',
   shoot: 'Shoot (call sheets, locations)',
   settings: 'Project settings',
+  budget: 'Budget (accounts, scenarios, expenses)',
 };
 
 export const CHANNEL_LABELS: Record<Channel, string> = {
-  script: 'Script', write: 'Write', breakdown: 'Breakdown', plan: 'Plan', visualize: 'Visualize', shoot: 'Shoot', settings: 'Settings',
+  script: 'Script', write: 'Write', breakdown: 'Breakdown', plan: 'Plan', visualize: 'Visualize', shoot: 'Shoot', settings: 'Settings', budget: 'Budget',
 };
 
 /** Project fields that never sync (per-user, derived, or synced another way). */
@@ -43,6 +47,7 @@ const KEY_CHANNEL: Record<string, Channel> = {
   contacts: 'plan', tasks: 'plan', events: 'plan', cast: 'plan', crew: 'plan',
   shots: 'visualize', storyboard: 'visualize', storyboardSettings: 'visualize', boards: 'visualize',
   callSheets: 'shoot', locations: 'shoot',
+  budget: 'budget',
 };
 
 export function channelOf(key: string): Channel {
@@ -52,10 +57,12 @@ export function channelOf(key: string): Channel {
 
 const COLLECTIONS = new Set(['categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
 const RECORDS = new Set(['sceneMeta', 'callSheets']);
+const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses'];
 
 /** Which project field an entry key belongs to. */
 export function fieldOf(entryKey: string): string {
   if (entryKey.startsWith('schedule')) return 'schedule';
+  if (entryKey.startsWith('budget')) return 'budget';
   if (entryKey.startsWith('boardItems/') || entryKey.startsWith('boards')) return 'boards';
   const m = entryKey.match(/^([A-Za-z]+)/);
   return m ? m[1] : entryKey;
@@ -94,6 +101,14 @@ export function encodeField(key: string, value: unknown): Entries {
     const { days, ...meta } = value as { days: WithId[] };
     out.set('schedule', meta);
     encodeCollection('schedule.days', days, out);
+  } else if (key === 'budget') {
+    const b = value as unknown as Record<string, unknown>;
+    const meta: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(b)) {
+      if (BUDGET_LISTS.includes(k)) encodeCollection(`budget.${k}`, (v ?? []) as WithId[], out);
+      else meta[k] = v;
+    }
+    out.set('budget', meta);
   } else if (key === 'boards') {
     const boards = value as (WithId & { items: WithId[] })[];
     for (const b of boards) {
@@ -120,6 +135,11 @@ export function decodeField(key: string, get: (k: string) => unknown, keys: stri
     const meta = (get('schedule') ?? {}) as Record<string, unknown>;
     return { ...meta, days: decodeCollection('schedule.days', get, mine) };
   }
+  if (key === 'budget') {
+    const out: Record<string, unknown> = { ...((get('budget') ?? {}) as Record<string, unknown>) };
+    for (const k of BUDGET_LISTS) out[k] = decodeCollection(`budget.${k}`, get, mine);
+    return out;
+  }
   if (key === 'boards') {
     const boards = decodeCollection('boards', get, mine) as unknown as Record<string, unknown>[];
     return boards.map((b) => ({ ...b, items: decodeCollection(`boardItems/${b.id}`, get, mine) }));
@@ -136,13 +156,15 @@ export function projectFields(p: Project): string[] {
 export function describeEntry(entryKey: string, value: unknown): string {
   const field = fieldOf(entryKey);
   const v = (value ?? {}) as Record<string, unknown>;
-  const name = (v.name ?? v.title ?? v.characterName ?? v.realName ?? v.actorName ?? v.shotNumber ?? v.caption ?? v.text ?? v.date ?? '') as string;
+  const name = (v.name ?? v.title ?? v.description ?? v.vendor ?? v.characterName ?? v.realName ?? v.actorName ?? v.shotNumber ?? v.caption ?? v.text ?? v.date ?? '') as string;
   const labels: Record<string, string> = {
     title: 'Project title', production: 'Production info', titlePage: 'Title page', notes: 'Notes', docs: 'Docs', avScripts: 'A/V scripts',
     sceneNumbersLocked: 'Scene numbering', elements: 'Breakdown elements', sceneMeta: 'Scene details', categories: 'Breakdown tags',
     schedule: entryKey.startsWith('schedule.days') ? 'Stripboard day' : 'Schedule settings', contacts: 'Contacts', tasks: 'Tasks', events: 'Calendar events',
     cast: 'Cast', crew: 'Crew', shots: 'Shots', storyboard: 'Storyboard frames', storyboardSettings: 'Storyboard layout', boards: entryKey.startsWith('boardItems') ? 'Board item' : 'Boards',
     callSheets: 'Call sheets', locations: 'Locations', createdAt: 'Project info',
+    budget: entryKey.startsWith('budget.lines') ? 'Budget line' : entryKey.startsWith('budget.expenses') ? 'Expense' : entryKey.startsWith('budget.accounts') ? 'Budget account'
+      : entryKey.startsWith('budget.scenarios') ? 'Budget scenario' : entryKey.startsWith('budget.fringes') ? 'Fringe' : 'Budget settings',
   };
   const base = labels[field] ?? field;
   if (entryKey.endsWith('#order') || entryKey.endsWith('#')) return `${base} (order)`;

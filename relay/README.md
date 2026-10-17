@@ -22,7 +22,8 @@ A small Cloudflare Worker that passes changes between the people working on a sh
 
 - Each shared project is one room (a Durable Object with its own SQLite storage). It keeps an append-only log of updates, compacted snapshots per section, and board/location images.
 - **Everything is encrypted in the browser** (AES-256-GCM) with a key that's only in the invite link after `#`, which is never sent to the server. The relay can't read the script, names or images, only sizes and timings.
-- **Access is checked per section.** Each invite link has a random token; the relay stores only its SHA-256 hash and the sections it may change (`script`, `write`, `breakdown`, `plan`, `visualize`, `shoot`, `settings`). View-only links get no write sections. Updates to other sections are refused.
+- **Access is checked per section.** Each invite link has a random token; the relay stores only its SHA-256 hash and the sections it may change (`script`, `write`, `breakdown`, `plan`, `visualize`, `shoot`, `settings`, `budget`). View-only links get no write sections. Updates to other sections are refused.
+- **The budget is restricted.** It's only sent to the owner and to links whose `read` (or `write`) list includes `budget` — its log, snapshots and live updates are withheld from everyone else, and "edit everything" (`*`) doesn't include it. It's also encrypted with a separate key that only those links carry.
 - The project owner holds an admin secret (also never stored in plain form) used to create and revoke links and to stop sharing. Revoking a link disconnects only the people using it. Stopping sharing deletes the room.
 
 ## API (for reference)
@@ -33,7 +34,7 @@ All routes are under `/r/<room>/`, authenticated with an `x-token` or `x-admin` 
 |---|---|
 | `POST init` | Create the room with the owner's admin hash |
 | `GET ws` | Websocket: `sub` (catch up from a sequence number), `up` (send an update → `ack` / `denied`), `pres` (cursors and presence) |
-| `GET/POST links`, `DELETE links/<hash>` | List, create and revoke invite links (owner only) |
+| `GET/POST links`, `DELETE links/<hash>` | List, create (`{hash, label, write, read}`) and revoke invite links (owner only) |
 | `GET/PUT snap/<section>` | Download or upload a compacted snapshot |
 | `POST up/<section>` | Large updates over HTTP |
 | `GET/PUT media/<id>` | Encrypted images |

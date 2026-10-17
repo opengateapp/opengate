@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { useTheme, DEFAULTS, PRESETS, resolvedMode, type Palette } from '../theme';
+import { useRef, useState } from 'react';
+import { useTheme, DEFAULTS, PRESETS, resolvedMode, exportThemes, samePalettes, type Palette } from '../theme';
 import { Logo } from './Logo';
+import { askConfirm, askText } from './dialogs';
+import { toast } from './common';
+import { download } from '../io/files';
 
 const FIELDS: { key: keyof Palette; label: string; hint: string }[] = [
   { key: 'bg', label: 'Window background', hint: 'Behind everything' },
@@ -15,6 +18,36 @@ export function AppearanceSettings() {
   const t = useTheme();
   const [which, setWhich] = useState<'light' | 'dark'>(resolvedMode(t.mode));
   const pal = t[which];
+  const fileRef = useRef<HTMLInputElement>(null);
+  const current = { light: t.light, dark: t.dark };
+  const isSaved = PRESETS.some((pr) => samePalettes(pr, current)) || t.saved.some((x) => samePalettes(x, current));
+  const swatch = (light: Palette, dark: Palette) => {
+    const prev = { ...DEFAULTS[which], ...(which === 'light' ? light : dark) };
+    return (
+      <span className="preset-swatch" style={{ background: prev.bg }}>
+        <i style={{ background: prev.panel, color: prev.text }}>Aa</i>
+        <b style={{ background: prev.accent }} />
+      </span>
+    );
+  };
+  const saveAs = async () => {
+    const name = await askText('Save these colors as a theme', { placeholder: 'e.g. Night shoot', confirmLabel: 'Save theme' });
+    if (name) { t.saveTheme(name); toast(`Saved theme "${name.trim()}"`); }
+  };
+  const rename = async (id: string, old: string) => {
+    const name = await askText('Rename theme', { initial: old, confirmLabel: 'Rename' });
+    if (name) t.renameTheme(id, name);
+  };
+  const remove = async (id: string, name: string) => {
+    if (await askConfirm(`Delete the theme "${name}"?`, { message: 'Your current colors stay as they are.', confirmLabel: 'Delete', danger: true })) t.deleteTheme(id);
+  };
+  const importFile = async (f: File | undefined) => {
+    if (!f) return;
+    try {
+      const n = t.importThemes(JSON.parse(await f.text()));
+      toast(n ? `Imported ${n} theme${n === 1 ? '' : 's'}` : 'No new themes in that file');
+    } catch { toast("That file isn't an Open Gate themes file"); }
+  };
   return (
     <div className="appearance">
       <h3>Appearance</h3>
@@ -31,19 +64,42 @@ export function AppearanceSettings() {
 
       <h4>Color themes</h4>
       <div className="preset-grid">
-        {PRESETS.map((pr) => {
-          const prev = { ...DEFAULTS[which], ...pr[which] };
-          const active = JSON.stringify(pr.light) === JSON.stringify(t.light) && JSON.stringify(pr.dark) === JSON.stringify(t.dark);
-          return (
-            <button key={pr.name} className={`preset ${active ? 'on' : ''}`} onClick={() => t.setPalettes(pr.light, pr.dark)}>
-              <span className="preset-swatch" style={{ background: prev.bg }}>
-                <i style={{ background: prev.panel, color: prev.text }}>Aa</i>
-                <b style={{ background: prev.accent }} />
+        {PRESETS.map((pr) => (
+          <button key={pr.name} className={`preset ${samePalettes(pr, current) ? 'on' : ''}`} onClick={() => t.setPalettes(pr.light, pr.dark)}>
+            {swatch(pr.light, pr.dark)}
+            {pr.name}
+          </button>
+        ))}
+      </div>
+
+      <h4>Your themes</h4>
+      {t.saved.length > 0 ? (
+        <div className="preset-grid">
+          {t.saved.map((th) => (
+            <div key={th.id} className="preset-wrap">
+              <button
+                className={`preset ${samePalettes(th, current) ? 'on' : ''}`}
+                onClick={() => t.setPalettes(th.light, th.dark)}
+                onDoubleClick={() => rename(th.id, th.name)}
+                onContextMenu={(e) => { e.preventDefault(); void remove(th.id, th.name); }}
+                title="Click to use · double-click to rename · right-click to delete"
+              >
+                {swatch(th.light, th.dark)}
+                {th.name}
+              </button>
+              <span className="preset-actions">
+                <button className="icon-btn" title="Rename" onClick={() => rename(th.id, th.name)}>✎</button>
+                <button className="icon-btn" title="Delete" onClick={() => remove(th.id, th.name)}>×</button>
               </span>
-              {pr.name}
-            </button>
-          );
-        })}
+            </div>
+          ))}
+        </div>
+      ) : <p className="muted small">Pick custom colors below, then save them here as a theme.</p>}
+      <div className="row" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+        <button className="primary" disabled={isSaved} title={isSaved ? 'These colors are already a theme' : undefined} onClick={saveAs}>Save as theme…</button>
+        <button disabled={!t.saved.length} onClick={() => download('open-gate-themes.json', exportThemes(t.saved), 'application/json')}>Export themes</button>
+        <button onClick={() => fileRef.current?.click()}>Import themes…</button>
+        <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => { void importFile(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
 
       <h4>Custom colors</h4>

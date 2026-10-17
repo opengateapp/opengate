@@ -10,8 +10,15 @@ import type { ShareLink } from '../../model/types';
 
 type Access = 'edit' | 'view' | 'sections';
 
-/** What a link may change, in words. */
-export function accessSummary(write: string[]): string {
+/** What a link may change, in words (the budget is described separately when `read` is given). */
+export function accessSummary(allWrite: string[], read?: string[]): string {
+  const base = baseSummary(allWrite.filter((c) => c !== 'budget'));
+  if (!read) return base;
+  const budget = allWrite.includes('budget') ? 'can edit the budget' : read.includes('budget') ? 'can see the budget' : 'budget hidden';
+  return `${base} · ${budget}`;
+}
+
+function baseSummary(write: string[]): string {
   if (write.includes('*')) return 'Can edit everything';
   if (!write.length) return 'View only';
   const sections = Object.entries(SECTION_CHANNELS).filter(([, chs]) => chs.filter((c) => c !== 'script').every((c) => write.includes(c)) && chs.some((c) => c !== 'script')).map(([s]) => s);
@@ -30,6 +37,7 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
   const [label, setLabel] = useState('');
   const [access, setAccess] = useState<Access>('edit');
   const [sections, setSections] = useState<string[]>(['breakdown']);
+  const [budget, setBudget] = useState<'none' | 'view' | 'edit'>('none');
   const [made, setMade] = useState<{ url: string; label: string } | null>(null);
   const relayOk = !!relayHost(relay);
 
@@ -80,7 +88,7 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
             {sync.pending > 0 && <span className="muted small"> · {sync.pending} change{sync.pending > 1 ? 's' : ''} waiting to sync</span>}
             <span className="muted small"> · end-to-end encrypted</span>
           </div>
-          <p className="muted small">Your access: <b>{share.admin ? 'Owner (can edit everything and manage links)' : accessSummary(sync.write ?? share.write)}</b></p>
+          <p className="muted small">Your access: <b>{share.admin ? 'Owner (can edit everything and manage links)' : accessSummary(sync.write ?? share.write, sync.budget ? ['budget'] : [])}</b></p>
 
           {share.admin && (
             <>
@@ -95,16 +103,24 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
                   <label className="check"><input type="radio" checked={access === 'sections'} onChange={() => setAccess('sections')} /> Can edit only these sections:</label>
                   {access === 'sections' && (
                     <div className="section-pick">
-                      {Object.keys(SECTION_LABELS).map((s) => (
+                      {Object.keys(SECTION_LABELS).filter((s) => s !== 'budget').map((s) => (
                         <label key={s} className="check"><input type="checkbox" checked={sections.includes(s)} onChange={(e) => setSections((x) => (e.target.checked ? [...x, s] : x.filter((y) => y !== s)))} /> {SECTION_LABELS[s]}</label>
                       ))}
-                      <p className="muted small">They can see every section. Breakdown and Visualize editors can add tags and shot marks to the script but can't change its words.</p>
+                      <p className="muted small">They can see every section except the budget (set below). Breakdown and Visualize editors can add tags and shot marks to the script but can't change its words.</p>
                     </div>
                   )}
                 </div>
+                <label className="field budget-access"><span>Budget</span>
+                  <select value={budget} onChange={(e) => setBudget(e.target.value as typeof budget)}>
+                    <option value="none">Hidden — they can’t see it</option>
+                    <option value="view">Can see it</option>
+                    <option value="edit">Can see and edit it</option>
+                  </select>
+                </label>
+                <p className="muted small">The budget has its own encryption key, which only goes into links you share it through. Without it, the budget never reaches them — not even encrypted.</p>
                 <div className="row"><span className="spacer" />
                   <button className="primary" disabled={busy || (access === 'sections' && !sections.length)} onClick={() => run(async () => {
-                    const { url } = await createLink(label.trim() || (access === 'view' ? 'View-only link' : access === 'edit' ? 'Editor link' : 'Section link'), write);
+                    const { url } = await createLink(label.trim() || (access === 'view' ? 'View-only link' : access === 'edit' ? 'Editor link' : 'Section link'), write, budget);
                     setMade({ url, label: label.trim() });
                     setLabel('');
                     void copy(url);
@@ -124,7 +140,7 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
               <ul className="link-list">
                 {(share.links ?? []).map((l: ShareLink) => (
                   <li key={l.token}>
-                    <div><b>{l.label}</b><span className="muted small"> · {accessSummary(l.write)} · {new Date(l.created).toLocaleDateString()}</span></div>
+                    <div><b>{l.label}</b><span className="muted small"> · {accessSummary(l.write, l.read ?? [])} · {new Date(l.created).toLocaleDateString()}</span></div>
                     <div className="row">
                       <button className="small" onClick={() => void copy(linkUrl(p, l))}>Copy</button>
                       <button className="small" onClick={() => email(linkUrl(p, l), l.label)}>Email…</button>

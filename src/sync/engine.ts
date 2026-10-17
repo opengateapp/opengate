@@ -10,7 +10,7 @@ import { schema } from '../script/schema';
 import { session } from '../script/session';
 import { newId } from '../model/ids';
 import { CHANNELS, LOCAL_ONLY, channelOf, decodeField, describeEntry, encodeField, fieldOf, type Channel } from './channels';
-import { importKey, encrypt, decrypt, encryptToString, decryptString, seal, unseal, type Author } from './crypto';
+import { importKey, newKey, encrypt, decrypt, encryptToString, decryptString, seal, unseal, type Author } from './crypto';
 import { WebSocketTransport, type RelayMessage, type Transport } from './transport';
 import { useSync, canWrite, type Peer } from './state';
 import { recordData, recordScript, diffBlocks, findSlice, sameJson, useReview, setStatus, type ReviewChange } from './review';
@@ -46,6 +46,16 @@ export class ProjectSync {
   readonly fragment: Y.XmlFragment;
   readonly awareness: Awareness;
   private key!: CryptoKey;
+  /** The budget's own key; null when the owner hasn't shared the budget with this person. */
+  private budgetKey: CryptoKey | null = null;
+  private keyFor(ch: Channel): CryptoKey { return ch === 'budget' ? this.budgetKey! : this.key; }
+  /** Channels this person takes part in (everything, minus the budget without its key). */
+  private on(ch: Channel): boolean { return ch !== 'budget' || !!this.budgetKey; }
+  /**
+   * Channels this device has never downloaded (e.g. someone just given the budget). Their local
+   * defaults must not be sent before the room's copy arrives, or they'd overwrite it.
+   */
+  private unsynced = new Set<Channel>();
   private seq = {} as Record<Channel, number>;
   private pending = {} as Record<Channel, { id: string; u: Uint8Array }[]>;
   private applied = {} as Record<Channel, number>;
@@ -87,22 +97,40 @@ export class ProjectSync {
 
   async start(): Promise<void> {
     this.key = await importKey(this.share.key);
-    useSync.setState({ status: 'connecting', error: undefined, peers: [], write: this.share.admin ? ['*'] : this.share.write, admin: this.share.admin, pending: 0 });
+    if (this.share.admin && !this.share.budgetKey) {
+      // Projects shared before budgets existed: the owner makes the budget key now.
+      const budgetKey = await newKey();
+      this.share = { ...this.share, budgetKey };
+      useStore.getState().update((d) => { if (d.share) d.share.budgetKey = budgetKey; }, null);
+    }
+    this.budgetKey = this.share.budgetKey ? await importKey(this.share.budgetKey) : null;
+    useSync.setState({ status: 'connecting', error: undefined, peers: [], write: this.share.admin ? ['*'] : this.share.write, admin: this.share.admin, pending: 0, budget: !!this.budgetKey });
 
     // 1. Local copy of the shared state (works offline).
     const rows = await db.sync.where('projectId').equals(this.projectId).toArray();
     for (const r of rows) {
       const ch = r.key.split(':').pop() as Channel;
-      if (!this.docs[ch]) continue;
+      if (!this.docs[ch] || !this.on(ch)) continue;
       if (r.state?.length) Y.applyUpdate(this.docs[ch], r.state, LOAD);
       this.seq[ch] = r.seq;
       this.pending[ch] = r.pending ?? [];
     }
     this.hadState = rows.length > 0;
+    if (this.hadState && !this.share.admin) {
+      const loaded = new Set(rows.map((r) => r.key.split(':').pop()));
+      for (const ch of CHANNELS) if (this.on(ch) && !loaded.has(ch)) this.unsynced.add(ch);
+    }
     const uploaded = await db.meta.get(`${this.projectId}:uploaded`);
     if (Array.isArray(uploaded?.value)) uploaded!.value.forEach((x) => this.uploaded.add(x as string));
     const review = await db.meta.get(`${this.projectId}:review`);
     useReview.setState({ changes: Array.isArray(review?.value) ? (review!.value as ReviewChange[]) : [] });
+
+    // Listen before writing anything below, so edits made while sync wasn't running
+    // (e.g. a budget added before it was shared) are queued and sent, not just saved here.
+    for (const ch of CHANNELS) {
+      this.docs[ch].on('update', (u: Uint8Array, origin: unknown) => this.onDocUpdate(ch, u, origin));
+      this.maps[ch].observe((ev, txn) => this.onMapChange(ch, ev, txn));
+    }
 
     const p = useStore.getState().project!;
     if (!this.hadState && this.share.fresh) {
@@ -116,11 +144,7 @@ export class ProjectSync {
     }
     this.lastProject = useStore.getState().project;
 
-    // 2. Wire up: Yjs → queue/persist; store → Yjs; Yjs → store.
-    for (const ch of CHANNELS) {
-      this.docs[ch].on('update', (u: Uint8Array, origin: unknown) => this.onDocUpdate(ch, u, origin));
-      this.maps[ch].observe((ev, txn) => this.onMapChange(ch, ev, txn));
-    }
+    // 2. Wire up: store → Yjs (Yjs → queue/persist and Yjs → store are already listening).
     this.unsub.push(useStore.subscribe((s) => {
       if (this.applying || !s.project || s.project === this.lastProject) return;
       this.pushChanges(s.project);
@@ -145,7 +169,7 @@ export class ProjectSync {
     // 5. Connect.
     this.transport.onOpen = () => {
       const since: Record<string, number> = {};
-      for (const ch of CHANNELS) since[ch] = this.seq[ch];
+      for (const ch of CHANNELS) if (this.on(ch)) since[ch] = this.seq[ch];
       this.transport.send({ t: 'sub', since } as RelayMessage);
       void this.sendPresence(true);
     };
@@ -190,7 +214,7 @@ export class ProjectSync {
     void this.persistMeta();
     if (this.scriptBound) session.setCollab(null);
     this.awareness.destroy();
-    useSync.setState({ status: 'off', peers: [], write: null, admin: false, pending: 0 });
+    useSync.setState({ status: 'off', peers: [], write: null, admin: false, pending: 0, budget: true });
   }
 
   // ---------- local → room ----------
@@ -200,6 +224,7 @@ export class ProjectSync {
     for (const field of Object.keys(p)) {
       if (LOCAL_ONLY.has(field)) continue;
       const ch = channelOf(field);
+      if (!this.on(ch)) continue;
       byCh.set(ch, [...(byCh.get(ch) ?? []), field]);
     }
     for (const [ch, fields] of byCh) {
@@ -223,7 +248,7 @@ export class ProjectSync {
       if (LOCAL_ONLY.has(field)) continue;
       if (!all && prev && prev[field] === cur[field]) continue;
       const ch = channelOf(field);
-      if (!canWrite(ch)) continue;
+      if (!canWrite(ch) || !this.on(ch) || this.unsynced.has(ch)) continue;
       byCh.set(ch, [...(byCh.get(ch) ?? []), field]);
     }
     for (const [ch, fields] of byCh) {
@@ -253,7 +278,7 @@ export class ProjectSync {
   private onDocUpdate(ch: Channel, u: Uint8Array, origin: unknown) {
     this.schedulePersist(ch);
     if (origin === REMOTE || origin === LOAD || origin === INIT) return;
-    if (!canWrite(ch)) return;
+    if (!canWrite(ch) || !this.on(ch)) return;
     const item = { id: newId(), u };
     this.pending[ch].push(item);
     this.updatePendingCount();
@@ -261,8 +286,8 @@ export class ProjectSync {
   }
 
   private async sendUpdate(ch: Channel, item: { id: string; u: Uint8Array }) {
-    if (!this.ready) return;
-    const d = await encryptToString(this.key, seal(this.authorStamp(), item.u));
+    if (!this.ready || !this.on(ch)) return;
+    const d = await encryptToString(this.keyFor(ch), seal(this.authorStamp(), item.u));
     if (d.length > MAX_WS) {
       const res = await this.transport.http('POST', `up/${ch}`, d);
       if (res.ok) { const { s } = await res.json(); this.ack(ch, item.id, s); }
@@ -286,12 +311,14 @@ export class ProjectSync {
 
   private async handle(m: RelayMessage) {
     const ch = m.ch as Channel;
+    // Anything for a channel we can't read (shouldn't arrive; the relay filters it) is ignored.
+    if ((m.t === 'snap' || m.t === 'log') && (!this.docs[ch] || !this.on(ch))) return;
     switch (m.t) {
       case 'snap': {
         const res = await this.transport.http('GET', `snap/${ch}`);
         if (!res.ok) break;
         const { upTo, d } = await res.json();
-        const { payload } = unseal(await decryptString(this.key, d));
+        const { payload } = unseal(await decryptString(this.keyFor(ch), d));
         this.applyRemote(ch, payload, null);
         this.seq[ch] = Math.max(this.seq[ch], upTo);
         this.schedulePersist(ch);
@@ -301,7 +328,7 @@ export class ProjectSync {
         for (const [s, d] of m.e ?? []) {
           if (s <= this.seq[ch]) continue;
           try {
-            const { author, payload } = unseal(await decryptString(this.key, d));
+            const { author, payload } = unseal(await decryptString(this.keyFor(ch), d));
             // Others' edits are reviewable once we're caught up with what existed before we joined.
             this.applyRemote(ch, payload, this.ready || this.hadState ? author : null);
           } catch (e) { console.warn('Could not read an update (wrong key?)', e); }
@@ -325,15 +352,22 @@ export class ProjectSync {
         this.ready = true;
         this.hadState = true;
         if (m.perms) {
-          useSync.setState({ write: m.perms.admin ? ['*'] : m.perms.write, admin: m.perms.admin });
+          useSync.setState({ write: m.perms.admin ? ['*'] : m.perms.write, admin: m.perms.admin, budget: !!this.budgetKey });
           if (!sameJson(m.perms.write, this.share.write)) {
             useStore.getState().update((d) => { if (d.share) d.share.write = m.perms!.write; }, null);
           }
         }
         if (this.share.fresh) useStore.getState().update((d) => { if (d.share) delete d.share.fresh; }, null);
         if (firstJoin) { this.pullAll(); this.bindScript(null); }
+        // Channels downloaded for the first time: take the room's copy, then edits flow both ways.
+        for (const c of [...this.unsynced]) {
+          this.unsynced.delete(c);
+          const fields = new Set([...this.maps[c].keys()].map(fieldOf));
+          if (fields.size) this.pullFields(c, [...fields]);
+          this.schedulePersist(c);
+        }
         useSync.setState({ status: 'live', lastSync: Date.now() });
-        for (const c of CHANNELS) for (const item of this.pending[c]) await this.sendUpdate(c, item);
+        for (const c of CHANNELS) if (this.on(c)) for (const item of this.pending[c]) await this.sendUpdate(c, item);
         this.scheduleMedia(0);
         break;
       }
@@ -447,7 +481,7 @@ export class ProjectSync {
 
   private pullAll() {
     for (const ch of CHANNELS) {
-      if (ch === 'script') continue;
+      if (ch === 'script' || !this.on(ch)) continue;
       const fields = new Set([...this.maps[ch].keys()].map(fieldOf));
       if (fields.size) this.pullFields(ch, [...fields]);
     }
@@ -562,11 +596,16 @@ export class ProjectSync {
     const p = useStore.getState().project;
     if (!p) return;
     const writer = useSync.getState().admin || (useSync.getState().write ?? []).length > 0;
+    // Receipts belong to the budget: encrypted with its key, and only for people who have it.
+    const receipts = new Set(p.budget.expenses.map((e) => e.receiptId).filter(Boolean));
     for (const id of mediaIds(p)) {
       if (this.failedMedia.has(id)) continue;
+      const isReceipt = receipts.has(id);
+      if (isReceipt && !this.budgetKey) continue;
+      const mkey = isReceipt ? this.budgetKey! : this.key;
       const local = await getMedia(id);
-      if (local && !this.uploaded.has(id) && writer) {
-        const enc = await encrypt(this.key, new Uint8Array(await local.arrayBuffer()));
+      if (local && !this.uploaded.has(id) && (isReceipt ? canWrite('budget') : writer)) {
+        const enc = await encrypt(mkey, new Uint8Array(await local.arrayBuffer()));
         const typed = seal({ n: local.type || 'image/png', c: 0, t: Date.now() }, enc);
         const res = await this.transport.http('PUT', `media/${id}`, typed);
         if (res.ok) this.uploaded.add(id); else this.failedMedia.add(id);
@@ -574,7 +613,7 @@ export class ProjectSync {
         const res = await this.transport.http('GET', `media/${id}`);
         if (!res.ok) { this.failedMedia.add(id); continue; }
         const { author, payload } = unseal(new Uint8Array(await res.arrayBuffer()));
-        const bytes = await decrypt(this.key, payload);
+        const bytes = await decrypt(mkey, payload);
         await putMedia(this.projectId, new Blob([bytes], { type: author.n }), id);
         this.uploaded.add(id);
       }
@@ -590,6 +629,7 @@ export class ProjectSync {
   }
 
   private async persist(ch: Channel) {
+    if (!this.on(ch)) return;
     await db.sync.put({
       key: `${this.projectId}:${ch}`, projectId: this.projectId,
       state: Y.encodeStateAsUpdate(this.docs[ch]), seq: this.seq[ch], pending: this.pending[ch],
@@ -605,7 +645,8 @@ export class ProjectSync {
 
   private async uploadSnapshots() {
     for (const ch of CHANNELS) {
-      const d = await encryptToString(this.key, seal(this.authorStamp(), Y.encodeStateAsUpdate(this.docs[ch])));
+      if (!this.on(ch)) continue;
+      const d = await encryptToString(this.keyFor(ch), seal(this.authorStamp(), Y.encodeStateAsUpdate(this.docs[ch])));
       const res = await this.transport.http('PUT', `snap/${ch}?upTo=${Math.max(0, this.seq[ch])}`, d);
       if (!res.ok) throw new Error(`Couldn't upload the project to the relay (${res.status}).`);
       this.seq[ch] = Math.max(0, this.seq[ch]);
@@ -616,9 +657,9 @@ export class ProjectSync {
 
   /** After many small updates, a writer uploads one snapshot so newcomers load fast. */
   private async maybeCompact(ch: Channel) {
-    if (this.applied[ch] < COMPACT_AFTER || !canWrite(ch) || this.pending[ch].length) return;
+    if (this.applied[ch] < COMPACT_AFTER || !canWrite(ch) || !this.on(ch) || this.pending[ch].length) return;
     this.applied[ch] = 0;
-    const d = await encryptToString(this.key, seal(this.authorStamp(), Y.encodeStateAsUpdate(this.docs[ch])));
+    const d = await encryptToString(this.keyFor(ch), seal(this.authorStamp(), Y.encodeStateAsUpdate(this.docs[ch])));
     await this.transport.http('PUT', `snap/${ch}?upTo=${this.seq[ch]}`, d).catch(() => {});
   }
 
@@ -629,7 +670,7 @@ export class ProjectSync {
   /** Everything needed to rejoin later from a linked .opengate file. */
   exportState(): Record<string, { state: Uint8Array; seq: number; pending: { id: string; u: Uint8Array }[] }> {
     const out: Record<string, { state: Uint8Array; seq: number; pending: { id: string; u: Uint8Array }[] }> = {};
-    for (const ch of CHANNELS) out[ch] = { state: Y.encodeStateAsUpdate(this.docs[ch]), seq: this.seq[ch], pending: this.pending[ch] };
+    for (const ch of CHANNELS) if (this.on(ch)) out[ch] = { state: Y.encodeStateAsUpdate(this.docs[ch]), seq: this.seq[ch], pending: this.pending[ch] };
     return out;
   }
 }

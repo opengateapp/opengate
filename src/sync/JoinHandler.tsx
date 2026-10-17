@@ -17,7 +17,7 @@ export function JoinHandler() {
       session.flush();
       await flushSave().catch(() => {});
       setRelay(inv.relay);
-      const share: ShareInfo = { relay: inv.relay, room: inv.room, key: inv.key, token: inv.token, admin: false, write: inv.write, joinedAt: new Date().toISOString() };
+      const share: ShareInfo = { relay: inv.relay, room: inv.room, key: inv.key, ...(inv.budgetKey ? { budgetKey: inv.budgetKey } : {}), token: inv.token, admin: false, write: inv.write, joinedAt: new Date().toISOString() };
 
       // Already have it here? (same room — or the same project, e.g. the owner opening their own link)
       let found: Project | null = null;
@@ -33,7 +33,10 @@ export function JoinHandler() {
         if (found.share?.room === inv.room && found.share.admin) {
           // The owner keeps owner access even when opening a collaborator link.
         } else if (found.share?.room === inv.room && found.share.token !== inv.token) {
-          found = { ...found, share: { ...found.share, token: inv.token, write: inv.write } };
+          // A new link replaces the old access, including whether the budget is shared.
+          const next = { ...found.share, token: inv.token, write: inv.write };
+          if (inv.budgetKey) next.budgetKey = inv.budgetKey; else delete next.budgetKey;
+          found = { ...found, share: next };
         }
         await saveProject(found);
         session.reset();
