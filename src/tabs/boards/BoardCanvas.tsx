@@ -182,10 +182,31 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     };
   }, [board.id, board.items, selected, onSelect]);
 
+  // ---- Touch: two fingers pinch-zoom and pan ----
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d0: number; s0: number; wx: number; wy: number } | null>(null);
+  const twoFinger = () => {
+    const [a, b] = [...touches.current.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+  };
+
   // ---- Pointer handling ----
   const itemAt = (target: EventTarget | null) => (target as HTMLElement | null)?.closest?.('[data-item-id]') as HTMLElement | null;
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.current.size === 2) {
+        // A second finger: stop whatever the first one started and pinch instead.
+        setDrag(null);
+        const { d, mx, my } = twoFinger();
+        const w = toWorld(mx, my);
+        pinch.current = { d0: d, s0: viewRef.current.s, wx: w.x, wy: w.y };
+        host.current!.setPointerCapture(e.pointerId);
+        return;
+      }
+      if (touches.current.size > 2) return;
+    }
     if (e.button === 2) return;
     setQuick(null);
     const el = e.target as HTMLElement;
@@ -231,10 +252,23 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       return;
     }
     if (!e.shiftKey) onSelect([]);
+    // One finger on empty space pans (a finger can't hold Shift for a selection box).
+    if (e.pointerType === 'touch') { setDrag({ kind: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y }); return; }
     setDrag({ kind: 'marquee', x0: w.x, y0: w.y, x1: w.x, y1: w.y, add: e.shiftKey });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch.current && touches.current.size >= 2) {
+        const { d, mx, my } = twoFinger();
+        const r = host.current!.getBoundingClientRect();
+        const p = pinch.current;
+        const s = Math.min(4, Math.max(0.1, p.s0 * (d / p.d0)));
+        setView({ s, x: mx - r.left - p.wx * s, y: my - r.top - p.wy * s });
+        return;
+      }
+    }
     if (!drag) return;
     const w = toWorld(e.clientX, e.clientY);
     switch (drag.kind) {
@@ -266,6 +300,10 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touches.current.delete(e.pointerId);
+      if (pinch.current) { if (touches.current.size < 2) pinch.current = null; setDrag(null); return; }
+    }
     const d = drag;
     setDrag(null);
     setLinkHover(null);
@@ -393,6 +431,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       onDoubleClick={onDoubleClick}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!dropHover) setDropHover(true); }}
       onDragLeave={(e) => { if (!host.current!.contains(e.relatedTarget as Node)) setDropHover(false); }}

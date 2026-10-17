@@ -3,6 +3,7 @@ import { useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import type { Task } from '../model/types';
 import { addDays, formatDate, todayISO } from '../model/dates';
+import { LongPress } from '../components/ActionSheet';
 import { setDrag } from '../components/scheduleBits';
 
 // Tasks: prep to-dos with due dates, owners and departments. Dated tasks show on the Calendar,
@@ -27,6 +28,10 @@ export function TasksTab() {
     update((d) => { d.tasks.push(task); }, 'Add task');
     setTitle('');
   };
+  const swapOrder = (a: string, b: string) => update((d) => {
+    const x = d.tasks.find((t) => t.id === a)!; const y = d.tasks.find((t) => t.id === b)!;
+    [x.order, y.order] = [y.order, x.order];
+  }, 'Reorder tasks');
   const set = (id: string, patch: Partial<Task>, label: string | null = null) => update((d) => { Object.assign(d.tasks.find((t) => t.id === id)!, patch); }, label);
 
   const groups: { label: string; tasks: Task[] }[] = [
@@ -51,8 +56,13 @@ export function TasksTab() {
         <div key={g.label} className={`task-group ${g.label === 'Overdue' ? 'overdue' : ''}`}>
           <h4>{g.label} <span className="muted small">{g.tasks.length}</span></h4>
           <ul className="task-list">
-            {g.tasks.map((t) => (
-              <li key={t.id} className={`${t.done ? 'done' : ''} prio-${t.priority ?? 'normal'}`} draggable
+            {g.tasks.map((t, i) => (
+              <LongPress as="li" key={t.id} title={t.title || 'Task'} actions={() => [
+                { label: 'Move up', disabled: i === 0, run: () => swapOrder(t.id, g.tasks[i - 1].id) },
+                { label: 'Move down', disabled: i === g.tasks.length - 1, run: () => swapOrder(t.id, g.tasks[i + 1].id) },
+                { label: t.done ? 'Mark not done' : 'Mark done', run: () => set(t.id, { done: !t.done }, t.done ? 'Reopen task' : 'Complete task') },
+                { label: 'Delete task', danger: true, run: () => update((d) => { d.tasks = d.tasks.filter((x) => x.id !== t.id); }, 'Delete task') },
+              ]} className={`${t.done ? 'done' : ''} prio-${t.priority ?? 'normal'}`} draggable
                 onDragStart={(e) => { setDragId(t.id); setDrag(e, { kind: 'task', id: t.id }); }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => { if (dragId && dragId !== t.id) update((d) => { const a = d.tasks.find((x) => x.id === dragId)!; a.order = t.order - 0.5; a.due = t.due; d.tasks.sort((x, y) => x.order - y.order).forEach((x, i) => { x.order = i; }); }, 'Reorder tasks'); setDragId(null); }}>
@@ -67,7 +77,7 @@ export function TasksTab() {
                 </select>
                 {t.due && <span className={`muted small ${t.due < today && !t.done ? 'bad' : ''}`}>{formatDate(t.due)}</span>}
                 <button className="icon-btn" onClick={() => update((d) => { d.tasks = d.tasks.filter((x) => x.id !== t.id); }, 'Delete task')}>×</button>
-              </li>
+              </LongPress>
             ))}
           </ul>
         </div>

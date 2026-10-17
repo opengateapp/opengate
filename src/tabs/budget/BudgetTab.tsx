@@ -10,6 +10,8 @@ import { canWrite, useSync } from '../../sync/state';
 import { askConfirm, askText } from '../../components/dialogs';
 import { toast } from '../../components/common';
 import { getDerived } from '../../store/project';
+import { More } from '../../components/More';
+import { LongPress } from '../../components/ActionSheet';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -114,6 +116,7 @@ function BudgetScreen() {
             {MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
+        <More label="Budget actions">
         <label className="budget-mode">
           <span className="muted small">Version</span>
           <select value={scenarioId ?? ''} onChange={(e) => setScenarioId(e.target.value || undefined)}>
@@ -122,15 +125,16 @@ function BudgetScreen() {
           </select>
         </label>
         {mode === 'build' && !ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet">⛓ Update from breakdown</button>}
+        <button onClick={() => exportBudget(p, 'pdf', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet and detail of the version shown">PDF</button>
+        <button onClick={() => exportBudget(p, 'xlsx', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet, detail with formulas, and expenses">Excel</button>
+        <button className={settings ? 'active' : ''} onClick={() => setSettings((x) => !x)}>Settings</button>
+        </More>
         <span className="spacer" />
         <div className="budget-total">
           <span className="muted small">Total{scenario ? ` · ${scenario.name}` : ''}</span>
           <b>{$(view.t.total)}</b>
           {b.targetTotal ? <span className={`small ${view.t.total > b.targetTotal ? 'over' : 'under'}`}>{view.t.total > b.targetTotal ? `${$(view.t.total - b.targetTotal)} over target` : `${$(b.targetTotal - view.t.total)} under target`}</span> : null}
         </div>
-        <button onClick={() => exportBudget(p, 'pdf', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet and detail of the version shown">PDF</button>
-        <button onClick={() => exportBudget(p, 'xlsx', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet, detail with formulas, and expenses">Excel</button>
-        <button className={settings ? 'active' : ''} onClick={() => setSettings((x) => !x)}>Settings</button>
       </div>
 
       {settings && <BudgetSettings ro={ro} />}
@@ -384,7 +388,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
         <span className="muted">{$(total)}</span>
       </div>
       {lines.length ? (
-        <table className="table budget-lines">
+        <table className="table budget-lines cards-on-phone">
           <thead>
             <tr><th /><th>Description</th><th className="num">Qty</th><th>Units</th><th className="num">×</th><th className="num">Rate</th>{b.fringes.length > 0 && <th>Fringes</th>}<th className="num">Total</th><th /></tr>
           </thead>
@@ -394,7 +398,14 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
               const orphan = view.orphaned.has(l.id);
               const overridden = sc?.overrides[l.id];
               return (
-                <tr key={l.id} className={overridden ? 'overridden' : isAdded(l.id) ? 'added' : ''}
+                <LongPress as="tr" key={l.id} title={l.description || 'Budget line'} actions={() => ro ? [] : [
+                  { label: 'Move to account…', items: b.accounts.map((acc) => ({ label: accountLabel(acc), current: acc.id === l.accountId, run: () => update((dr) => {
+                    const x = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((sc2) => sc2.added).find((y) => y.id === l.id);
+                    if (x) x.accountId = acc.id;
+                  }, 'Move line') })) },
+                  ...(linked && !linked.auto && !orphan ? [{ label: 'Follow the breakdown again', run: () => relink(l) }] : []),
+                  { label: sc && !isAdded(l.id) ? `Remove from ${sc.name}` : 'Delete line', danger: true, run: () => removeLine(l) },
+                ]} className={overridden ? 'overridden' : isAdded(l.id) ? 'added' : ''}
                   draggable={!ro} onDragStart={(e) => { e.dataTransfer.setData('application/x-budget-line', l.id); e.dataTransfer.effectAllowed = 'move'; }}>
                   <td className="drag" title="Drag onto an account to move">⋮⋮</td>
                   <td>
@@ -429,7 +440,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                   )}
                   <td className="num"><b>{$(lineTotal(b, l))}</b></td>
                   <td className="actions">{!ro && <button className="icon-btn" title={sc && !isAdded(l.id) ? `Remove from ${sc.name}` : 'Delete line'} onClick={() => removeLine(l)}>×</button>}</td>
-                </tr>
+                </LongPress>
               );
             })}
           </tbody>

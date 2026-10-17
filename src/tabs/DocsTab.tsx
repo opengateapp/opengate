@@ -12,6 +12,7 @@ import { useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import { download, safeName } from '../io/files';
 import { deletedToast } from '../components/deleted';
+import { More } from '../components/More';
 import { Empty } from '../components/common';
 
 // Docs: treatments, synopses, director's notes, lookbook text — rich text saved in the project.
@@ -74,7 +75,7 @@ export function DocsTab() {
 
   return (
     <div className="with-side docs-tab">
-      <aside className="side" onDoubleClick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('doc-list')) create(); }}>
+      <aside className="side" data-panel="Documents" data-panel-pick onDoubleClick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('doc-list')) create(); }}>
         <div className="side-head">
           <b>Documents</b>
           <div className="menu-wrap">
@@ -168,9 +169,11 @@ function DocEditor({ id }: { id: string }) {
         <button onMouseDown={(e) => { e.preventDefault(); cmd(wrapInList(s.nodes.bullet_list))(); }} title="Bullets (or type - )">• List</button>
         <button onMouseDown={(e) => { e.preventDefault(); cmd(wrapInList(s.nodes.ordered_list))(); }} title="Numbered (or type 1. )">1. List</button>
         <span className="spacer" />
+        <More label="Document actions">
         <button onClick={exportMd}>Export .md</button>
         <button onClick={exportHtml}>Export .html</button>
         <button onClick={() => { update((d) => { d.docs = d.docs.filter((x) => x.id !== id); }, 'Delete document'); deletedToast(`“${doc.title}”`); }}>Delete</button>
+        </More>
       </div>
       <div className="editor-scroll"><div className="doc-page" ref={host} /></div>
     </section>

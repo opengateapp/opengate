@@ -5,6 +5,7 @@ import type { Contact, ContactKind } from '../model/types';
 import { download, safeName } from '../io/files';
 import { csv } from '../io/reports';
 import { deletedToast } from '../components/deleted';
+import { More } from '../components/More';
 import { toast } from '../components/common';
 
 // Contacts: one place for everyone on the production. Cast and crew are the same records
@@ -100,15 +101,17 @@ export function ContactsTab() {
           {(['all', 'Cast', 'Crew', 'Contacts'] as const).map((g) => <button key={g} className={group === g ? 'active' : ''} onClick={() => setGroup(g)}>{g === 'all' ? 'All' : g === 'Contacts' ? 'Other' : g}</button>)}
         </div>
         <span className="spacer" />
+        <button className="primary" onClick={() => add('Contacts')}>+ Contact</button>
+        <More label="More contact actions">
         {missingCast.length > 0 && <button onClick={() => update((dr) => { let n = Math.max(0, ...dr.cast.map((c) => c.castNumber)); for (const c of missingCast) dr.cast.push({ id: newId(), castNumber: ++n, characterName: c.name, actorName: '', unavailable: [] }); }, 'Add cast from script')}>+ {missingCast.length} characters from script</button>}
         <button onClick={() => add('Cast')}>+ Cast</button>
         <button onClick={() => add('Crew')}>+ Crew</button>
-        <button className="primary" onClick={() => add('Contacts')}>+ Contact</button>
         <label className="button-like">Import .vcf<input type="file" accept=".vcf,text/vcard" multiple hidden onChange={(e) => { void importFiles([...(e.target.files ?? [])]); e.target.value = ''; }} /></label>
         <button onClick={() => download(`${safeName(p.title)} contacts.vcf`, shown.map(toVCard).join('\r\n'), 'text/vcard')}>Export .vcf</button>
         <button onClick={() => download(`${safeName(p.title)} contacts.csv`, csv([['Group', 'Name', 'Role', 'Company', 'Phone', 'Email'], ...shown.map((r) => [r.group, r.name, r.role, r.company, r.phone, r.email])]), 'text/csv')}>CSV</button>
+        </More>
       </div>
-      <table className="table contacts" onDoubleClick={(e) => { if ((e.target as HTMLElement).closest('tbody tr')) return; add(group === 'Cast' || group === 'Crew' ? group : 'Contacts'); }}>
+      <table className="table contacts cards-on-phone" onDoubleClick={(e) => { if ((e.target as HTMLElement).closest('tbody tr')) return; add(group === 'Cast' || group === 'Crew' ? group : 'Contacts'); }}>
         <thead><tr><th>Group</th><th>Name</th><th>Role</th><th>Company / type</th><th>Phone</th><th>Email</th><th /></tr></thead>
         <tbody>
           {shown.map((r) => (

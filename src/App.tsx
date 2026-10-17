@@ -28,6 +28,11 @@ import { SyncIssues } from './components/SyncIssues';
 import { PinterestReceiver } from './tabs/boards/PinterestReceiver';
 import { DialogHost } from './components/dialogs';
 import { EditMenu } from './components/EditMenu';
+import { usePhone, useNarrow } from './ui/responsive';
+import { usePhoneTabs, visibleSections, registerSections } from './ui/phoneTabs';
+import { PhoneTopbar } from './ui/PhoneChrome';
+import { PhonePanels } from './ui/PhonePanels';
+import { ActionSheetHost } from './components/ActionSheet';
 import { ThemeToggle } from './components/ThemeToggle';
 import { JoinHandler } from './sync/JoinHandler';
 import { ShareBar } from './components/share/ShareBar';
@@ -80,6 +85,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
 ];
 
 const ALL_TABS = SECTIONS.flatMap((s) => s.tabs.map((t) => t.id));
+registerSections(SECTIONS);
 const sectionOf = (t: TabId) => SECTIONS.find((s) => s.tabs.some((x) => x.id === t))!.id;
 // Tab ids from before the sections layout.
 const LEGACY: Record<string, TabId> = { write: 'screenplay', schedule: 'stripboard', shoot: 'reports', setup: 'setup' };
@@ -87,6 +93,9 @@ const LEGACY: Record<string, TabId> = { write: 'screenplay', schedule: 'stripboa
 export function App() {
   const project = useStore((s) => s.project);
   const saveState = useStore((s) => s.saveState);
+  const phone = usePhone();
+  const narrow = useNarrow();
+  const phoneTabs = usePhoneTabs();
   const [tab, setTabState] = useState<TabId>(() => {
     const saved = localStorageGet('tab') ?? '';
     const t = (LEGACY[saved] ?? saved) as TabId;
@@ -157,43 +166,51 @@ export function App() {
 
   if (!project) return <><JoinHandler /><HomeScreen /></>;
 
-  const sec = SECTIONS.find((x) => x.id === section)!;
+  const fullSec = SECTIONS.find((x) => x.id === section)!;
+  // Open Gate Lite: on phones, only the chosen tabs (a hidden one opened from "Show all tabs" still shows its section).
+  const shown = visibleSections(SECTIONS, phoneTabs, phone);
+  const sec = shown.find((x) => x.id === section && x.tabs.some((t) => t.id === tab)) ?? fullSec;
   return (
-    <div className="app">
+    <div className={`app ${phone ? 'is-phone' : ''}`}>
       <CategoryStyles />
       <DialogHost />
+      <ActionSheetHost />
       <PinterestReceiver onOpen={openBoards} />
       <JoinHandler />
-      <header className="topbar">
-        <ProjectMenu />
-        <nav className="tabs sections" aria-label="Sections">
-          {SECTIONS.filter((x) => x.id !== 'settings').map((x) => (
-            <div key={x.id} className="section-wrap">
-              <button className={section === x.id ? 'tab active' : 'tab'} onClick={(e) => { setTab(lastInSection[x.id] ?? x.tabs[0].id); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
-                {x.label}
-              </button>
-              {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
-              <div className="section-flyout" role="menu">
-                {x.tabs.map((t) => (
-                  <button key={t.id} role="menuitem" className={tab === t.id ? 'active' : ''} onClick={(e) => { setTab(t.id); (e.currentTarget as HTMLElement).blur(); }}>
-                    <b>{t.label}</b><span>{t.hint}</span>
-                  </button>
-                ))}
+      {narrow ? (
+        <PhoneTopbar sections={shown} allSections={SECTIONS} tab={tab} setTab={setTab as never} saveState={saveState} />
+      ) : (
+        <header className="topbar">
+          <ProjectMenu />
+          <nav className="tabs sections" aria-label="Sections">
+            {SECTIONS.filter((x) => x.id !== 'settings').map((x) => (
+              <div key={x.id} className="section-wrap">
+                <button className={section === x.id ? 'tab active' : 'tab'} onClick={(e) => { setTab(lastInSection[x.id] ?? x.tabs[0].id); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
+                  {x.label}
+                </button>
+                {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
+                <div className="section-flyout" role="menu">
+                  {x.tabs.map((t) => (
+                    <button key={t.id} role="menuitem" className={tab === t.id ? 'active' : ''} onClick={(e) => { setTab(t.id); (e.currentTarget as HTMLElement).blur(); }}>
+                      <b>{t.label}</b><span>{t.hint}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </nav>
-        <div className="topbar-right">
-          <ShareBar />
-          <ThemeToggle />
-          <EditMenu />
-          <SyncIssues onGo={setTab} />
-          <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
-            {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
-          </span>
-          <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Project settings" onClick={() => setTab('setup')}>⚙</button>
-        </div>
-      </header>
+            ))}
+          </nav>
+          <div className="topbar-right">
+            <ShareBar />
+            <ThemeToggle />
+            <EditMenu />
+            <SyncIssues onGo={setTab} />
+            <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
+              {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
+            </span>
+            <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Project settings" onClick={() => setTab('setup')}>⚙</button>
+          </div>
+        </header>
+      )}
       {sec.tabs.length > 1 && (
         <nav className="subtabs" aria-label={`${sec.label} tabs`}>
           {sec.tabs.map((t) => (
@@ -202,6 +219,7 @@ export function App() {
         </nav>
       )}
       <AccessBanner />
+      {phone && <PhonePanels tab={tab} />}
       <main className="tab-body">
         {tab === 'screenplay' && <WriteTab />}
         {tab === 'av' && <AVScriptTab />}

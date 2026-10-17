@@ -9,6 +9,8 @@ import { Modal, Empty, toast } from '../components/common';
 import type { DerivedScene, ShootDay } from '../model/types';
 import { askText } from '../components/dialogs';
 import { addSceneToScript } from '../script/scenes';
+import { More } from '../components/More';
+import { LongPress, type Action } from '../components/ActionSheet';
 import { safeName } from '../io/files';
 
 type Sort = 'script' | 'location' | 'intExt' | 'time' | 'cast' | 'length';
@@ -84,6 +86,36 @@ export function ScheduleTab() {
     setSelected([]);
   };
 
+  /** Touch / right-click menu for a strip: the alternative to dragging it. */
+  const stripActions = (day: ShootDay, idx: number, sceneId: string, completed?: boolean): Action[] => {
+    const scenesInDay = day.items.filter((i) => i.kind === 'scene').length;
+    return [
+      { label: 'Move to day…', items: p.schedule.days.filter((x) => !x.blackout).map((x) => ({
+        label: `${formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' })}${nums.get(x.id) ? ` · Day ${nums.get(x.id)}` : ''}`,
+        current: x.id === day.id,
+        run: () => update((dr) => moveScenes(dr.schedule, [sceneId], x.id), 'Move scene to day'),
+      })) },
+      { label: 'Move earlier', disabled: idx === 0, run: () => update((dr) => moveScenes(dr.schedule, [sceneId], day.id, idx - 1), 'Move strip') },
+      { label: 'Move later', disabled: idx >= day.items.length - 1 || scenesInDay < 1, run: () => update((dr) => moveScenes(dr.schedule, [sceneId], day.id, idx + 2), 'Move strip') },
+      { label: 'Set a fixed start time…', run: async () => {
+        const v = await askText('Fixed start time', { placeholder: '07:30', message: 'Leave blank to follow the day’s timeline.', confirmLabel: 'Set time' });
+        if (v === null) return;
+        const t = v.trim();
+        if (t && !/^\d{1,2}:\d{2}$/.test(t)) { toast('Use a time like 07:30'); return; }
+        update((dr) => { const x = dr.schedule.days.find((y) => y.id === day.id)!.items[idx]; if (x.kind === 'scene') x.customStart = t ? t.padStart(5, '0') : undefined; }, 'Set strip time');
+      } },
+      { label: completed ? 'Mark not shot' : 'Mark shot / completed', run: () => update((dr) => { const x = dr.schedule.days.find((y) => y.id === day.id)!.items[idx]; if (x.kind === 'scene') x.completed = !x.completed; }, 'Toggle completed') },
+      { label: 'Back to boneyard', danger: true, run: () => update((dr) => unschedule(dr.schedule, [sceneId]), 'Unschedule') },
+    ];
+  };
+  /** Touch menu for a boneyard strip. */
+  const boneActions = (sceneId: string): Action[] => [
+    { label: 'Schedule on day…', items: p.schedule.days.filter((x) => !x.blackout).map((x) => ({
+      label: `${formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' })}${nums.get(x.id) ? ` · Day ${nums.get(x.id)}` : ''}`,
+      run: () => update((dr) => moveScenes(dr.schedule, [sceneId], x.id), 'Schedule scene'),
+    })) },
+  ];
+
   const exportPdf = async (kind: 'strip' | 'shooting') => {
     const m = await import('../pdf/schedulePdf');
     const doc = kind === 'strip' ? m.stripboardPdf(p, getDerived()) : m.shootingSchedulePdf(p, getDerived());
@@ -96,6 +128,7 @@ export function ScheduleTab() {
   return (
     <div className="schedule-tab">
       <div className="toolbar">
+        <More label="Schedule options">
         <RangeControl />
         <span className="sep" />
         <button disabled={!canUndo} onClick={() => useStore.getState().undo()} title="Undo (⌘Z)">↶</button>
@@ -107,9 +140,10 @@ export function ScheduleTab() {
           : <button onClick={() => { update((dr) => { dr.schedule.lock = { lockedAt: new Date().toISOString(), workingDays: workingDays(p, d) }; }, 'Lock schedule'); toast('Schedule locked. Changes to cast work days will be tracked.'); }}>Lock schedule</button>}
         <button onClick={() => exportPdf('strip')}>Stripboard PDF</button>
         <button onClick={() => exportPdf('shooting')}>Shooting schedule PDF</button>
+        </More>
       </div>
       <div className="schedule-body">
-        <aside className="boneyard"
+        <aside className="boneyard" data-panel="Boneyard"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { const pl = getDrag(e); if (pl?.kind === 'scenes') { update((dr) => unschedule(dr.schedule, pl.ids), 'Unschedule'); setSelected([]); } }}>
           <div className="side-head">
@@ -137,8 +171,10 @@ export function ScheduleTab() {
           )}
           <div className="strip-list">
             {bone.map((s) => (
-              <SceneStripView key={s.id} scene={s} compact selected={selected.includes(s.id)} duplicate={conflicts.duplicateNumbers.has(s.id)}
+              <LongPress key={s.id} title={`Scene ${s.number} — ${s.set || s.heading}`} actions={() => boneActions(s.id)}>
+              <SceneStripView scene={s} compact selected={selected.includes(s.id)} duplicate={conflicts.duplicateNumbers.has(s.id)}
                 onClick={(e) => select(s.id, bone.map((x) => x.id), e)} onDragStart={(e) => dragScenes(e, s.id)} />
+              </LongPress>
             ))}
             {!bone.length && <p className="muted small pad">{d.scenes.length ? 'Every scene is scheduled.' : 'No scenes yet — write or import a script.'}</p>}
           </div>
@@ -194,7 +230,8 @@ export function ScheduleTab() {
                       return <div key={it.sceneId} className="strip orphan">{line}Deleted scene <button className="small" onClick={() => update((dr) => unschedule(dr.schedule, [it.sceneId]), 'Remove deleted scene')}>Remove</button></div>;
                     }
                     return (
-                      <div key={it.sceneId} onDragOver={(e) => rowDragOver(e, day.id, idx)}>
+                      <LongPress key={it.sceneId} title={`Scene ${sc.number} — ${sc.set || sc.heading}`} actions={() => stripActions(day, idx, sc.id, it.completed)}>
+                      <div onDragOver={(e) => rowDragOver(e, day.id, idx)}>
                         {line}
                         <SceneStripView scene={sc} completed={it.completed} selected={selected.includes(sc.id)} conflict={conflicts.scenes.get(sc.id)} duplicate={conflicts.duplicateNumbers.has(sc.id)}
                           time={`${formatClock12(t.start)}–${formatClock12(t.end)}`}
@@ -214,6 +251,7 @@ export function ScheduleTab() {
                             </span>
                           } />
                       </div>
+                      </LongPress>
                     );
                   })}
                   {dropAt?.dayId === day.id && dropAt.index >= timed.length && <div className="drop-line" />}

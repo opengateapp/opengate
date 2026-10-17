@@ -70,6 +70,16 @@ Exports: budget PDF (top sheet + detail) and an Excel workbook (top sheet, detai
 
 **Who sees it:** in a shared project the budget is private by default. It's encrypted with its own key, which only goes into invite links where you choose *Budget: Can see* or *Can see and edit*; "Can edit everything" doesn't include it. Without that key the relay never sends the budget or its receipts.
 
+## On your phone
+
+Open Gate works on phones and tablets (add it to your home screen from the browser's share menu).
+
+- **☰** opens the sections and tabs; **⋯** holds Share, Review, Undo/Redo, theme and settings, and each toolbar's less-used actions.
+- **Open Gate Lite** (on by default on phones) shows a short list of tabs: Screenplay, Call Sheets, Stripboard, Calendar, Tasks, Contacts, Locations, Shot Lists and Expenses. Add, remove or reorder tabs in **Settings → Phone layout**, or tick "Show all tabs" in the ☰ menu.
+- Side panels (scenes, boneyard, breakdown sheet, lists) open as sheets from the buttons at the bottom; tables become cards.
+- **Long-press** (or right-click on a computer) a strip, task, shot, A/V row or budget line for actions like *Move to day…*, *Move up/down* and *Move to account…* — the touch version of drag-and-drop.
+- The screenplay fills the screen, with an element bar (Scene, Action, Character, Dialogue…) above the keyboard. Mood boards pan with one finger and zoom with two.
+
 ## Appearance
 
 Light / dark / system mode, built-in color themes, and custom colors for each mode. **Save as theme…** keeps your colors under a name (double-click to rename, right-click to delete), and **Export / Import themes** moves them to another browser.

@@ -6,6 +6,8 @@ import { startTheme } from './theme';
 import { installWriteGuard } from './sync/guard';
 import { startFileAutosave } from './io/fileSave';
 import { startOffline } from './offline';
+import { startCardTables } from './ui/cardTables';
+import { startKeyboardInset } from './ui/responsive';
 import './styles.css';
 
 startAutosave();
@@ -13,6 +15,8 @@ startTheme();
 installWriteGuard();
 startFileAutosave();
 startOffline();
+startCardTables();
+startKeyboardInset();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

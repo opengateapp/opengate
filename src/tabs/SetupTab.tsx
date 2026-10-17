@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import { COLOR_SLOT_LABELS, DEFAULT_STRIP_COLORS } from '../model/defaults';
@@ -6,13 +6,20 @@ import type { ColorSlot } from '../model/types';
 import { formatDate } from '../model/dates';
 import { Field } from '../components/common';
 import { AppearanceSettings } from '../components/AppearanceSettings';
+import { PhoneLayoutSettings } from '../ui/PhoneLayoutSettings';
 
 /** Production Setup (after CineSched's ProductionSetupSheet): company, cast roster, locations, crew, colors, categories. */
 export function SetupTab() {
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
-  const [section, setSection] = useState<'appearance' | 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors'>('appearance');
+  const [section, setSection] = useState<'appearance' | 'phone' | 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors'>('appearance');
+  // The phone drawer's "Customize tabs…" opens the Phone layout panel.
+  useEffect(() => {
+    const go = () => setSection('phone');
+    window.addEventListener('opengate:phone-layout', go);
+    return () => window.removeEventListener('opengate:phone-layout', go);
+  }, []);
 
   const rosterNames = new Set(p.cast.map((c) => c.characterName));
   const missingCast = d.characters.filter((c) => !rosterNames.has(c.name));
@@ -22,14 +29,15 @@ export function SetupTab() {
   return (
     <div className="setup-tab with-side">
       <aside className="side">
-        {(['appearance', 'production', 'cast', 'locations', 'crew', 'categories', 'colors'] as const).map((s) => (
+        {(['appearance', 'phone', 'production', 'cast', 'locations', 'crew', 'categories', 'colors'] as const).map((s) => (
           <button key={s} className={`side-link ${section === s ? 'active' : ''}`} onClick={() => setSection(s)}>
-            {{ appearance: 'Appearance', production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors' }[s]}
+            {{ appearance: 'Appearance', phone: 'Phone layout', production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors' }[s]}
           </button>
         ))}
       </aside>
       <section className="main pad scroll">
         {section === 'appearance' && <AppearanceSettings />}
+        {section === 'phone' && <PhoneLayoutSettings />}
         {section === 'production' && (
           <div className="form-grid">
             {(['company', 'director', 'producer', 'ad', 'contactPhone'] as const).map((k) => (
@@ -54,7 +62,7 @@ export function SetupTab() {
               <button onClick={() => update((dr) => { dr.cast.push({ id: newId(), castNumber: Math.max(0, ...dr.cast.map((c) => c.castNumber)) + 1, characterName: 'NEW CHARACTER', actorName: '', unavailable: [] }); }, 'Add cast member')}>+ Cast member</button>
             </div>
             <p className="muted small">Cast numbers appear on strips, call sheets and Day Out of Days. Unavailable dates are flagged as conflicts on the stripboard and calendar.</p>
-            <table className="table">
+            <table className="table cards-on-phone">
               <thead><tr><th>#</th><th>Character</th><th>Actor</th><th>Phone</th><th>Email</th><th>Scenes</th><th>Unavailable</th><th /></tr></thead>
               <tbody>
                 {[...p.cast].sort((a, b) => a.castNumber - b.castNumber).map((c) => {
@@ -93,7 +101,7 @@ export function SetupTab() {
               <button onClick={() => update((dr) => { dr.locations.push({ id: newId(), setName: '', realName: '', address: '' }); }, 'Add location')}>+ Location</button>
             </div>
             <p className="muted small">Each script set (from scene headings) maps to a real shooting location and address for call sheets.</p>
-            <table className="table">
+            <table className="table cards-on-phone">
               <thead><tr><th>Script set</th><th>Real location</th><th>Address</th><th>Scenes</th><th /></tr></thead>
               <tbody>
                 {p.locations.map((l) => {
@@ -117,7 +125,7 @@ export function SetupTab() {
         {section === 'crew' && (
           <>
             <div className="toolbar"><h3>Crew</h3><span className="spacer" /><button onClick={() => update((dr) => { dr.crew.push({ id: newId(), name: '', role: '', dailyDefault: true }); }, 'Add crew')}>+ Crew member</button></div>
-            <table className="table">
+            <table className="table cards-on-phone">
               <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>On every call sheet</th><th /></tr></thead>
               <tbody>
                 {p.crew.map((c) => {
@@ -140,7 +148,7 @@ export function SetupTab() {
         {section === 'categories' && (
           <>
             <div className="toolbar"><h3>Breakdown categories</h3><span className="spacer" /><button onClick={() => update((dr) => { dr.categories.push({ id: 'c' + newId().slice(0, 8), name: 'New category', color: '#64748b' }); }, 'Add category')}>+ Category</button></div>
-            <table className="table">
+            <table className="table cards-on-phone">
               <tbody>
                 {p.categories.map((c, i) => (
                   <tr key={c.id}>

@@ -12,6 +12,8 @@ import { addSceneToScript } from '../script/scenes';
 import { SHOT_TYPES, ANGLES, LENSES, MOVES, EQUIPMENT, FOCUS, LIGHTING, SOUND, PRIORITIES, SHOT_COLORS } from '../model/defaults';
 import { Select, Modal, Field } from '../components/common';
 import { download, safeName } from '../io/files';
+import { More } from '../components/More';
+import { LongPress } from '../components/ActionSheet';
 import { shotListCsv, shotListXlsx } from '../io/reports';
 
 export function blankShot(sceneId: string | null, order: number, shotNumber: string): Shot {
@@ -131,6 +133,7 @@ export function ShotsTab() {
             {d.scenes.map((s) => <option key={s.id} value={s.id}>{s.number}. {s.heading}</option>)}
             <option value="none">No scene</option>
           </select>
+          <More label="Filters and export">
           <Select value={filter.type} options={SHOT_TYPES} placeholder="Any type" onChange={(v) => setFilter({ ...filter, type: v })} />
           <Select value={filter.priority} options={PRIORITIES} placeholder="Any priority" onChange={(v) => setFilter({ ...filter, priority: v })} />
           <input placeholder="Search shots…" value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} />
@@ -142,6 +145,7 @@ export function ShotsTab() {
           }}>+ Scene</button>
           <button onClick={() => download(`${safeName(p.title)} - shot list.csv`, shotListCsv(p, getDerived()), 'text/csv')}>CSV</button>
           <button onClick={async () => download(`${safeName(p.title)} - shot list.xlsx`, await shotListXlsx(p, getDerived()))}>Excel</button>
+          </More>
         </div>
         <div className="shot-groups">
           {!d.scenes.length && <p className="muted small">No script yet — add shots below, or add scenes with “+ Scene”. They'll line up with the script when you write or import it.</p>}
@@ -153,11 +157,15 @@ export function ShotsTab() {
                 <button className="small" onClick={() => addShot(scene?.id ?? null)}>+ Shot</button>
               </div>
               {shots.length > 0 && (
-                <table className="table shots">
+                <table className="table shots cards-on-phone">
                   <thead><tr><th /><th>#</th><th>Description</th><th>Type</th><th>Angle</th><th>Lens</th><th>Move</th><th>Subject</th><th>Dur.</th><th>Priority</th><th /></tr></thead>
                   <tbody>
-                    {shots.map((sh) => (
-                      <tr key={sh.id} draggable onDragStart={() => setDragId(sh.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragId) reorder(dragId, sh.id); setDragId(null); }}>
+                    {shots.map((sh, i) => (
+                      <LongPress as="tr" key={sh.id} title={`Shot ${sh.shotNumber || ''} ${sh.name || ''}`.trim()} actions={() => [
+                        { label: 'Move up', disabled: i === 0, run: () => reorder(sh.id, shots[i - 1].id) },
+                        { label: 'Move down', disabled: i === shots.length - 1, run: () => reorder(sh.id, shots[i + 1].id) },
+                        { label: 'Delete shot', danger: true, run: () => remove(sh.id) },
+                      ]} draggable onDragStart={() => setDragId(sh.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragId) reorder(dragId, sh.id); setDragId(null); }}>
                         <td><span className="grip" style={{ background: sh.color }} title="Drag to reorder" /></td>
                         <td><input className="w-sm" value={sh.shotNumber} onChange={(e) => setField(sh.id, 'shotNumber', e.target.value)} /></td>
                         <td><input value={sh.name} placeholder={sh.quote.slice(0, 40)} onChange={(e) => setField(sh.id, 'name', e.target.value)} /></td>
@@ -172,7 +180,7 @@ export function ShotsTab() {
                           <button className="icon-btn" title="All fields" onClick={() => setEditing(sh.id)}>⋯</button>
                           <button className="icon-btn" title="Delete" onClick={() => remove(sh.id)}>×</button>
                         </td>
-                      </tr>
+                      </LongPress>
                     ))}
                   </tbody>
                 </table>

@@ -6,6 +6,8 @@ import { SceneStripView, DayDialog, setDrag, getDrag } from '../components/sched
 import { RangeControl } from '../components/RangeControl';
 import { addDays, dateRange, formatDate, formatEighths, fromISO, toISO, weekday } from '../model/dates';
 import { download, safeName } from '../io/files';
+import { More } from '../components/More';
+import { LongPress } from '../components/ActionSheet';
 import { toast } from '../components/common';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -92,24 +94,33 @@ export function CalendarTab() {
   return (
     <div className="calendar-tab">
       <div className="toolbar">
-        <RangeControl />
+        <More label="Calendar options">
+          <RangeControl />
+          <label className="check"><input type="checkbox" checked={showCast} onChange={(e) => setShowCast(e.target.checked)} /> Show cast</label>
+          <button title="Download an .ics file to import into Google, Apple or Outlook calendar" onClick={() => {
+            download(`${safeName(p.title)} schedule.ics`, buildICS(p, getDerived()), 'text/calendar');
+            toast('Calendar file downloaded — import it into Google Calendar, Apple Calendar or Outlook.');
+          }}>Export to calendar (.ics)</button>
+        </More>
         <span className="sep" />
         <div className="seg">
           <button className={mode === 'month' ? 'active' : ''} onClick={() => setMode('month')}>Month</button>
           <button className={mode === 'list' ? 'active' : ''} onClick={() => setMode('list')}>Full schedule</button>
         </div>
-        <label className="check"><input type="checkbox" checked={showCast} onChange={(e) => setShowCast(e.target.checked)} /> Show cast</label>
         <span className="spacer" />
-        <button title="Download an .ics file to import into Google, Apple or Outlook calendar" onClick={() => {
-          download(`${safeName(p.title)} schedule.ics`, buildICS(p, getDerived()), 'text/calendar');
-          toast('Calendar file downloaded — import it into Google Calendar, Apple Calendar or Outlook.');
-        }}>Export to calendar (.ics)</button>
       </div>
       <div className="calendar-body">
-        <aside className="boneyard" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { const pl = getDrag(e); if (pl?.kind === 'scenes') update((dr) => unschedule(dr.schedule, pl.ids), 'Unschedule'); }}>
+        <aside className="boneyard" data-panel="Unscheduled" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { const pl = getDrag(e); if (pl?.kind === 'scenes') update((dr) => unschedule(dr.schedule, pl.ids), 'Unschedule'); }}>
           <div className="side-head"><b>Unscheduled</b><span className="muted small">{bone.length}</span></div>
           <div className="strip-list">
-            {bone.map((s) => <SceneStripView key={s.id} scene={s} compact onDragStart={(e) => setDrag(e, { kind: 'scenes', ids: [s.id] })} />)}
+            {bone.map((s) => (
+              <LongPress key={s.id} title={`Scene ${s.number} — ${s.set || s.heading}`} actions={() => [{ label: 'Schedule on day…', items: p.schedule.days.filter((x) => !x.blackout).map((x) => ({
+                label: formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' }),
+                run: () => update((dr) => moveScenes(dr.schedule, [s.id], x.id), 'Schedule scenes'),
+              })) }]}>
+                <SceneStripView scene={s} compact onDragStart={(e) => setDrag(e, { kind: 'scenes', ids: [s.id] })} />
+              </LongPress>
+            ))}
           </div>
         </aside>
         {mode === 'month' ? (

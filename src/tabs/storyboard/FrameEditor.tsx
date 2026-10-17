@@ -5,6 +5,7 @@ import { newId } from '../../model/ids';
 import { boardFrames } from '../../script/storyboard';
 import { SHOT_TYPES } from '../../model/defaults';
 import { FRAME_H, FRAME_W, drawContain } from './render';
+import { More } from '../../components/More';
 import { prepareImage } from './images';
 
 // Frame editor after DontPayForStoryboardingSoftware: pen / brush / eraser / fill / line /
@@ -287,7 +288,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   return (
     <div className="frame-editor" role="dialog" aria-label="Storyboard frame">
       <div className="toolbar">
-        <h3>{cur.scene ? `Sc ${cur.scene.number} · ` : ''}Shot {shot.shotNumber || '—'}{type ? ` · ${type}` : ''}{layer === 'ref' ? ' — Set plan / reference' : ''}</h3>
+        <h3 className="keep">{cur.scene ? `Sc ${cur.scene.number} · ` : ''}Shot {shot.shotNumber || '—'}{type ? ` · ${type}` : ''}{layer === 'ref' ? ' — Set plan / reference' : ''}</h3>
         <span className="muted small">frame {pos + 1} of {all.length}</span>
         <span className="spacer" />
         <button disabled={!prev} onClick={() => { void save(); onSelect(prev!.frame.id); }} title="Previous frame (←)">◀</button>
@@ -299,16 +300,18 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         <span className="sep" />
         {SWATCHES.map((c) => <button key={c} className={`swatch ${color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />)}
         <input type="color" value={color} onChange={(e) => setColor(e.target.value)} title="Custom color" />
+        <button onClick={doUndo} disabled={!undo.current.length} title="Undo (⌘Z)">↶</button>
+        <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)">↷</button>
+        <More label="Brush and frame options">
         <label className="check small">Size <input type="range" min={1} max={40} value={size} onChange={(e) => setSize(Number(e.target.value))} /> {size}</label>
         <label className="check small">Opacity <input type="range" min={0.05} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} /> {Math.round(opacity * 100)}%</label>
         <span className="sep" />
-        <button onClick={doUndo} disabled={!undo.current.length} title="Undo (⌘Z)">↶</button>
-        <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)">↷</button>
         <button className={grid ? 'active' : ''} onClick={() => setGrid(!grid)} title="Grid + rule of thirds (G)">Grid</button>
         <button className={onion ? 'active' : ''} disabled={!prev} onClick={() => setOnion(!onion)} title="Show the previous frame faintly (N)">Onion skin</button>
         <button onClick={() => { snapshot(); ctx().clearRect(0, 0, FRAME_W, FRAME_H); changed(); }}>Clear drawing</button>
         <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
         {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
+        </More>
       </div>
       <div className="frame-stage">
         <div className="frame-stack" style={{ aspectRatio: `${FRAME_W} / ${FRAME_H}` }}>

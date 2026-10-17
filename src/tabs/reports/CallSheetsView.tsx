@@ -45,7 +45,7 @@ export function CallSheetsView({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="with-side reports-sub">
-      <aside className="side">
+      <aside className="side" data-panel="Shoot days" data-panel-pick>
         {onBack && <div className="side-head"><button className="link" onClick={onBack}>← Reports</button></div>}
         <div className="side-head"><h3>Call sheets</h3></div>
         {days.length === 0 && <p className="muted small pad">No shoot days yet. Pick a date below, or put scenes on days in the Stripboard and they'll show up here.</p>}

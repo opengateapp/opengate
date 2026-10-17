@@ -13,6 +13,7 @@ import { putMedia, useMediaUrl } from '../store/media';
 import { FrameEditor } from './storyboard/FrameEditor';
 import { exportStoryboardPdf } from './storyboard/render';
 import { prepareImage } from './storyboard/images';
+import { More } from '../components/More';
 import { blankShot } from './ShotsTab';
 
 // Storyboard panels laid out like a storyboard sheet: scene / shot #, the frame, a set plan /
@@ -97,6 +98,12 @@ export function StoryboardTab() {
     <div className="storyboard-tab">
       <div className="toolbar">
         <h3>Storyboard</h3>
+        <select value={sceneFilter} onChange={(e) => setSceneFilter(e.target.value)}>
+          <option value="">All scenes</option>
+          {d.scenes.map((s) => <option key={s.id} value={s.id}>{s.number}. {s.heading}</option>)}
+          <option value="none">Panels without a scene</option>
+        </select>
+        <More label="Storyboard options">
         <span className="muted small">Panels per page</span>
         <div className="seg">
           {LAYOUTS.map((n) => <button key={n} className={settings.perPage === n ? 'active' : ''} onClick={() => setSettings({ perPage: n })} title={n >= 4 ? `${n} per page in a grid` : `${n} per page with set plan box`}>{n}</button>)}
@@ -104,11 +111,6 @@ export function StoryboardTab() {
         <label className="check" title={cols > 1 ? 'Set plan boxes show with 1–3 panels per page' : ''}>
           <input type="checkbox" checked={settings.showReference} disabled={cols > 1} onChange={(e) => setSettings({ showReference: e.target.checked })} /> Set plan / reference box
         </label>
-        <select value={sceneFilter} onChange={(e) => setSceneFilter(e.target.value)}>
-          <option value="">All scenes</option>
-          {d.scenes.map((s) => <option key={s.id} value={s.id}>{s.number}. {s.heading}</option>)}
-          <option value="none">Panels without a scene</option>
-        </select>
         <span className="spacer" />
         <button onClick={async () => {
           const h = await askText('New scene', { placeholder: 'INT. LOCATION - DAY', confirmLabel: 'Add scene', message: 'Adds a scene heading to the end of the screenplay, so it shows up everywhere.' });
@@ -118,6 +120,7 @@ export function StoryboardTab() {
           setBusy(true);
           try { await exportStoryboardPdf(useStore.getState().project!); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
         }}>{busy ? 'Exporting…' : 'Export PDF'}</button>
+        </More>
       </div>
       <div className="board scroll sb-scroll">
         {!d.scenes.length && !panels.length && (

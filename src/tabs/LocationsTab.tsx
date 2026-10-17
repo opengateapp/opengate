@@ -9,6 +9,7 @@ import { Empty, Field, toast } from '../components/common';
 import { formatDate } from '../model/dates';
 import { download, safeName } from '../io/files';
 import { deletedToast } from '../components/deleted';
+import { More } from '../components/More';
 import { csv } from '../io/reports';
 
 // Location manager: each real location, the script sets it plays, contacts, permits,
@@ -34,7 +35,7 @@ export function LocationsTab() {
 
   return (
     <div className="with-side locations-tab">
-      <aside className="side" onDoubleClick={(e) => { if (e.target === e.currentTarget) add(); }}>
+      <aside className="side" data-panel="Locations" data-panel-pick onDoubleClick={(e) => { if (e.target === e.currentTarget) add(); }}>
         <div className="side-head"><b>Locations</b><button className="small" onClick={() => add()}>+ Location</button></div>
         {missing.length > 0 && (
           <button className="small full" onClick={() => update((dr) => { for (const s of missing) dr.locations.push({ id: newId(), setName: s.name, realName: '', address: '', status: 'scouting', photoIds: [] }); }, 'Add sets from script')}>
@@ -92,8 +93,10 @@ function LocationDetail({ loc }: { loc: Location }) {
           {STATUS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
         <span className="spacer" />
+        <More label="Location actions">
         {loc.address && <a className="button-like" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.address)}`} target="_blank" rel="noreferrer noopener">Open in Maps ↗</a>}
         <button onClick={() => { update((dr) => { dr.locations = dr.locations.filter((x) => x.id !== loc.id); }, 'Remove location'); deletedToast(loc.realName || 'location'); }}>Delete</button>
+        </More>
       </div>
       <div className="form-grid">
         <Field label="Script set (from scene headings)">

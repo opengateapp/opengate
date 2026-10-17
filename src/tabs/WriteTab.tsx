@@ -9,6 +9,7 @@ import { useDerived, useProject, useStore } from '../store/project';
 import type { ElementType } from '../model/types';
 import { formatEighths } from '../model/dates';
 import { TitlePageEditor, TitleLogoControls } from '../components/TitlePageEditor';
+import { More } from '../components/More';
 import { FindReplace } from '../components/FindReplace';
 
 const BAR: ElementType[] = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'centered', 'pageBreak'];
@@ -52,7 +53,7 @@ export function WriteTab() {
 
   return (
     <div className="write-tab with-side">
-      <aside className="side">
+      <aside className="side" data-panel="Scenes & characters" data-panel-pick>
         <div className="side-tabs">
           {(['title', 'scenes', 'characters', 'notes'] as const).map((s) => (
             <button key={s} className={side === s ? 'active' : ''} onClick={() => setSide(s)}>{s[0].toUpperCase() + s.slice(1)}</button>
@@ -94,6 +95,7 @@ export function WriteTab() {
             </button>
           ))}
           <span className="spacer" />
+          <More label="Script tools">
           <button onClick={() => setFindOpen(true)} title="Find & replace (⌘F)">Find</button>
           <button onClick={() => setSide('title')}>Title page</button>
           <label className="check" title="Lock scene numbers so new scenes get A/B numbers">
@@ -124,6 +126,7 @@ export function WriteTab() {
               update((dr) => { dr.sceneNumbersLocked = lock; }, lock ? 'Lock scene numbers' : 'Unlock scene numbers');
             }} /> Lock numbers
           </label>
+          </More>
         </div>
         <div className="editor-scroll" onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'f') { e.preventDefault(); setFindOpen(true); } }}>
           <ScriptEditor onState={onState} />

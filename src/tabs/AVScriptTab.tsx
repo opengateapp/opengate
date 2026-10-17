@@ -8,6 +8,8 @@ import { SHOT_TYPES } from '../model/defaults';
 import { Empty, Select } from '../components/common';
 import { download, safeName } from '../io/files';
 import { deletedToast } from '../components/deleted';
+import { More } from '../components/More';
+import { LongPress } from '../components/ActionSheet';
 import { csv } from '../io/reports';
 
 // A/V scripts: two-column Video | Audio scripts for commercials, documentaries and corporate work.
@@ -84,7 +86,7 @@ export function AVScriptTab() {
 
   return (
     <div className="with-side av-tab">
-      <aside className="side" onDoubleClick={(e) => { if (e.target === e.currentTarget) create(); }}>
+      <aside className="side" data-panel="A/V scripts" data-panel-pick onDoubleClick={(e) => { if (e.target === e.currentTarget) create(); }}>
         <div className="side-head"><b>A/V scripts</b><button className="small" onClick={create}>+ New</button></div>
         <ul className="doc-list">
           {p.avScripts.map((s) => (
@@ -99,16 +101,18 @@ export function AVScriptTab() {
           <input className="doc-title" value={script.title} onChange={(e) => edit((s) => { s.title = e.target.value; })} />
           <span className="muted small">{script.rows.length} rows · total {fmt(total)}</span>
           <span className="spacer" />
-          <button onClick={() => setImportOpen(true)} title="Bring in the screenplay's scenes as segments">Import from screenplay</button>
           <button onClick={() => addRow(undefined, 'NEW SEGMENT')}>+ Segment</button>
           <button onClick={() => addRow()}>+ Row</button>
+          <More label="A/V script actions">
+          <button onClick={() => setImportOpen(true)} title="Bring in the screenplay's scenes as segments">Import from screenplay</button>
           <button onClick={exportCsv}>CSV</button>
           <button className="primary" onClick={exportPdf}>PDF</button>
           <button onClick={() => { update((d) => { d.avScripts = d.avScripts.filter((x) => x.id !== script.id); }, 'Delete A/V script'); deletedToast(`“${script.title}”`); }}>Delete</button>
+          </More>
         </div>
         {importDialog}
         <div className="scroll pad av-body" onDoubleClick={(e) => { if ((e.target as HTMLElement).classList.contains('av-body')) addRow(); }}>
-          <table className="table av">
+          <table className="table av cards-on-phone">
             <thead><tr><th /><th>#</th><th>Shot</th><th>Video</th><th>Audio</th><th>Time</th><th /></tr></thead>
             <tbody>
               {script.rows.map((r, i) => (
@@ -118,7 +122,10 @@ export function AVScriptTab() {
                       <td colSpan={7}><input value={r.segment} placeholder="Segment" onChange={(e) => setRow(r.id, { segment: e.target.value })} /></td>
                     </tr>
                   )}
-                  <tr draggable onDragStart={() => setDragId(r.id)} onDragOver={(e) => e.preventDefault()}
+                  <LongPress as="tr" title={`Row ${i + 1}`} actions={() => [
+                    { label: 'Move up', disabled: i === 0, run: () => edit((s) => { const [m] = s.rows.splice(i, 1); s.rows.splice(i - 1, 0, m); }, 'Reorder rows') },
+                    { label: 'Move down', disabled: i === script.rows.length - 1, run: () => edit((s) => { const [m] = s.rows.splice(i, 1); s.rows.splice(i + 1, 0, m); }, 'Reorder rows') },
+                  ]} draggable onDragStart={() => setDragId(r.id)} onDragOver={(e) => e.preventDefault()}
                     onDrop={() => { if (dragId && dragId !== r.id) edit((s) => { const from = s.rows.findIndex((x) => x.id === dragId); const [m] = s.rows.splice(from, 1); s.rows.splice(s.rows.findIndex((x) => x.id === r.id), 0, m); }, 'Reorder rows'); setDragId(null); }}>
                     <td><span className="grip handle" title="Drag to reorder">⋮⋮</span></td>
                     <td className="muted">{i + 1}</td>
@@ -131,7 +138,7 @@ export function AVScriptTab() {
                       <button className="icon-btn" title="Toggle segment heading" onClick={() => setRow(r.id, { segment: r.segment === undefined ? 'SEGMENT' : undefined })}>§</button>
                       <button className="icon-btn" title="Delete row" onClick={() => edit((s) => { s.rows = s.rows.filter((x) => x.id !== r.id); }, 'Delete row')}>×</button>
                     </td>
-                  </tr>
+                  </LongPress>
                 </FragmentRow>
               ))}
             </tbody>

@@ -12,6 +12,7 @@ import { csv } from '../../io/reports';
 import { download, safeName } from '../../io/files';
 import { askConfirm } from '../../components/dialogs';
 import { toast } from '../../components/common';
+import { More } from '../../components/More';
 import { BudgetHidden } from './BudgetTab';
 
 // Expenses: what has actually been spent, logged against budget accounts (and optionally a
@@ -113,21 +114,23 @@ function ExpensesScreen() {
         if (csvFile) void startImport(csvFile); else void addReceipts(files);
       }}>
       <div className="budget-bar">
-        <label className="budget-mode"><span className="muted small">Account</span>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="">All accounts</option>
-            {accountOptions}
-          </select>
-        </label>
-        <label className="check"><input type="checkbox" checked={unpaidOnly} onChange={(e) => setUnpaidOnly(e.target.checked)} /> Unpaid only</label>
+        {!ro && <button className="primary" onClick={() => add()}>＋ Expense</button>}
+        <More label="Filter, receipts, import and export">
+          <label className="budget-mode"><span className="muted small">Account</span>
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">All accounts</option>
+              {accountOptions}
+            </select>
+          </label>
+          <label className="check"><input type="checkbox" checked={unpaidOnly} onChange={(e) => setUnpaidOnly(e.target.checked)} /> Unpaid only</label>
+          {!ro && <>
+            <button onClick={() => fileRef.current?.click()}>Add receipts…</button>
+            <button onClick={() => csvRef.current?.click()} title="From your bank or card: Date, Description/Payee, Amount (or Debit/Credit) columns">Import CSV…</button>
+          </>}
+          <button disabled={!b.expenses.length} onClick={exportCsv}>Export CSV</button>
+        </More>
         <span className="spacer" />
         <div className="budget-total"><span className="muted small">Spent{filter ? ' in this account' : ''}</span><b>{$(spent)}</b>{unpaid > 0 && <span className="small over">{$(unpaid)} unpaid</span>}</div>
-        {!ro && <>
-          <button className="primary" onClick={() => add()}>＋ Expense</button>
-          <button onClick={() => fileRef.current?.click()}>Add receipts…</button>
-          <button onClick={() => csvRef.current?.click()} title="From your bank or card: Date, Description/Payee, Amount (or Debit/Credit) columns">Import CSV…</button>
-        </>}
-        <button disabled={!b.expenses.length} onClick={exportCsv}>Export CSV</button>
         <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple hidden onChange={(e) => { void addReceipts([...(e.target.files ?? [])]); e.target.value = ''; }} />
         <input ref={csvRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { void startImport(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
@@ -144,7 +147,7 @@ function ExpensesScreen() {
 
       <div className="expenses-body" onDoubleClick={(e) => { if (!ro && !(e.target as HTMLElement).closest('tr, button, input, select')) add(); }}>
         {rows.length ? (
-          <table className="table expenses-table">
+          <table className="table expenses-table cards-on-phone">
             <thead><tr><th>Date</th><th>Vendor</th><th>Description</th><th>Account</th><th>Line</th><th className="num">Amount</th><th>Paid</th><th>Receipt</th><th /></tr></thead>
             <tbody>
               {rows.map((e) => {

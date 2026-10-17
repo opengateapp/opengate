@@ -98,7 +98,7 @@ export function BreakdownTab() {
 
   return (
     <div className="breakdown-tab with-side" onKeyDown={onKey}>
-      <aside className="side">
+      <aside className="side" data-panel="Scenes" data-panel-pick>
         <div className="side-head">
           <b>Scenes</b>
           <button className="small" onClick={() => setManagerOpen(true)}>Elements…</button>
@@ -137,7 +137,7 @@ export function BreakdownTab() {
           )}
         </div>
       </section>
-      <aside className="sheet">
+      <aside className="sheet" data-panel="Breakdown sheet">
         {scene ? <BreakdownSheet scene={scene} focusEl={focusEl} onFocus={setFocusEl} /> : <p className="muted pad">No scenes yet.</p>}
       </aside>
       {managerOpen && <ElementManager onClose={() => setManagerOpen(false)} />}

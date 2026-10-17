@@ -27,7 +27,7 @@ export function ElementManager({ onClose }: { onClose: () => void }) {
         return (
           <div key={c.id} className="em-cat">
             <h4 style={{ color: c.color }}>{c.name} <span className="muted small">({list.length})</span></h4>
-            <table className="table">
+            <table className="table cards-on-phone">
               <tbody>
                 {list.map((e) => (
                   <tr key={e.id} className={mergeFrom === e.id ? 'sel' : ''}>

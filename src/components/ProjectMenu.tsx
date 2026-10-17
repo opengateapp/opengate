@@ -15,7 +15,6 @@ export function ProjectMenu() {
   const update = useStore((s) => s.update);
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const file = useFile();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,8 +23,25 @@ export function ProjectMenu() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
+  return (
+    <div className="project-menu" ref={ref}>
+      <button className="logo" onClick={() => setOpen(!open)} aria-haspopup="menu" title="Open Gate menu"><Logo className="topbar-logo" /></button>
+      <input className="project-title" value={title} onChange={(e) => update((d) => { d.title = e.target.value; }, null)} aria-label="Project title" />
+      {open && (
+        <div className="menu" role="menu">
+          <ProjectMenuItems onDone={() => setOpen(false)} onImport={() => setImporting(true)} />
+        </div>
+      )}
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
+    </div>
+  );
+}
+
+/** The project actions (all projects, import, export, save…), shared by the menu and the phone drawer. */
+export function ProjectMenuItems({ onDone, onImport }: { onDone: () => void; onImport: () => void }) {
+  const file = useFile();
   const run = (fn: () => void | Promise<void>) => async () => {
-    setOpen(false);
+    onDone();
     session.flush();
     try { await fn(); } catch (e) { toast((e as Error).message); }
   };
@@ -45,32 +61,25 @@ export function ProjectMenu() {
   };
 
   return (
-    <div className="project-menu" ref={ref}>
-      <button className="logo" onClick={() => setOpen(!open)} aria-haspopup="menu" title="Open Gate menu"><Logo className="topbar-logo" /></button>
-      <input className="project-title" value={title} onChange={(e) => update((d) => { d.title = e.target.value; }, null)} aria-label="Project title" />
-      {open && (
-        <div className="menu" role="menu">
-          <button onClick={run(async () => { await flushSave(); session.reset(); try { localStorage.removeItem('slateline.last'); } catch { /* ignore */ } useStore.getState().close(); })}>All projects…</button>
-          <hr />
-          <button onClick={run(() => setImporting(true))}>Import screenplay…</button>
-          <hr />
-          <button onClick={run(() => exportScript('pdf'))}>Export screenplay PDF</button>
-          <button onClick={run(() => exportScript('fountain'))}>Export Fountain</button>
-          <button onClick={run(() => exportScript('fdx'))}>Export Final Draft (.fdx)</button>
-          <hr />
-          <button onClick={run(() => { void saveToFile(false); })}><span>Save</span><kbd>⌘S</kbd></button>
-          <button onClick={run(() => { void saveToFile(true); })}><span>{fileAccessSupported() ? 'Save As…' : 'Download project file'}</span><kbd>⇧⌘S</kbd></button>
-          <button onClick={run(() => { void saveIndependentCopy(); })} title="A copy that isn't connected to the shared project — for archiving or starting a new version">Save independent copy…</button>
-          {file.name && (
-            <label className="menu-check" onMouseDown={(e) => e.stopPropagation()}>
-              <input type="checkbox" checked={file.autosave} onChange={(e) => void setFileAutosave(e.target.checked)} /> Autosave to {file.name}
-            </label>
-          )}
-          {file.name && file.needsPermission && <button onClick={run(() => { void reconnectFile(); })}>Allow saving to {file.name} again…</button>}
-          {file.savedAt && <div className="menu-note">Last written to the file {new Date(file.savedAt).toLocaleString()}</div>}
-        </div>
+    <>
+      <button onClick={run(async () => { await flushSave(); session.reset(); try { localStorage.removeItem('slateline.last'); } catch { /* ignore */ } useStore.getState().close(); })}>All projects…</button>
+      <hr />
+      <button onClick={run(() => onImport())}>Import screenplay…</button>
+      <hr />
+      <button onClick={run(() => exportScript('pdf'))}>Export screenplay PDF</button>
+      <button onClick={run(() => exportScript('fountain'))}>Export Fountain</button>
+      <button onClick={run(() => exportScript('fdx'))}>Export Final Draft (.fdx)</button>
+      <hr />
+      <button onClick={run(() => { void saveToFile(false); })}><span>Save</span><kbd>⌘S</kbd></button>
+      <button onClick={run(() => { void saveToFile(true); })}><span>{fileAccessSupported() ? 'Save As…' : 'Download project file'}</span><kbd>⇧⌘S</kbd></button>
+      <button onClick={run(() => { void saveIndependentCopy(); })} title="A copy that isn't connected to the shared project — for archiving or starting a new version">Save independent copy…</button>
+      {file.name && (
+        <label className="menu-check keep-open" onMouseDown={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={file.autosave} onChange={(e) => void setFileAutosave(e.target.checked)} /> Autosave to {file.name}
+        </label>
       )}
-      {importing && <ImportDialog onClose={() => setImporting(false)} />}
-    </div>
+      {file.name && file.needsPermission && <button onClick={run(() => { void reconnectFile(); })}>Allow saving to {file.name} again…</button>}
+      {file.savedAt && <div className="menu-note">Last written to the file {new Date(file.savedAt).toLocaleString()}</div>}
+    </>
   );
 }

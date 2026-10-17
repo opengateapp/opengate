@@ -8,6 +8,7 @@ import { PinterestImport } from './PinterestImport';
 import { useSync } from '../../sync/state';
 import { usePinterestInbox } from './pinterest';
 import { deletedToast } from '../../components/deleted';
+import { More } from '../../components/More';
 import { useMediaUrl } from '../../store/media';
 
 const TOOLS: { id: Tool; label: string; key: string; icon: string }[] = [
@@ -78,7 +79,7 @@ export function BoardsTab() {
 
   return (
     <div className="boards-tab">
-      <aside className="side boards-side" onDoubleClick={(e) => { if (e.target === e.currentTarget) create('mood'); }}>
+      <aside className="side boards-side" data-panel="Boards" data-panel-pick onDoubleClick={(e) => { if (e.target === e.currentTarget) create('mood'); }}>
         <div className="side-head"><b>Boards</b></div>
         <div className="row pad-x">
           <button className="small" onClick={() => create('mood')}>+ Mood board</button>
@@ -122,6 +123,7 @@ export function BoardsTab() {
               {INK_COLORS.map((c) => <button key={c} className={`swatch ${ink === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setInk(c)} aria-label={`Ink ${c}`} />)}
             </div>
             <span className="spacer" />
+            <More label="Board actions">
             <button onClick={() => setPinOpen(true)} title="Import a Pinterest board with sections and source links">📌 Import Pinterest</button>
             {live.peers.filter((x) => x.tab === 'Mood Boards').length > 0 && (
               <span className="presence live" title="Here now">
@@ -130,6 +132,7 @@ export function BoardsTab() {
             )}
             <button onClick={() => window.dispatchEvent(new Event('opengate:share'))} title="Share the project (boards included) with collaborators">Share…</button>
             <button onClick={() => { update((dr) => { dr.boards = dr.boards.filter((x) => x.id !== board.id); }, 'Delete board'); setBoardId(null); deletedToast(`“${board.title}”`); }}>Delete board</button>
+            </More>
           </div>
           <div className="board-area">
             <BoardCanvas board={board} selected={selected} onSelect={setSelected} onLinkDrop={link} tool={tool} setTool={setTool} ink={ink} />
