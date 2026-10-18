@@ -9,9 +9,14 @@ import { stopSync } from './engine';
 // (relay address, room, access token and the encryption key) after the "#", which browsers
 // never send to servers.
 
+/** Open Gate's own relay, used unless someone sets up their own (Share → Advanced). */
+export const BUILT_IN_RELAY = (import.meta.env.VITE_RELAY as string | undefined) || 'https://open-gate-relay.open-gate-relay.workers.dev';
+
 const RELAY_KEY = 'slateline.relay';
-export function getRelay(): string { try { return localStorage.getItem(RELAY_KEY) ?? ''; } catch { return ''; } }
-export function setRelay(url: string) { try { localStorage.setItem(RELAY_KEY, url.trim()); } catch { /* ignore */ } }
+/** A relay of the user's own, or '' for the built-in one. */
+export function customRelay(): string { try { const r = localStorage.getItem(RELAY_KEY) ?? ''; return r === BUILT_IN_RELAY ? '' : r; } catch { return ''; } }
+export function getRelay(): string { return customRelay() || BUILT_IN_RELAY; }
+export function setRelay(url: string) { try { const u = url.trim(); if (!u || u === BUILT_IN_RELAY) localStorage.removeItem(RELAY_KEY); else localStorage.setItem(RELAY_KEY, u); } catch { /* ignore */ } }
 
 export function relayHost(url: string): { host: string; protocol: 'ws' | 'wss' } | null {
   const u = url.trim();

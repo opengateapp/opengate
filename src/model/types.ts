@@ -588,6 +588,44 @@ export interface Budget {
   expenses: BudgetExpense[];
 }
 
+// ---------- Characters ----------
+
+/** Lawful/Neutral/Chaotic × Good/Neutral/Evil, e.g. 'LG', 'NN' (true neutral), 'CE'. */
+export type Alignment = 'LG' | 'NG' | 'CG' | 'LN' | 'NN' | 'CN' | 'LE' | 'NE' | 'CE';
+
+export interface ContinuityPhoto {
+  id: Id;
+  kind: 'wardrobe' | 'hair';
+  imageId: string;
+  caption: string;
+  /** Which look this belongs to, e.g. "Look 2 — torn jacket". */
+  look?: string;
+  /** Scenes this look is worn in. */
+  sceneIds: Id[];
+}
+
+/** A character sheet: a stripped-down D&D-style builder plus a script character profile. */
+export interface CharacterProfile {
+  id: Id;
+  /** Normalized like script characters (uppercase), so it matches the script and cast. */
+  name: string;
+  portraitId?: string;
+  // Core
+  race: string;
+  gender: string;
+  alignment?: Alignment;
+  role: string;
+  strengths: string[];
+  weaknesses: string[];
+  faults: string[];
+  actions: string[];
+  /** Free-form fields from the profile template (Basic info, Physical, Personality, Inner psyche, Additional). */
+  info: Record<string, string>;
+  /** 0 = introvert, 100 = extrovert. */
+  introExtro?: number;
+  continuity: ContinuityPhoto[];
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -618,6 +656,8 @@ export interface Project {
   avScripts: AVScript[];
   boards: Board[];
   budget: Budget;
+  /** Character profiles (Write → Characters), matched to the script by name. */
+  characters: CharacterProfile[];
   notes: string;
   /** Present when this project is shared through a relay. */
   share?: ShareInfo;

@@ -4,7 +4,7 @@ import { useStore, flushSave } from '../store/project';
 import { session } from '../script/session';
 import { newProject } from '../model/defaults';
 import { toast } from '../components/common';
-import { parseInvite, setRelay } from './links';
+import { parseInvite } from './links';
 import type { Project, ShareInfo } from '../model/types';
 
 /** Opening an invite link (…#join=…) opens that shared project — joining it the first time. */
@@ -16,7 +16,6 @@ export function JoinHandler() {
       history.replaceState(null, '', location.pathname + location.search);
       session.flush();
       await flushSave().catch(() => {});
-      setRelay(inv.relay);
       const share: ShareInfo = { relay: inv.relay, room: inv.room, key: inv.key, ...(inv.budgetKey ? { budgetKey: inv.budgetKey } : {}), token: inv.token, admin: false, write: inv.write, joinedAt: new Date().toISOString() };
 
       // Already have it here? (same room — or the same project, e.g. the owner opening their own link)

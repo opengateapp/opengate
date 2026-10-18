@@ -4,7 +4,7 @@ import { askConfirm } from '../dialogs';
 import { useProject } from '../../store/project';
 import { useSync } from '../../sync/state';
 import { SECTION_CHANNELS, SECTION_LABELS, CHANNEL_LABELS, type Channel } from '../../sync/channels';
-import { createLink, detachShare, getRelay, linkUrl, relayHost, revokeLink, startSharing, stopSharing } from '../../sync/links';
+import { BUILT_IN_RELAY, createLink, customRelay, detachShare, linkUrl, relayHost, revokeLink, setRelay, startSharing, stopSharing } from '../../sync/links';
 import { displayName, setDisplayName, currentSync } from '../../sync/engine';
 import type { ShareLink } from '../../model/types';
 
@@ -31,7 +31,8 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
   const p = useProject();
   const share = p.share;
   const sync = useSync();
-  const [relay, setRelayInput] = useState(share?.relay ?? getRelay());
+  const [own, setOwn] = useState(customRelay());
+  const relay = share?.relay ?? (own.trim() || BUILT_IN_RELAY);
   const [name, setName] = useState(displayName());
   const [busy, setBusy] = useState(false);
   const [label, setLabel] = useState('');
@@ -73,11 +74,14 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
             <li><b>Works offline.</b> Everyone keeps a full copy. Changes made offline sync when you reconnect, and you can review and reject others' changes.</li>
             <li><b>You control access.</b> Make links that can edit everything, only view, or only edit certain sections — and revoke any link later.</li>
           </ul>
-          <label className="field"><span>Relay address</span>
-            <input value={relay} placeholder="https://open-gate-relay.your-name.workers.dev" onChange={(e) => setRelayInput(e.target.value)} />
-          </label>
-          <p className="muted small">The relay is a small free Cloudflare server you set up once (see <code>app/relay/README.md</code>), then reuse for every project.</p>
-          <div className="row"><span className="spacer" /><button className="primary" disabled={!relayOk || busy} onClick={() => run(async () => { saveName(); await startSharing(relay); })}>{busy ? 'Starting…' : 'Start sharing'}</button></div>
+          <details className="share-advanced">
+            <summary className="small">Advanced: use your own relay</summary>
+            <label className="field"><span>Relay address (leave empty for Open Gate's built-in relay)</span>
+              <input value={own} placeholder="https://open-gate-relay.your-name.workers.dev" onChange={(e) => setOwn(e.target.value)} />
+            </label>
+            <p className="muted small">A relay is a small free Cloudflare server (see <code>app/relay/README.md</code>). Open Gate's own relay is used otherwise.</p>
+          </details>
+          <div className="row"><span className="spacer" /><button className="primary" disabled={!relayOk || busy} onClick={() => run(async () => { saveName(); setRelay(own); await startSharing(relay); })}>{busy ? 'Starting…' : 'Start sharing'}</button></div>
         </>
       )}
 

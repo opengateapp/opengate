@@ -22,6 +22,7 @@ import { ContactsTab } from './tabs/ContactsTab';
 import { TasksTab } from './tabs/TasksTab';
 import { BoardsTab } from './tabs/boards/BoardsTab';
 import { LocationsTab } from './tabs/LocationsTab';
+import { CharactersTab } from './tabs/CharactersTab';
 import { CategoryStyles } from './components/CategoryStyles';
 import { ProjectMenu } from './components/ProjectMenu';
 import { SyncIssues } from './components/SyncIssues';
@@ -42,7 +43,7 @@ import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
 export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'settings';
 export type TabId =
-  | 'screenplay' | 'av' | 'docs'
+  | 'screenplay' | 'av' | 'docs' | 'characters'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
   | 'budget' | 'expenses'
   | 'contacts' | 'calendar' | 'tasks'
@@ -55,6 +56,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'screenplay', label: 'Screenplay', hint: 'Write or import a screenplay' },
     { id: 'av', label: 'A/V Scripts', hint: 'Two-column video / audio scripts' },
     { id: 'docs', label: 'Docs', hint: 'Treatments, notes and other documents' },
+    { id: 'characters', label: 'Characters', hint: 'Character builder: traits, alignment, profile and continuity photos' },
   ] },
   { id: 'breakdown', label: 'Breakdown', tabs: [
     { id: 'breakdown', label: 'Script Breakdown', hint: 'Tag elements in the script' },
@@ -112,6 +114,12 @@ export function App() {
   };
   const section = sectionOf(tab);
   const openBoards = useCallback(() => setTab('boards'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Other tabs can jump somewhere (e.g. a cast row's "Profile →" opens Characters).
+  useEffect(() => {
+    const go = (e: Event) => { const t = (e as CustomEvent).detail as TabId; if (ALL_TABS.includes(t)) setTab(t); };
+    window.addEventListener('opengate:goto', go);
+    return () => window.removeEventListener('opengate:goto', go);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Shared projects: keep the open project connected to its room (works offline too).
   const shareKey = project?.share ? `${project.id}|${project.share.room}|${project.share.token}` : '';
@@ -238,6 +246,7 @@ export function App() {
         {tab === 'shots' && <ShotsTab />}
         {tab === 'callsheets' && <CallSheetsView />}
         {tab === 'locations' && <LocationsTab />}
+        {tab === 'characters' && <CharactersTab />}
         {tab === 'reports' && <ShootTab />}
         {tab === 'setup' && <SetupTab />}
       </main>

@@ -6,6 +6,7 @@ import { session } from '../script/session';
 import { useDerived, useProject, useStore, getDerived } from '../store/project';
 import { sceneAt, selectedText, addTagMark, removeTagMarks } from '../script/tagging';
 import { sceneCast, sceneEighths, sceneMinutes } from '../script/derive';
+import { looksInScene, openCharacter } from '../script/characters';
 import { formatEighths, parseEighths } from '../model/dates';
 import { newId } from '../model/ids';
 import type { Category, DerivedScene } from '../model/types';
@@ -219,7 +220,8 @@ function BreakdownSheet({ scene, focusEl, onFocus }: { scene: DerivedScene; focu
             <ul>
               {items.map((it) => (
                 <li key={it.id} className={focusEl === it.id ? 'focus' : ''} onClick={() => onFocus(it.id)}>
-                  <span>{it.name}{c.id === 'cast' && (() => { const m = p.cast.find((x) => x.characterName === it.name); return m ? <span className="muted small"> · #{m.castNumber}{m.actorName ? ` ${m.actorName}` : ''}</span> : null; })()}</span>
+                  <span>{it.name}{c.id === 'cast' && (() => { const m = p.cast.find((x) => x.characterName === it.name); return m ? <span className="muted small"> · #{m.castNumber}{m.actorName ? ` ${m.actorName}` : ''}</span> : null; })()}
+                    {c.id === 'cast' && (() => { const looks = looksInScene(p, it.name, scene.id); return looks.length ? <span className="cast-wardrobe" title={`Continuity: ${looks.join(', ')} — click for the character's profile`} onClick={(e) => { e.stopPropagation(); openCharacter(it.name); }}>👕</span> : null; })()}</span>
                   {(c.id !== 'cast' || it.manual) && (
                     <button className="icon-btn" title="Remove from this scene" onClick={(e) => {
                       e.stopPropagation();

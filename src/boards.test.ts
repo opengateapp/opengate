@@ -98,7 +98,8 @@ describe('project migration', () => {
     const p = migrate(old);
     expect(p.boards).toEqual([]);
     expect(p.tasks).toEqual([]);
-    expect(p.schemaVersion).toBe(4);
+    expect(p.schemaVersion).toBe(5);
+    expect(p.characters).toEqual([]);
     expect(p.budget.accounts.length).toBeGreaterThan(20);
     expect(p.budget.lines).toEqual([]);
   });

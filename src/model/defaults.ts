@@ -3,7 +3,7 @@ import { newId } from './ids';
 import { newBudget } from '../budget/accounts';
 import { addDays, dateRange, todayISO } from './dates';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Industry-standard breakdown categories and their conventional highlight colors. */
 export const DEFAULT_CATEGORIES: Category[] = [
@@ -107,6 +107,7 @@ export function newProject(title = 'Untitled Screenplay'): Project {
     avScripts: [],
     boards: [],
     budget: newBudget(),
+    characters: [],
     notes: '',
   };
 }

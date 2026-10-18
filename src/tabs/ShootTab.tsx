@@ -62,6 +62,7 @@ export function ShootTab() {
         </div>
       ),
     },
+    { title: 'Character profiles', desc: 'Every character sheet — traits, alignment, profile and continuity photos.', action: run(async () => { const { characterPdfAsync } = await import('../pdf/characterPdf'); download(`${name} - characters.pdf`, (await characterPdfAsync(latest(), getDerived())).output('blob')); }), disabled: !p.characters.length },
     { title: 'Breakdown sheets', desc: 'One sheet per scene in the classic layout, with a box for each breakdown category.', action: run(breakdownSheets) },
     { title: 'Storyboard', desc: 'Every frame in shot order, six to a page, with shot details and captions.', action: run(() => exportStoryboardPdf(latest())), disabled: !p.storyboard.length },
     { title: 'Screenplay PDF', desc: 'Industry-format script with scene numbers and title page.', action: run(() => pdf('script')) },

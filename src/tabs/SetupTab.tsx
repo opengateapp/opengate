@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
+import { openCharacter } from '../script/characters';
 import { COLOR_SLOT_LABELS, DEFAULT_STRIP_COLORS } from '../model/defaults';
 import type { ColorSlot } from '../model/types';
 import { formatDate } from '../model/dates';
@@ -71,7 +72,7 @@ export function SetupTab() {
                   return (
                     <tr key={c.id}>
                       <td><input className="w-xs" type="number" value={c.castNumber} onChange={(e) => set((x) => { x.castNumber = Number(e.target.value); })} /></td>
-                      <td><input value={c.characterName} onChange={(e) => set((x) => { x.characterName = e.target.value.toUpperCase(); })} /></td>
+                      <td><input value={c.characterName} onChange={(e) => set((x) => { x.characterName = e.target.value.toUpperCase(); })} /> <button className="small" title="Open this character's profile" onClick={() => openCharacter(c.characterName)}>Profile →</button></td>
                       <td><input value={c.actorName} onChange={(e) => set((x) => { x.actorName = e.target.value; })} /></td>
                       <td><input value={c.phone ?? ''} onChange={(e) => set((x) => { x.phone = e.target.value; })} /></td>
                       <td><input value={c.email ?? ''} onChange={(e) => set((x) => { x.email = e.target.value; })} /></td>
