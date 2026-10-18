@@ -6,7 +6,7 @@ Free, open-source production management in one synced project: **write** the scr
 >
 > Built on [CineSched](https://github.com/ChrisTempel/CineSched) by [Christopher Tempel](https://github.com/ChrisTempel) and [alucardGonza](https://github.com/alucardGonza) ([CineSched_D.G.D](https://github.com/alucardGonza/CineSched_D.G.D)), and the free tools by [Inwood Park Productions](https://github.com/InwoodParkProductions): [Don't Pay for Screenwriting Software](https://github.com/InwoodParkProductions/Don-t-Pay-for-Screenwriting-Software), [Don't Pay for Storyboarding Software](https://github.com/InwoodParkProductions/DontPayforStoryboardingSoftware) and [Shot List for Free](https://github.com/InwoodParkProductions/Shot-List-For-Free).
 
-**Use it in your browser:** https://tvdirksholar.github.io/open-gate/ (works offline once loaded; install it from the address bar as a desktop app).
+**Use it in your browser:** https://opengateapp.github.io/opengate/ (works offline once loaded; install it from the address bar as a desktop app).
 
 ## Run it
 
