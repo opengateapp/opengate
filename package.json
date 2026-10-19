@@ -1,7 +1,7 @@
 {
   "name": "open-gate",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Open-source, local-first production management: screenplay, breakdown, shot list, stripboard and calendar in one synced project.",
   "license": "GPL-3.0-or-later",
   "type": "module",
