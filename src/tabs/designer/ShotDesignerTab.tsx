@@ -14,7 +14,7 @@ import { askConfirm } from '../../components/dialogs';
 import { Empty, toast } from '../../components/common';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
-import { canWrite, useSync } from '../../sync/state';
+import { canEdit, useSync } from '../../sync/state';
 import { isPalm, notePointer } from '../../ui/pen';
 import { RefLink } from '../ReferenceTab';
 
@@ -33,7 +33,7 @@ export function ShotDesignerTab() {
   const d = useDerived();
   const update = useStore((s) => s.update);
   useSync((s) => s.write);
-  const ro = !canWrite('visualize');
+  const ro = !canEdit('plans');
   const [sceneId, setSceneId] = useState<string>(() => d.scenes[0]?.id ?? '');
   const scene = d.sceneById.get(sceneId) ?? d.scenes[0];
   const plan = (p.plans ?? []).find((x) => x.sceneId === scene?.id);

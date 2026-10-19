@@ -506,6 +506,8 @@ export interface ShareLink {
   write: string[];
   /** Restricted channels this link may see (the budget). */
   read?: string[];
+  /** Channels never sent to this link (tabs hidden from it; format-2 rooms). */
+  hide?: string[];
   created: string;
 }
 
@@ -525,6 +527,12 @@ export interface ShareInfo {
   links?: ShareLink[];
   /** Set by the owner when sharing starts, until the first upload is done. */
   fresh?: boolean;
+  /** Room format: 1 = one channel per section (older rooms), 2 = one per tab (per-tab access). */
+  format?: 1 | 2;
+  /** Owner: moving the room to format 2 — tell the relay once the new channels are uploaded. */
+  migrating?: boolean;
+  /** Channels the relay doesn't send to this person (tabs hidden by their link). */
+  hide?: string[];
   joinedAt: string;
 }
 

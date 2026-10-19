@@ -3,7 +3,7 @@ import { useProject, useStore } from '../store/project';
 import type { CharacterOptions } from '../model/types';
 import { newId } from '../model/ids';
 import { PROFILE_SECTIONS, SPECIES_PACKS, characterOptions, defaultCharacterOptions } from '../script/characters';
-import { canWrite, useSync } from '../sync/state';
+import { canEdit, useSync } from '../sync/state';
 import { askConfirm } from './dialogs';
 import { SpeciesPacks } from './SpeciesPacks';
 
@@ -15,7 +15,7 @@ export function CharacterSettings() {
   const p = useProject();
   const update = useStore((s) => s.update);
   useSync((s) => s.write);
-  const ro = !canWrite('write');
+  const ro = !canEdit('characterOptions');
   const o = characterOptions(p);
   const set = (fn: (x: CharacterOptions) => void, label: string | null = 'Character builder settings') =>
     update((dr) => {

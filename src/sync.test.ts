@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import * as Y from 'yjs';
 import { newKey, importKey, encryptToString, decryptString, seal, unseal, sha256Hex, b64url, fromB64url } from './sync/crypto';
-import { CHANNELS, SECTION_CHANNELS, channelOf, decodeField, encodeField, fieldOf, LOCAL_ONLY } from './sync/channels';
+import { CHANNELS_V1 as CHANNELS, SECTION_CHANNELS, channelOf, decodeField, encodeField, fieldOf, LOCAL_ONLY } from './sync/channels';
 import { diffBlocks, findSlice } from './sync/review';
 import { newProject } from './model/defaults';
 import type { Project } from './model/types';

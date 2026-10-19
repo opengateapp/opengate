@@ -60,7 +60,7 @@ export function PhoneTopbar({ sections, allSections, tab, setTab, saveState }: {
             ))}
           </div>
           <hr />
-          <button onClick={() => go('setup')}>⚙ Project settings</button>
+          <button onClick={() => go('setup')}>⚙ Settings</button>
           <div className="menu-note">{saveState === 'saved' ? 'All changes saved on this device' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes'}</div>
         </MoreMenu>
       </header>

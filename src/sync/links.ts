@@ -31,10 +31,12 @@ export interface Invite {
   relay: string; room: string; token: string; key: string; projectId: string; title: string; write: string[];
   /** The budget's key, only in links the owner shared the budget through. */
   budgetKey?: string;
+  /** Room format (2 = per-tab channels). */
+  format?: 1 | 2;
 }
 
 export function inviteUrl(inv: Invite, base = `${location.origin}${location.pathname}`): string {
-  const payload = { v: 1, r: inv.relay, m: inv.room, t: inv.token, k: inv.key, p: inv.projectId, n: inv.title, w: inv.write, ...(inv.budgetKey ? { b: inv.budgetKey } : {}) };
+  const payload = { v: 1, r: inv.relay, m: inv.room, t: inv.token, k: inv.key, p: inv.projectId, n: inv.title, w: inv.write, ...(inv.budgetKey ? { b: inv.budgetKey } : {}), ...(inv.format === 2 ? { f: 2 } : {}) };
   return `${base}#join=${b64url(new TextEncoder().encode(JSON.stringify(payload)))}`;
 }
 
@@ -44,7 +46,7 @@ export function parseInvite(hashOrUrl: string): Invite | null {
   try {
     const j = JSON.parse(new TextDecoder().decode(fromB64url(m[1])));
     if (j.v !== 1 || !j.r || !j.m || !j.t || !j.k || !j.p) return null;
-    return { relay: j.r, room: j.m, token: j.t, key: j.k, projectId: j.p, title: j.n || 'Shared project', write: Array.isArray(j.w) ? j.w : [], ...(typeof j.b === 'string' && j.b ? { budgetKey: j.b } : {}) };
+    return { relay: j.r, room: j.m, token: j.t, key: j.k, projectId: j.p, title: j.n || 'Shared project', write: Array.isArray(j.w) ? j.w : [], ...(typeof j.b === 'string' && j.b ? { budgetKey: j.b } : {}), ...(j.f === 2 ? { format: 2 as const } : {}) };
   } catch { return null; }
 }
 
@@ -64,7 +66,9 @@ export async function startSharing(relay: string): Promise<void> {
   const budgetKey = await newKey();
   await initRoom(relay, room, await sha256Hex(secret));
   setRelay(relay);
-  const share: ShareInfo = { relay, room, key, budgetKey, token: secret, admin: true, write: ['*'], links: [], fresh: true, joinedAt: new Date().toISOString() };
+  const format = (await relayFormats(relay)).includes(2) ? 2 : 1;
+  if (format === 2) await fetch(`${relayBase(relay)}/r/${room}/format`, { method: 'POST', headers: { 'x-admin': secret, 'content-type': 'application/json' }, body: JSON.stringify({ format: 2 }) }).catch(() => {});
+  const share: ShareInfo = { relay, room, key, budgetKey, token: secret, admin: true, write: ['*'], links: [], fresh: true, format, joinedAt: new Date().toISOString() };
   useStore.getState().update((d) => { d.share = share; }, null);
 }
 
@@ -72,14 +76,14 @@ export async function startSharing(relay: string): Promise<void> {
  * Owner: a new invite link. write: ['*'] = edit everything, [] = view only, or a list of channels.
  * budget: whether the link can see ('view') or change ('edit') the budget; it's never included in "everything".
  */
-export async function createLink(label: string, write: string[], budget: 'none' | 'view' | 'edit' = 'none'): Promise<{ link: ShareLink; url: string }> {
+export async function createLink(label: string, write: string[], budget: 'none' | 'view' | 'edit' = 'none', hide: string[] = []): Promise<{ link: ShareLink; url: string }> {
   const p = useStore.getState().project!;
   const share = p.share!;
   const token = randomSecret(24);
   const w = budget === 'edit' ? [...write.filter((c) => c !== 'budget'), 'budget'] : write.filter((c) => c !== 'budget');
   const read = budget === 'none' ? [] : ['budget'];
-  await admin(share, 'POST', 'links', { hash: await sha256Hex(token), label, write: w, read });
-  const link: ShareLink = { token, label, write: w, read, created: new Date().toISOString() };
+  await admin(share, 'POST', 'links', { hash: await sha256Hex(token), label, write: w, read, hide });
+  const link: ShareLink = { token, label, write: w, read, ...(hide.length ? { hide } : {}), created: new Date().toISOString() };
   useStore.getState().update((d) => { d.share!.links = [...(d.share!.links ?? []), link]; }, null);
   return { link, url: linkUrl(p, link) };
 }
@@ -87,7 +91,7 @@ export async function createLink(label: string, write: string[], budget: 'none' 
 export function linkUrl(p: Project, link: ShareLink): string {
   const s = p.share!;
   const budget = (link.read ?? []).includes('budget') || link.write.includes('budget');
-  return inviteUrl({ relay: s.relay, room: s.room, token: link.token, key: s.key, projectId: p.id, title: p.title, write: link.write, budgetKey: budget ? s.budgetKey : undefined });
+  return inviteUrl({ relay: s.relay, room: s.room, token: link.token, key: s.key, projectId: p.id, title: p.title, write: link.write, budgetKey: budget ? s.budgetKey : undefined, format: s.format ?? 1 });
 }
 
 export async function revokeLink(token: string): Promise<void> {
@@ -108,4 +112,30 @@ export async function detachShare(projectId: string): Promise<void> {
   stopSync();
   useStore.getState().update((d) => { delete d.share; }, null);
   await db.sync.where('projectId').equals(projectId).delete();
+}
+
+const formatsCache = new Map<string, Promise<number[]>>();
+/** Room formats a relay supports (older relays: only 1). */
+export function relayFormats(relay: string): Promise<number[]> {
+  const base = relayBase(relay);
+  let f = formatsCache.get(base);
+  if (!f) {
+    f = fetch(`${base}/info`).then((r) => (r.ok ? r.json() : {})).then((j: { formats?: number[] }) => (Array.isArray(j.formats) ? j.formats : [1])).catch(() => [1]);
+    formatsCache.set(base, f);
+  }
+  return f;
+}
+
+/**
+ * Owner: move a room shared before per-tab access to per-tab channels. Uploads the project into
+ * the new channels, then tells the relay, which reconnects everyone onto the new format. Existing
+ * links keep their access (their sections cover the matching tabs).
+ */
+export async function upgradeRoomFormat(): Promise<void> {
+  const p = useStore.getState().project!;
+  if (!p.share?.admin || (p.share.format ?? 1) === 2) return;
+  if (!(await relayFormats(p.share.relay)).includes(2)) throw new Error('This relay doesn’t support per-tab access yet. Update the relay first.');
+  stopSync();
+  await db.sync.where('projectId').equals(p.id).delete();
+  useStore.getState().update((d) => { if (d.share) { d.share.format = 2; d.share.fresh = true; d.share.migrating = true; } }, null);
 }

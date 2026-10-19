@@ -3,8 +3,8 @@ import { Modal, toast } from '../common';
 import { askConfirm } from '../dialogs';
 import { useProject } from '../../store/project';
 import { useSync } from '../../sync/state';
-import { SECTION_CHANNELS, SECTION_LABELS, CHANNEL_LABELS, type Channel } from '../../sync/channels';
-import { BUILT_IN_RELAY, createLink, customRelay, detachShare, linkUrl, relayHost, revokeLink, setRelay, startSharing, stopSharing } from '../../sync/links';
+import { SECTION_CHANNELS, SECTION_LABELS, CHANNEL_LABELS, TAB_ACCESS, ACCESS_PRESETS, accessFromLink, accessWarnings, linkFromAccess, type Access as TabAccessLevel, type Channel } from '../../sync/channels';
+import { BUILT_IN_RELAY, createLink, customRelay, detachShare, linkUrl, relayFormats, relayHost, revokeLink, setRelay, startSharing, stopSharing, upgradeRoomFormat } from '../../sync/links';
 import { displayName, setDisplayName, currentSync } from '../../sync/engine';
 import type { ShareLink } from '../../model/types';
 
@@ -41,6 +41,8 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
   const [budget, setBudget] = useState<'none' | 'view' | 'edit'>('none');
   const [made, setMade] = useState<{ url: string; label: string } | null>(null);
   const relayOk = !!relayHost(relay);
+  const perTab = (share?.format ?? 1) === 2;
+  const [tabAccess, setTabAccess] = useState<Record<string, TabAccessLevel>>(() => Object.fromEntries(TAB_ACCESS.map((t) => [t.id, t.id === 'budget' ? 'hidden' : 'edit'])));
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -96,11 +98,25 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
 
           {share.admin && (
             <>
+              {!perTab && (
+                <div className="upgrade-box">
+                  <b className="small">New: per-tab access</b>
+                  <p className="muted small">Choose Edit, View or Hidden for every tab (Screenplay, Characters, Budget, Call Sheets…). Your current links keep working with the access they have now.</p>
+                  <button className="small" disabled={busy} onClick={() => run(async () => {
+                    if (!(await relayFormats(share.relay)).includes(2)) throw new Error('This relay needs updating before it can do per-tab access.');
+                    if (await askConfirm('Update this shared project for per-tab access?', { message: 'Your copy is uploaded again in the new layout, and collaborators re-download it automatically (edits they haven’t synced yet should be synced first). Existing links keep their access.', confirmLabel: 'Update', danger: false })) {
+                      await upgradeRoomFormat();
+                      toast('Updating… collaborators will reconnect automatically');
+                    }
+                  })}>Update for per-tab access…</button>
+                </div>
+              )}
               <h4>Invite someone</h4>
               <div className="share-new">
                 <label className="field"><span>Who it's for (only you see this)</span>
                   <input value={label} placeholder="e.g. Casey — scheduling" onChange={(e) => setLabel(e.target.value)} />
                 </label>
+                {perTab ? <PerTabAccess access={tabAccess} setAccess={setTabAccess} /> : <>
                 <div className="access-pick">
                   <label className="check"><input type="radio" checked={access === 'edit'} onChange={() => setAccess('edit')} /> Can edit everything</label>
                   <label className="check"><input type="radio" checked={access === 'view'} onChange={() => setAccess('view')} /> View only</label>
@@ -122,9 +138,15 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
                   </select>
                 </label>
                 <p className="muted small">The budget has its own encryption key, which only goes into links you share it through. Without it, the budget never reaches them — not even encrypted.</p>
+                </>}
                 <div className="row"><span className="spacer" />
-                  <button className="primary" disabled={busy || (access === 'sections' && !sections.length)} onClick={() => run(async () => {
-                    const { url } = await createLink(label.trim() || (access === 'view' ? 'View-only link' : access === 'edit' ? 'Editor link' : 'Section link'), write, budget);
+                  <button className="primary" disabled={busy || (!perTab && access === 'sections' && !sections.length)} onClick={() => run(async () => {
+                    let url: string;
+                    if (perTab) {
+                      const l = linkFromAccess(tabAccess);
+                      const b = tabAccess.budget === 'edit' ? 'edit' : tabAccess.budget === 'view' ? 'view' : 'none';
+                      ({ url } = await createLink(label.trim() || 'Custom access', l.write.filter((c) => c !== 'budget'), b, l.hide.filter((c) => c !== 'budget')));
+                    } else ({ url } = await createLink(label.trim() || (access === 'view' ? 'View-only link' : access === 'edit' ? 'Editor link' : 'Section link'), write, budget));
                     setMade({ url, label: label.trim() });
                     setLabel('');
                     void copy(url);
@@ -144,7 +166,7 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
               <ul className="link-list">
                 {(share.links ?? []).map((l: ShareLink) => (
                   <li key={l.token}>
-                    <div><b>{l.label}</b><span className="muted small"> · {accessSummary(l.write, l.read ?? [])} · {new Date(l.created).toLocaleDateString()}</span></div>
+                    <div><b>{l.label}</b><span className="muted small"> · {perTab && l.hide ? tabSummary(accessFromLink(l.write, l.hide)) : accessSummary(l.write, l.read ?? [])} · {new Date(l.created).toLocaleDateString()}</span></div>
                     <div className="row">
                       <button className="small" onClick={() => void copy(linkUrl(p, l))}>Copy</button>
                       <button className="small" onClick={() => email(linkUrl(p, l), l.label)}>Email…</button>
@@ -182,5 +204,46 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
         </>
       )}
     </Modal>
+  );
+}
+
+function tabSummary(a: Record<string, TabAccessLevel>): string {
+  const n = (k: TabAccessLevel) => Object.values(a).filter((x) => x === k).length;
+  const parts = [n('edit') && `edits ${n('edit')} tab${n('edit') > 1 ? 's' : ''}`, n('view') && `views ${n('view')}`, n('hidden') && `${n('hidden')} hidden`].filter(Boolean);
+  return parts.join(', ') || 'View only';
+}
+
+/** Edit / View / Hidden for every tab, with presets and warnings about tabs that need a hidden one. */
+function PerTabAccess({ access, setAccess }: { access: Record<string, TabAccessLevel>; setAccess: (a: Record<string, TabAccessLevel>) => void }) {
+  const set = (id: string, v: TabAccessLevel) => setAccess({ ...access, [id]: v });
+  const all = (v: TabAccessLevel) => setAccess(Object.fromEntries(TAB_ACCESS.map((t) => [t.id, t.id === 'budget' && v === 'edit' ? 'hidden' : v])));
+  const warnings = accessWarnings(access);
+  const sections = [...new Set(TAB_ACCESS.map((t) => t.section))];
+  return (
+    <div className="tab-access">
+      <div className="row wrap">
+        <span className="small"><b>Start from</b></span>
+        <button className="chip pick" onClick={() => all('edit')}>Edit everything</button>
+        <button className="chip pick" onClick={() => all('view')}>View only</button>
+        {ACCESS_PRESETS.map((p) => <button key={p.id} className="chip pick" title={p.hint} onClick={() => setAccess(Object.fromEntries(TAB_ACCESS.map((t) => [t.id, p.access[t.id] ?? 'view'])))}>{p.label}</button>)}
+      </div>
+      <div className="tab-access-grid">
+        {sections.map((sec) => (
+          <div key={sec} className="tab-access-section">
+            <span className="settings-group">{sec}</span>
+            {TAB_ACCESS.filter((t) => t.section === sec).map((t) => (
+              <div key={t.id} className="tab-access-row">
+                <span className="grow">{t.label}</span>
+                <div className="seg small" role="radiogroup" aria-label={`${t.label} access`}>
+                  {(['edit', 'view', 'hidden'] as const).map((v) => <button key={v} role="radio" aria-checked={access[t.id] === v} className={access[t.id] === v ? `active a-${v}` : ''} onClick={() => set(t.id, v)}>{v === 'edit' ? 'Edit' : v === 'view' ? 'View' : 'Hidden'}</button>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      {warnings.map((w) => <p key={w} className="small warn">⚠ {w}</p>)}
+      <p className="muted small">Hidden tabs never reach them — the relay doesn't send that data. Script tagging, shot marks and storyboards can add highlights to the script but not change its words. DOOD, Sides and Reports follow the Stripboard; Expenses follow the Budget.</p>
+    </div>
   );
 }

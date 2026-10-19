@@ -5,12 +5,35 @@ import type { Project } from '../model/types';
 // Inside a channel, data is stored as small entries (one per contact, strip day, shot,
 // board item …) so two people editing different things never overwrite each other.
 
-export const CHANNELS = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'] as const;
+/**
+ * Room formats. Format 1 (rooms shared before per-tab access): one channel per app section.
+ * Format 2: one channel per tab, so a link can edit, only view, or not see each tab.
+ */
+export type RoomFormat = 1 | 2;
+export const CHANNELS_V1 = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'] as const;
+export const CHANNELS_V2 = ['script', 'screenplay', 'characters', 'bible', 'docs', 'av', 'breakdown', 'schedule', 'contacts', 'calendar', 'tasks',
+  'storyboard', 'boards', 'shots', 'designer', 'gear', 'callsheets', 'locations', 'settings', 'budget'] as const;
+export type Channel = string;
+
+let format: RoomFormat = 1;
+/** The open shared project's room format (set by the sync engine). */
+export function setChannelFormat(f: RoomFormat) { format = f; }
+export const channelFormat = () => format;
+export const channelsFor = (f: RoomFormat): readonly string[] => (f === 2 ? CHANNELS_V2 : CHANNELS_V1);
+
 /** Channels only sent to people the owner shared them with (encrypted with their own key). */
 export const RESTRICTED: readonly Channel[] = ['budget'];
-export type Channel = (typeof CHANNELS)[number];
 
-/** App sections a link can be limited to, and the channels each one may write. */
+/** Format-1 section names a link may carry, and the format-2 channels each one covers. */
+export const LEGACY_EXPAND: Record<string, string[]> = {
+  write: ['screenplay', 'characters', 'bible', 'docs', 'av'],
+  breakdown: ['breakdown', 'schedule'],
+  plan: ['contacts', 'calendar', 'tasks'],
+  visualize: ['storyboard', 'boards', 'shots', 'designer', 'gear'],
+  shoot: ['callsheets', 'locations'],
+};
+
+/** App sections a format-1 link can be limited to, and the channels each one may write. */
 export const SECTION_CHANNELS: Record<string, Channel[]> = {
   write: ['script', 'write'],
   // Tagging and "mark as shot" add highlights to the script, so these sections write the
@@ -35,7 +58,85 @@ export const SECTION_LABELS: Record<string, string> = {
 
 export const CHANNEL_LABELS: Record<Channel, string> = {
   script: 'Script', write: 'Write', breakdown: 'Breakdown', plan: 'Plan', visualize: 'Visualize', shoot: 'Shoot', settings: 'Settings', budget: 'Budget',
+  screenplay: 'Screenplay', characters: 'Characters', bible: 'Story Bible', docs: 'Docs', av: 'A/V scripts', schedule: 'Stripboard',
+  contacts: 'Contacts', calendar: 'Calendar', tasks: 'Tasks', storyboard: 'Storyboards', boards: 'Mood boards', shots: 'Shot lists',
+  designer: 'Shot designer', gear: 'Gear', callsheets: 'Call sheets', locations: 'Locations',
 };
+
+/** Format 2: the tabs a link can grant, the channels each one writes, and what it needs to make sense. */
+export interface TabAccess { id: string; label: string; section: string; channels: Channel[]; needs?: string[]; follows?: string }
+export const TAB_ACCESS: TabAccess[] = [
+  { id: 'screenplay', label: 'Screenplay', section: 'Write', channels: ['script', 'screenplay'] },
+  { id: 'characters', label: 'Characters', section: 'Write', channels: ['characters'] },
+  { id: 'bible', label: 'Story Bible', section: 'Write', channels: ['bible'] },
+  { id: 'docs', label: 'Docs', section: 'Write', channels: ['docs'] },
+  { id: 'av', label: 'A/V Scripts', section: 'Write', channels: ['av'] },
+  { id: 'breakdown', label: 'Script Breakdown', section: 'Breakdown', channels: ['breakdown'], needs: ['screenplay'] },
+  { id: 'stripboard', label: 'Stripboard, DOOD & Sides', section: 'Breakdown', channels: ['schedule'], needs: ['screenplay', 'breakdown'] },
+  { id: 'budget', label: 'Budget & Expenses', section: 'Budget', channels: ['budget'] },
+  { id: 'gear', label: 'Gear', section: 'Budget', channels: ['gear'] },
+  { id: 'contacts', label: 'Contacts (cast & crew)', section: 'Plan', channels: ['contacts'] },
+  { id: 'calendar', label: 'Calendar', section: 'Plan', channels: ['calendar'], needs: ['stripboard'] },
+  { id: 'tasks', label: 'Tasks', section: 'Plan', channels: ['tasks'] },
+  { id: 'storyboard', label: 'Storyboards', section: 'Visualize', channels: ['storyboard'], needs: ['shots'] },
+  { id: 'boards', label: 'Mood Boards', section: 'Visualize', channels: ['boards'] },
+  { id: 'shots', label: 'Shot Lists', section: 'Visualize', channels: ['shots'], needs: ['screenplay'] },
+  { id: 'designer', label: 'Shot Designer', section: 'Visualize', channels: ['designer'], needs: ['shots'] },
+  { id: 'callsheets', label: 'Call Sheets', section: 'Shoot', channels: ['callsheets'], needs: ['stripboard', 'contacts', 'locations'] },
+  { id: 'locations', label: 'Locations', section: 'Shoot', channels: ['locations'] },
+  { id: 'settings', label: 'Project settings', section: 'Settings', channels: ['settings'] },
+];
+/** App tabs that show another tab's data (they follow its access). */
+export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', reports: 'stripboard' };
+
+/** Tagging, shot marks and storyboards add highlights to the script, so these tabs may write marks to it. */
+export const MARKS_TABS = ['breakdown', 'shots', 'storyboard'];
+
+export type Access = 'edit' | 'view' | 'hidden';
+export const ACCESS_PRESETS: { id: string; label: string; hint: string; access: Record<string, Access> }[] = [
+  { id: 'cowriter', label: 'Co-writer', hint: 'Writes with you; sees the rest; no budget.', access: { screenplay: 'edit', characters: 'edit', bible: 'edit', docs: 'edit', av: 'edit', budget: 'hidden', gear: 'view' } },
+  { id: 'ad', label: 'AD / scheduling', hint: 'Breakdown, stripboard, calendar, call sheets, contacts, locations, tasks.', access: { breakdown: 'edit', stripboard: 'edit', calendar: 'edit', callsheets: 'edit', contacts: 'edit', locations: 'edit', tasks: 'edit', budget: 'hidden' } },
+  { id: 'dept', label: 'Department head', hint: 'Views everything; edits boards, shots, storyboards, gear and tasks.', access: { boards: 'edit', shots: 'edit', storyboard: 'edit', designer: 'edit', gear: 'edit', tasks: 'edit', budget: 'hidden' } },
+  { id: 'investor', label: 'Investor view', hint: 'Reads the script, story and budget; nothing else.', access: { screenplay: 'view', characters: 'view', bible: 'view', budget: 'view', ...Object.fromEntries(['docs', 'av', 'breakdown', 'stripboard', 'gear', 'contacts', 'calendar', 'tasks', 'storyboard', 'boards', 'shots', 'designer', 'callsheets', 'locations', 'settings'].map((t) => [t, 'hidden' as Access])) } },
+];
+
+/** A link's permissions from per-tab access: channels it may write, restricted channels it may read, and channels hidden from it. */
+export function linkFromAccess(access: Record<string, Access>): { write: string[]; read: string[]; hide: string[] } {
+  const get = (t: string): Access => access[t] ?? (t === 'budget' ? 'hidden' : 'view');
+  const write = new Set<string>(), hide = new Set<string>(), read = new Set<string>();
+  for (const t of TAB_ACCESS) {
+    const a = get(t.id);
+    for (const ch of t.channels) {
+      if (a === 'edit') write.add(ch);
+      if (a === 'hidden' && ch !== 'script') hide.add(ch);
+      if (a !== 'hidden' && ch === 'budget') read.add('budget');
+    }
+  }
+  // Marks-only script access for tabs that tag or mark shots.
+  if (MARKS_TABS.some((t) => get(t) === 'edit')) write.add('script');
+  // The script text is hidden only when nothing that shows it is visible.
+  if (['screenplay', ...MARKS_TABS, 'stripboard'].every((t) => get(t) === 'hidden')) hide.add('script');
+  return { write: [...write], read: [...read], hide: [...hide] };
+}
+
+/** Per-tab access back from a link's permissions (for showing an existing link). */
+export function accessFromLink(write: string[], hide: string[]): Record<string, Access> {
+  const out: Record<string, Access> = {};
+  const all = write.includes('*');
+  for (const t of TAB_ACCESS) {
+    const own = t.channels.filter((c) => c !== 'script' || t.id === 'screenplay');
+    out[t.id] = own.every((c) => hide.includes(c)) ? 'hidden' : own.every((c) => write.includes(c) || (all && !RESTRICTED.includes(c))) ? 'edit' : 'view';
+  }
+  return out;
+}
+
+/** Tabs that need another tab this link can't see. */
+export function accessWarnings(access: Record<string, Access>): string[] {
+  const get = (t: string): Access => access[t] ?? 'view';
+  const label = (t: string) => TAB_ACCESS.find((x) => x.id === t)?.label ?? t;
+  return TAB_ACCESS.filter((t) => get(t.id) !== 'hidden' && t.needs?.some((n) => get(n) === 'hidden'))
+    .map((t) => `${t.label} uses ${t.needs!.filter((n) => get(n) === 'hidden').map(label).join(' and ')}, which ${t.needs!.filter((n) => get(n) === 'hidden').length > 1 ? 'are' : 'is'} hidden — it will look empty.`);
+}
 
 /** Project fields that never sync (per-user, derived, or synced another way). */
 export const LOCAL_ONLY = new Set(['schemaVersion', 'id', 'updatedAt', 'scriptDoc', 'share']);
@@ -50,9 +151,21 @@ const KEY_CHANNEL: Record<string, Channel> = {
   budget: 'budget',
 };
 
-export function channelOf(key: string): Channel {
+const KEY_CHANNEL_V2: Record<string, Channel> = {
+  title: 'settings', createdAt: 'settings', production: 'settings',
+  titlePage: 'screenplay', notes: 'screenplay', drafts: 'screenplay', revision: 'screenplay', sceneVariants: 'screenplay', sceneVariantActive: 'screenplay', autoDrafts: 'screenplay', structure: 'screenplay', sceneNumbersLocked: 'screenplay',
+  characters: 'characters', relationships: 'characters', characterMap: 'characters', characterOptions: 'characters',
+  bible: 'bible', docs: 'docs', avScripts: 'av',
+  elements: 'breakdown', sceneMeta: 'breakdown', categories: 'breakdown', schedule: 'schedule',
+  contacts: 'contacts', cast: 'contacts', crew: 'contacts', events: 'calendar', tasks: 'tasks',
+  storyboard: 'storyboard', storyboardSettings: 'storyboard', boards: 'boards', shots: 'shots', plans: 'designer', gear: 'gear',
+  callSheets: 'callsheets', locations: 'locations',
+  budget: 'budget',
+};
+
+export function channelOf(key: string, f: RoomFormat = format): Channel {
   if (key === 'scriptDoc') return 'script';
-  return KEY_CHANNEL[key] ?? 'settings';
+  return (f === 2 ? KEY_CHANNEL_V2 : KEY_CHANNEL)[key] ?? 'settings';
 }
 
 const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);

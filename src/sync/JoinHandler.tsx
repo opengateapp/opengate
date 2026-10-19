@@ -16,7 +16,7 @@ export function JoinHandler() {
       history.replaceState(null, '', location.pathname + location.search);
       session.flush();
       await flushSave().catch(() => {});
-      const share: ShareInfo = { relay: inv.relay, room: inv.room, key: inv.key, ...(inv.budgetKey ? { budgetKey: inv.budgetKey } : {}), token: inv.token, admin: false, write: inv.write, joinedAt: new Date().toISOString() };
+      const share: ShareInfo = { relay: inv.relay, room: inv.room, key: inv.key, ...(inv.budgetKey ? { budgetKey: inv.budgetKey } : {}), token: inv.token, admin: false, write: inv.write, ...(inv.format === 2 ? { format: 2 as const } : {}), joinedAt: new Date().toISOString() };
 
       // Already have it here? (same room — or the same project, e.g. the owner opening their own link)
       let found: Project | null = null;

@@ -10,7 +10,9 @@ export interface RelayMessage {
   e?: [number, string][];
   upTo?: number;
   c?: string;
-  perms?: { write: string[]; admin: boolean };
+  perms?: { write: string[]; admin: boolean; hide?: string[] };
+  /** Room format (2 = per-tab channels); absent from older relays. */
+  format?: number;
   hello?: boolean;
 }
 

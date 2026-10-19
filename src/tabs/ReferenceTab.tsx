@@ -7,7 +7,7 @@ import { TOOLS } from '../reference/Tools';
 import { ARC_GUIDE, FRAMEWORKS, beatPage, type Framework } from '../reference/story';
 import { LIBRARY, RESOURCE_TYPES, TOPIC_LABELS, learnMore, type Resource, type ResourceType } from '../reference/library';
 import { templateDoc } from './DocsTab';
-import { canWrite, useSync } from '../sync/state';
+import { canEdit, useSync } from '../sync/state';
 import { toast } from '../components/common';
 
 // Reference: a small film school inside Open Gate. Plain-language pages by topic, calculators,
@@ -109,7 +109,7 @@ function Frameworks() {
   const [id, setId] = useState(p.structure?.frameworkId ?? 'three-act');
   const fw = FRAMEWORKS.find((f) => f.id === id) ?? FRAMEWORKS[0];
   const pages = Math.max(1, d.pageCount);
-  const ro = !canWrite('write');
+  const ro = !canEdit('structure');
   useEffect(() => { if (p.structure?.frameworkId) setId(p.structure.frameworkId); }, [p.structure?.frameworkId]);
 
   const use = (f: Framework) => {

@@ -16,7 +16,7 @@ import { dailyDraftDue, colorInfo } from '../script/drafts';
 import { saveVariant, switchVariant } from '../script/variants';
 import { openActions } from '../components/ActionSheet';
 import { askText, askConfirm } from '../components/dialogs';
-import { canWrite } from '../sync/state';
+import { canEdit } from '../sync/state';
 import { useLongPress } from '../ui/responsive';
 import type { DerivedScene } from '../model/types';
 import { FRAMEWORKS, beatPage } from '../reference/story';
@@ -36,7 +36,7 @@ export function WriteTab() {
     const check = async () => {
       session.flush();
       const cur = useStore.getState().project;
-      if (cur && canWrite('write') && await dailyDraftDue(cur)) await saveDraft(`Daily — ${new Date().toLocaleDateString()}`, { auto: 'daily' });
+      if (cur && canEdit('drafts') && await dailyDraftDue(cur)) await saveDraft(`Daily — ${new Date().toLocaleDateString()}`, { auto: 'daily' });
     };
     const t = setTimeout(() => void check(), 5000);
     const iv = setInterval(() => void check(), 30 * 60_000);
@@ -45,7 +45,7 @@ export function WriteTab() {
 
   const sceneMenu = (s: DerivedScene, at?: { x: number; y: number }) => {
     const variants = (p.sceneVariants ?? []).filter((v) => v.sceneId === s.id);
-    const ro = !canWrite('write');
+    const ro = !canEdit('sceneVariants');
     openActions(`${s.number}. ${s.heading}`, [
       { label: 'Go to scene', run: () => jumpTo(s.id) },
       ...(ro ? [] : [{ label: 'Save as a variant…', run: async () => {

@@ -7,7 +7,7 @@ import { REVISION_COLORS, colorInfo, compareScenes, diffBlocks, makeDraft, nextC
 import { replaceScene, replaceScript, sceneBlocksIn } from '../script/variants';
 import { session } from '../script/session';
 import { displayName } from '../sync/engine';
-import { canWrite, useSync } from '../sync/state';
+import { canEdit, useSync } from '../sync/state';
 import { Modal, toast } from './common';
 import { askConfirm, askText } from './dialogs';
 import { openActions } from './ActionSheet';
@@ -30,7 +30,7 @@ export function DraftsPanel() {
   const p = useProject();
   const update = useStore((s) => s.update);
   useSync((s) => s.write);
-  const ro = !canWrite('write');
+  const ro = !canEdit('drafts');
   const drafts = [...(p.drafts ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const [open, setOpen] = useState<{ draft: ScriptDraft; mode: 'read' | 'compare'; other?: ScriptDraft } | null>(null);
   const rev = p.revision;

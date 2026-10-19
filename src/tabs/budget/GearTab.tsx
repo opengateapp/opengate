@@ -4,7 +4,7 @@ import type { GearItem, GearSource } from '../../model/types';
 import { newId } from '../../model/ids';
 import { money } from '../../budget/calc';
 import { GEAR_CATEGORIES, SOURCE_LABEL, gearCost, gearTotals, syncGearLines } from '../../budget/gear';
-import { budgetVisible, canWrite, useSync } from '../../sync/state';
+import { budgetVisible, canEdit, useSync } from '../../sync/state';
 import { csv } from '../../io/reports';
 import { download, safeName } from '../../io/files';
 import { deletedToast } from '../../components/deleted';
@@ -25,7 +25,7 @@ export function GearTab() {
   const d = useDerived();
   const update = useStore((s) => s.update);
   useSync((s) => s.write);
-  const ro = !canWrite('visualize') || !canWrite('budget');
+  const ro = !canEdit('gear') || !canEdit('budget');
   const showCost = budgetVisible();
   const gear = p.gear ?? [];
   const t = gearTotals(p);

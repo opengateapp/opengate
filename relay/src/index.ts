@@ -12,16 +12,30 @@ import { DurableObject } from 'cloudflare:workers';
 //   link token    — stored here only as a SHA-256 hash, with the channels it may write
 //                   and the restricted channels it may read
 //
-// Channels: script, write, breakdown, plan, visualize, shoot, settings, budget.
+// Channels: format 1 rooms use one per section (script, write, breakdown, plan, visualize, shoot,
+// settings, budget); format 2 rooms use one per tab (script, screenplay, characters, … budget), so
+// links can edit, view or not see each tab. A link's `hide` list names channels never sent to it.
+// Links made for format-1 rooms name sections; in a format-2 room each covers its tabs' channels.
 // The budget is restricted: it's only sent to the owner and to links that were given it
 // (it's also encrypted with a separate key that only those links carry).
 
 interface Env { ROOMS: DurableObjectNamespace }
-interface Perms { write: string[]; read?: string[]; admin: boolean; h?: string }
+interface Perms { write: string[]; read?: string[]; hide?: string[]; admin: boolean; h?: string }
 interface Attachment { c: string; perms: Perms }
 
-const CHANNELS = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'];
+const CHANNELS_V1 = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'];
+const CHANNELS_V2 = ['script', 'screenplay', 'characters', 'bible', 'docs', 'av', 'breakdown', 'schedule', 'contacts', 'calendar', 'tasks',
+  'storyboard', 'boards', 'shots', 'designer', 'gear', 'callsheets', 'locations', 'settings', 'budget'];
+const CHANNELS = [...new Set([...CHANNELS_V1, ...CHANNELS_V2])];
 const RESTRICTED = ['budget'];
+/** Format-1 section names → the format-2 channels they cover. */
+const LEGACY_EXPAND: Record<string, string[]> = {
+  write: ['screenplay', 'characters', 'bible', 'docs', 'av'],
+  breakdown: ['breakdown', 'schedule'],
+  plan: ['contacts', 'calendar', 'tasks'],
+  visualize: ['storyboard', 'boards', 'shots', 'designer', 'gear'],
+  shoot: ['callsheets', 'locations'],
+};
 const CHUNK = 900_000;
 const MAX_MEDIA = 25_000_000;
 const CORS = {
@@ -39,8 +53,9 @@ async function sha256(s: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-const canWrite = (p: Perms, ch: string) => p.admin || p.write.includes(ch) || (p.write.includes('*') && !RESTRICTED.includes(ch));
-const canRead = (p: Perms, ch: string) => p.admin || !RESTRICTED.includes(ch) || p.write.includes(ch) || !!p.read?.includes(ch);
+const hidden = (p: Perms, ch: string) => !p.admin && !!p.hide?.includes(ch);
+const canWrite = (p: Perms, ch: string) => p.admin || (!hidden(p, ch) && (p.write.includes(ch) || (p.write.includes('*') && !RESTRICTED.includes(ch)) || p.write.some((w) => LEGACY_EXPAND[w]?.includes(ch))));
+const canRead = (p: Perms, ch: string) => p.admin || (!hidden(p, ch) && (!RESTRICTED.includes(ch) || p.write.includes(ch) || !!p.read?.includes(ch)));
 
 export class Room extends DurableObject<Env> {
   sql: SqlStorage;
@@ -58,6 +73,8 @@ export class Room extends DurableObject<Env> {
     `);
     // Rooms made before budgets: add the read column.
     if (!this.sql.exec("SELECT 1 FROM pragma_table_info('links') WHERE name = 'read'").toArray().length) this.sql.exec('ALTER TABLE links ADD COLUMN read TEXT');
+    // Rooms made before per-tab access: which channels a link never receives.
+    if (!this.sql.exec("SELECT 1 FROM pragma_table_info('links') WHERE name = 'hide'").toArray().length) this.sql.exec('ALTER TABLE links ADD COLUMN hide TEXT');
   }
 
   private meta(k: string): string | null {
@@ -70,8 +87,8 @@ export class Room extends DurableObject<Env> {
     if (!token) return null;
     const h = await sha256(token);
     if (h === this.meta('adminHash')) return { write: ['*'], admin: true, h };
-    const r = this.sql.exec('SELECT write, read FROM links WHERE hash = ?', h).toArray()[0];
-    return r ? { write: JSON.parse(r.write as string), read: r.read ? JSON.parse(r.read as string) : [], admin: false, h } : null;
+    const r = this.sql.exec('SELECT write, read, hide FROM links WHERE hash = ?', h).toArray()[0];
+    return r ? { write: JSON.parse(r.write as string), read: r.read ? JSON.parse(r.read as string) : [], hide: r.hide ? JSON.parse(r.hide as string) : [], admin: false, h } : null;
   }
 
   private latest(ch: string): number {
@@ -127,19 +144,30 @@ export class Room extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
 
-    if (action === 'whoami') return json({ write: perms.write, read: perms.read ?? [], admin: perms.admin });
+    if (action === 'whoami') return json({ write: perms.write, read: perms.read ?? [], hide: perms.hide ?? [], admin: perms.admin, format: Number(this.meta('format') ?? 1) });
+
+    // Owner: switch the room's format (after uploading the new channels). Everyone reconnects onto it.
+    if (action === 'format' && req.method === 'POST') {
+      if (!perms.admin) return fail(403, 'only the project owner can change the room format');
+      const { format } = (await req.json()) as { format?: number };
+      if (format !== 1 && format !== 2) return fail(400, 'bad format');
+      this.sql.exec("INSERT OR REPLACE INTO meta (k, v) VALUES ('format', ?)", String(format));
+      for (const ws of this.ctx.getWebSockets()) if (!(ws.deserializeAttachment() as Attachment).perms.admin) ws.close(4006, 'room format changed');
+      return json({ ok: true, format });
+    }
 
     if (action === 'links') {
       if (!perms.admin) return fail(403, 'only the project owner can manage links');
       if (req.method === 'GET') {
-        return json(this.sql.exec('SELECT hash, label, write, read, created FROM links ORDER BY created').toArray().map((r) => ({ hash: r.hash, label: r.label, write: JSON.parse(r.write as string), read: r.read ? JSON.parse(r.read as string) : [], created: r.created })));
+        return json(this.sql.exec('SELECT hash, label, write, read, hide, created FROM links ORDER BY created').toArray().map((r) => ({ hash: r.hash, label: r.label, write: JSON.parse(r.write as string), read: r.read ? JSON.parse(r.read as string) : [], hide: r.hide ? JSON.parse(r.hide as string) : [], created: r.created })));
       }
       if (req.method === 'POST') {
-        const b = (await req.json()) as { hash?: string; label?: string; write?: string[]; read?: string[] };
+        const b = (await req.json()) as { hash?: string; label?: string; write?: string[]; read?: string[]; hide?: string[] };
         if (!b.hash || !/^[0-9a-f]{64}$/.test(b.hash) || !Array.isArray(b.write)) return fail(400, 'bad link');
         const write = b.write.filter((c) => c === '*' || CHANNELS.includes(c));
         const read = (Array.isArray(b.read) ? b.read : []).filter((c) => RESTRICTED.includes(c));
-        this.sql.exec('INSERT OR REPLACE INTO links (hash, label, write, read, created) VALUES (?, ?, ?, ?, ?)', b.hash, (b.label ?? '').slice(0, 120), JSON.stringify(write), JSON.stringify(read), Date.now());
+        const hide = (Array.isArray(b.hide) ? b.hide : []).filter((c) => CHANNELS.includes(c));
+        this.sql.exec('INSERT OR REPLACE INTO links (hash, label, write, read, hide, created) VALUES (?, ?, ?, ?, ?, ?)', b.hash, (b.label ?? '').slice(0, 120), JSON.stringify(write), JSON.stringify(read), JSON.stringify(hide), Date.now());
         return json({ ok: true });
       }
       if (req.method === 'DELETE' && arg) {
@@ -214,8 +242,10 @@ export class Room extends DurableObject<Env> {
     let m: { t: string; ch?: string; id?: string; d?: string; since?: Record<string, number> };
     try { m = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch { return; }
     if (m.t === 'sub') {
+      // Only the channels this client asked for (its room format), that it may read.
+      const asked = (ch: string) => !m.since || ch in m.since;
       for (const ch of CHANNELS) {
-        if (!canRead(a.perms, ch)) continue;
+        if (!canRead(a.perms, ch) || !asked(ch)) continue;
         // since = last update this client has (-1: it has nothing yet, not even the starting snapshot).
         const since = m.since?.[ch] ?? -1;
         const hasSnap = this.sql.exec('SELECT 1 FROM snap WHERE ch = ? AND i = 0', ch).toArray().length > 0;
@@ -233,8 +263,8 @@ export class Room extends DurableObject<Env> {
         }
         if (batch.length) ws.send(JSON.stringify({ t: 'log', ch, e: batch }));
       }
-      const readable = CHANNELS.filter((c) => canRead(a.perms, c));
-      ws.send(JSON.stringify({ t: 'ready', perms: { write: a.perms.write, read: a.perms.read ?? [], admin: a.perms.admin }, latest: Object.fromEntries(readable.map((c) => [c, this.latest(c)])) }));
+      const readable = CHANNELS.filter((c) => canRead(a.perms, c) && asked(c));
+      ws.send(JSON.stringify({ t: 'ready', format: Number(this.meta('format') ?? 1), perms: { write: a.perms.write, read: a.perms.read ?? [], hide: a.perms.hide ?? [], admin: a.perms.admin }, latest: Object.fromEntries(readable.map((c) => [c, this.latest(c)])) }));
       return;
     }
     if (m.t === 'up' && m.ch && m.d && CHANNELS.includes(m.ch)) {
@@ -260,6 +290,8 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
     const url = new URL(req.url);
+    // What this relay supports (older relays answer only format 1).
+    if (url.pathname === '/info') return json({ v: 2, formats: [1, 2] });
     const m = url.pathname.match(/^\/r\/([A-Za-z0-9_-]{16,64})\//);
     if (m) return env.ROOMS.get(env.ROOMS.idFromName(m[1])).fetch(req);
     return new Response('Open Gate relay is running. Share a project from Open Gate → Share.', { headers: { 'content-type': 'text/plain', ...CORS } });

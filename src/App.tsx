@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { tabHidden, useSync } from './sync/state';
 import { useCallback, useEffect, useState } from 'react';
 import { useStore, flushSave } from './store/project';
 import { loadProject } from './store/db';
@@ -106,6 +107,7 @@ const LEGACY: Record<string, TabId> = { write: 'screenplay', schedule: 'stripboa
 export function App() {
   const project = useStore((s) => s.project);
   usePrefs(); // date / clock / week-start preferences re-render everything
+  const hiddenSync = useSync((s) => s.hidden);
   const saveState = useStore((s) => s.saveState);
   const phone = usePhone();
   const narrow = useNarrow();
@@ -126,6 +128,12 @@ export function App() {
   };
   const section = sectionOf(tab);
   const openBoards = useCallback(() => setTab('boards'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A tab hidden by this person's link: go to the first one they can see.
+  useEffect(() => {
+    if (!tabHidden(tab)) return;
+    const first = SECTIONS.flatMap((x) => x.tabs).find((t) => !tabHidden(t.id));
+    if (first) setTab(first.id);
+  }, [hiddenSync, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Other tabs can jump somewhere (e.g. a cast row's "Profile →" opens Characters).
   useEffect(() => {
     const go = (e: Event) => { const t = (e as CustomEvent).detail as TabId; if (ALL_TABS.includes(t)) setTab(t); };
@@ -134,7 +142,7 @@ export function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Shared projects: keep the open project connected to its room (works offline too).
-  const shareKey = project?.share ? `${project.id}|${project.share.room}|${project.share.token}` : '';
+  const shareKey = project?.share ? `${project.id}|${project.share.room}|${project.share.token}|${project.share.format ?? 1}` : '';
   useEffect(() => {
     const p = useStore.getState().project;
     if (shareKey && p?.share) void startSync(p);
@@ -186,9 +194,11 @@ export function App() {
 
   if (!project) return <><JoinHandler /><HomeScreen /></>;
 
-  const fullSec = SECTIONS.find((x) => x.id === section)!;
+  // Per-tab access: tabs hidden by this person's link aren't shown at all.
+  const allowed = hiddenSync?.length ? SECTIONS.map((x) => ({ ...x, tabs: x.tabs.filter((t) => !tabHidden(t.id)) })).filter((x) => x.tabs.length) : SECTIONS;
+  const fullSec = allowed.find((x) => x.id === section) ?? allowed[0];
   // Open Gate Lite: on phones, only the chosen tabs (a hidden one opened from "Show all tabs" still shows its section).
-  const shown = visibleSections(SECTIONS, phoneTabs, phone);
+  const shown = visibleSections(allowed, phoneTabs, phone);
   const sec = shown.find((x) => x.id === section && x.tabs.some((t) => t.id === tab)) ?? fullSec;
   return (
     <div className={`app ${phone ? 'is-phone' : ''}`}>
@@ -203,7 +213,7 @@ export function App() {
         <header className="topbar">
           <ProjectMenu />
           <nav className="tabs sections" aria-label="Sections">
-            {SECTIONS.filter((x) => x.id !== 'settings').map((x) => (
+            {allowed.filter((x) => x.id !== 'settings').map((x) => (
               <div key={x.id} className="section-wrap">
                 <button className={section === x.id ? 'tab active' : 'tab'} onClick={(e) => { setTab(lastInSection[x.id] ?? x.tabs[0].id); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
                   {x.label}

@@ -1570,3 +1570,18 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border: 1px solid
 /* Phones: the board list is a sheet (Boards button), so the canvas gets the whole screen. */
 @media (max-width: 760px) { .boards-tab { grid-template-columns: 1fr; } }
 @media (min-width: 761px) and (max-width: 900px) { .boards-side .row.pad-x { flex-wrap: wrap; } .boards-side .side-tabs.small button { font-size: 10px; padding: 4px 2px; } }
+
+/* Per-tab access */
+.tab-access { display: flex; flex-direction: column; gap: 8px; }
+.tab-access-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px 16px; }
+.tab-access-section { display: flex; flex-direction: column; gap: 3px; }
+.tab-access-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.tab-access-row .seg button { padding: 2px 8px; font-size: 12px; }
+.tab-access-row .seg button.a-hidden { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); border-color: var(--danger); }
+.tab-access-row .seg button.a-view { background: var(--panel-2); color: var(--text); border-color: var(--border); }
+.upgrade-box { border: 1px dashed var(--accent); border-radius: var(--radius); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+p.warn { color: #b45309; margin: 0; }
+@media (max-width: 760px) { .tab-access-grid { grid-template-columns: 1fr; } .tab-access-row .seg button { padding: 8px 10px; min-height: 38px; } }
+.tab-access-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.tab-access-row .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) { .tab-access-row .seg button { padding: 8px 9px; font-size: 12px; } }

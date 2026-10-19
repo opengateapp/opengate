@@ -5,12 +5,13 @@ import { prosemirrorJSONToYXmlFragment } from 'y-prosemirror';
 import type { Project, ShareInfo } from '../model/types';
 import { useStore } from '../store/project';
 import { db } from '../store/db';
+import { toast } from '../components/common';
 import { getMedia, putMedia } from '../store/media';
 import { mediaIds } from '../io/files';
 import { schema } from '../script/schema';
 import { session } from '../script/session';
 import { newId } from '../model/ids';
-import { CHANNELS, LOCAL_ONLY, channelOf, decodeField, describeEntry, encodeField, fieldOf, type Channel } from './channels';
+import { LOCAL_ONLY, channelOf, channelsFor, decodeField, describeEntry, encodeField, fieldOf, setChannelFormat, type Channel, type RoomFormat } from './channels';
 import { importKey, newKey, encrypt, decrypt, encryptToString, decryptString, seal, unseal, type Author } from './crypto';
 import { WebSocketTransport, type RelayMessage, type Transport } from './transport';
 import { useSync, canWrite, type Peer } from './state';
@@ -79,8 +80,15 @@ export class ProjectSync {
   transport: Transport;
   get isApplying() { return this.applying; }
 
+  /** Channels of this room's format (per section for older rooms, per tab for newer ones). */
+  readonly chs: readonly Channel[];
+  readonly format: RoomFormat;
+
   constructor(private projectId: string, private share: ShareInfo, transport?: Transport) {
-    for (const ch of CHANNELS) {
+    this.format = share.format ?? 1;
+    setChannelFormat(this.format);
+    this.chs = channelsFor(this.format);
+    for (const ch of this.chs) {
       this.docs[ch] = new Y.Doc();
       this.maps[ch] = this.docs[ch].getMap('data');
       this.seq[ch] = -1;
@@ -105,10 +113,13 @@ export class ProjectSync {
       useStore.getState().update((d) => { if (d.share) d.share.budgetKey = budgetKey; }, null);
     }
     this.budgetKey = this.share.budgetKey ? await importKey(this.share.budgetKey) : null;
-    useSync.setState({ status: 'connecting', error: undefined, peers: [], write: this.share.admin ? ['*'] : this.share.write, admin: this.share.admin, pending: 0, budget: !!this.budgetKey });
+    useSync.setState({ status: 'connecting', error: undefined, peers: [], write: this.share.admin ? ['*'] : this.share.write, admin: this.share.admin, pending: 0, budget: !!this.budgetKey, hidden: this.share.hide ?? [] });
 
     // 1. Local copy of the shared state (works offline).
     const rows = await db.sync.where('projectId').equals(this.projectId).toArray();
+    // Rows from the room's other format (after an update to per-tab channels) are no longer used.
+    const stale = rows.filter((r) => !this.chs.includes(r.key.split(':').pop()!)).map((r) => r.key);
+    if (stale.length) await db.sync.bulkDelete(stale);
     for (const r of rows) {
       const ch = r.key.split(':').pop() as Channel;
       if (!this.docs[ch] || !this.on(ch)) continue;
@@ -119,7 +130,7 @@ export class ProjectSync {
     this.hadState = rows.length > 0;
     if (this.hadState && !this.share.admin) {
       const loaded = new Set(rows.map((r) => r.key.split(':').pop()));
-      for (const ch of CHANNELS) if (this.on(ch) && !loaded.has(ch)) this.unsynced.add(ch);
+      for (const ch of this.chs) if (this.on(ch) && !loaded.has(ch)) this.unsynced.add(ch);
     }
     const uploaded = await db.meta.get(`${this.projectId}:uploaded`);
     if (Array.isArray(uploaded?.value)) uploaded!.value.forEach((x) => this.uploaded.add(x as string));
@@ -128,7 +139,7 @@ export class ProjectSync {
 
     // Listen before writing anything below, so edits made while sync wasn't running
     // (e.g. a budget added before it was shared) are queued and sent, not just saved here.
-    for (const ch of CHANNELS) {
+    for (const ch of this.chs) {
       this.docs[ch].on('update', (u: Uint8Array, origin: unknown) => this.onDocUpdate(ch, u, origin));
       this.maps[ch].observe((ev, txn) => this.onMapChange(ch, ev, txn));
     }
@@ -137,7 +148,7 @@ export class ProjectSync {
     if (!this.hadState && this.share.fresh) {
       // The owner just started sharing: the project becomes the room's starting point.
       this.fillFromProject(p, INIT);
-      for (const ch of CHANNELS) this.seq[ch] = 0;
+      for (const ch of this.chs) this.seq[ch] = 0;
     } else if (this.hadState) {
       // Bring the store up to date with the shared state, then send any edits made meanwhile.
       this.pullAll();
@@ -166,11 +177,17 @@ export class ProjectSync {
 
     // 4. Owner's first upload: one snapshot per section.
     if (this.share.fresh) await this.uploadSnapshots();
+    // Owner moving the room to per-tab channels: now that they're uploaded, switch the room over
+    // (the relay reconnects everyone, and collaborators download the new channels).
+    if (this.share.migrating && this.share.admin) {
+      const res = await this.transport.http('POST', 'format', { format: this.format });
+      if (res.ok) useStore.getState().update((d) => { if (d.share) delete d.share.migrating; }, null);
+    }
 
     // 5. Connect.
     this.transport.onOpen = () => {
       const since: Record<string, number> = {};
-      for (const ch of CHANNELS) if (this.on(ch)) since[ch] = this.seq[ch];
+      for (const ch of this.chs) if (this.on(ch)) since[ch] = this.seq[ch];
       this.transport.send({ t: 'sub', since } as RelayMessage);
       void this.sendPresence(true);
     };
@@ -211,7 +228,7 @@ export class ProjectSync {
     this.stopped = true;
     this.unsub.forEach((u) => u());
     this.transport.close();
-    for (const ch of CHANNELS) { clearTimeout(this.persistTimers[ch]); void this.persist(ch); }
+    for (const ch of this.chs) { clearTimeout(this.persistTimers[ch]); void this.persist(ch); }
     void this.persistMeta();
     if (this.scriptBound) session.setCollab(null);
     this.awareness.destroy();
@@ -352,10 +369,18 @@ export class ProjectSync {
         const firstJoin = !this.hadState && !this.share.fresh;
         this.ready = true;
         this.hadState = true;
+        // The owner moved this room to per-tab channels: start over on the new format.
+        if (m.format === 2 && this.format === 1 && !this.share.admin) {
+          this.stopped = true;
+          await db.sync.where('projectId').equals(this.projectId).delete();
+          useStore.getState().update((d) => { if (d.share) d.share.format = 2; }, null);
+          toast('This shared project was updated for per-tab access — downloading it again.');
+          return;
+        }
         if (m.perms) {
-          useSync.setState({ write: m.perms.admin ? ['*'] : m.perms.write, admin: m.perms.admin, budget: !!this.budgetKey });
-          if (!sameJson(m.perms.write, this.share.write)) {
-            useStore.getState().update((d) => { if (d.share) d.share.write = m.perms!.write; }, null);
+          useSync.setState({ write: m.perms.admin ? ['*'] : m.perms.write, admin: m.perms.admin, budget: !!this.budgetKey, hidden: m.perms.hide ?? [] });
+          if (!sameJson(m.perms.write, this.share.write) || !sameJson(m.perms.hide ?? [], this.share.hide ?? [])) {
+            useStore.getState().update((d) => { if (d.share) { d.share.write = m.perms!.write; d.share.hide = m.perms!.hide ?? []; } }, null);
           }
         }
         if (this.share.fresh) useStore.getState().update((d) => { if (d.share) delete d.share.fresh; }, null);
@@ -368,7 +393,7 @@ export class ProjectSync {
           this.schedulePersist(c);
         }
         useSync.setState({ status: 'live', lastSync: Date.now() });
-        for (const c of CHANNELS) if (this.on(c)) for (const item of this.pending[c]) await this.sendUpdate(c, item);
+        for (const c of this.chs) if (this.on(c)) for (const item of this.pending[c]) await this.sendUpdate(c, item);
         this.scheduleMedia(0);
         break;
       }
@@ -481,7 +506,7 @@ export class ProjectSync {
   }
 
   private pullAll() {
-    for (const ch of CHANNELS) {
+    for (const ch of this.chs) {
       if (ch === 'script' || !this.on(ch)) continue;
       const fields = new Set([...this.maps[ch].keys()].map(fieldOf));
       if (fields.size) this.pullFields(ch, [...fields]);
@@ -645,7 +670,7 @@ export class ProjectSync {
   }
 
   private async uploadSnapshots() {
-    for (const ch of CHANNELS) {
+    for (const ch of this.chs) {
       if (!this.on(ch)) continue;
       const d = await encryptToString(this.keyFor(ch), seal(this.authorStamp(), Y.encodeStateAsUpdate(this.docs[ch])));
       const res = await this.transport.http('PUT', `snap/${ch}?upTo=${Math.max(0, this.seq[ch])}`, d);
@@ -665,13 +690,13 @@ export class ProjectSync {
   }
 
   private updatePendingCount() {
-    useSync.setState({ pending: CHANNELS.reduce((n, c) => n + this.pending[c].length, 0) });
+    useSync.setState({ pending: this.chs.reduce((n, c) => n + this.pending[c].length, 0) });
   }
 
   /** Everything needed to rejoin later from a linked .opengate file. */
   exportState(): Record<string, { state: Uint8Array; seq: number; pending: { id: string; u: Uint8Array }[] }> {
     const out: Record<string, { state: Uint8Array; seq: number; pending: { id: string; u: Uint8Array }[] }> = {};
-    for (const ch of CHANNELS) if (this.on(ch)) out[ch] = { state: Y.encodeStateAsUpdate(this.docs[ch]), seq: this.seq[ch], pending: this.pending[ch] };
+    for (const ch of this.chs) if (this.on(ch)) out[ch] = { state: Y.encodeStateAsUpdate(this.docs[ch]), seq: this.seq[ch], pending: this.pending[ch] };
     return out;
   }
 }

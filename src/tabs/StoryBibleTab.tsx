@@ -5,7 +5,7 @@ import type { BibleGenre, StoryBible } from '../model/types';
 import { newId } from '../model/ids';
 import { GENRES, RULE_PROMPTS, bibleOf, emptyBible, placeScenes, scenesByDay, suggestStoryDays } from '../bible/bible';
 import { characterEntries, openCharacter } from '../script/characters';
-import { canWrite, useSync } from '../sync/state';
+import { canEdit, useSync } from '../sync/state';
 import { deletedToast } from '../components/deleted';
 import { askConfirm } from '../components/dialogs';
 import { toast } from '../components/common';
@@ -22,7 +22,7 @@ export function StoryBibleTab() {
   const p = useProject();
   const update = useStore((s) => s.update);
   useSync((s) => s.write);
-  const ro = !canWrite('write');
+  const ro = !canEdit('bible');
   const b = bibleOf(p);
   const [section, setSection] = useState<Section>('overview');
   const genre = GENRES.find((g) => g.id === b.genre) ?? GENRES[0];
@@ -37,7 +37,7 @@ export function StoryBibleTab() {
       </aside>
       <section className="main pad scroll bible-main">
         {section === 'overview' && <Overview b={b} ro={ro} edit={edit} />}
-        {section === 'days' && <Days ro={ro} />}
+        {section === 'days' && <Days />}
         {section === 'places' && <Places b={b} ro={ro} edit={edit} />}
         {section === 'groups' && <Groups b={b} ro={ro} edit={edit} />}
         {section === 'glossary' && <Glossary b={b} ro={ro} edit={edit} />}
@@ -73,11 +73,11 @@ function Overview({ b, ro, edit }: { b: StoryBible; ro: boolean; edit: Edit }) {
   );
 }
 
-function Days({ ro }: { ro: boolean }) {
+function Days() {
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
-  const canSet = !ro && canWrite('breakdown');
+  const canSet = canEdit('sceneMeta');
   const by = scenesByDay(p, d);
   const unset = d.scenes.filter((s) => p.sceneMeta[s.id]?.storyDay == null).length;
   const setDay = (sceneId: string, day: number | undefined) => update((dr) => { const m = (dr.sceneMeta[sceneId] ??= {}); if (day == null) delete m.storyDay; else m.storyDay = day; }, 'Story day');
