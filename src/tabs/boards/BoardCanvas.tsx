@@ -3,13 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Board, BoardItem, BoardItemType } from '../../model/types';
 import { useMediaUrl } from '../../store/media';
 import { toast } from '../../components/common';
-import { addItems, bounds, hostOf, itemsFromTransfer, makeItem, readTransfer, removeItems, updateItems } from './boardOps';
+import { addItems, bounds, connector, edgePoint, hostOf, itemsFromTransfer, makeItem, readTransfer, removeItems, updateItems } from './boardOps';
+import { CardBody, NoteText, REF_MIME, openRef } from './cards';
 import { askText } from '../../components/dialogs';
 import { BOARD_MIME, getBoardClipboard, setBoardClipboard } from '../../components/clipboard';
 import { isPalm, notePointer, pressureOf, samplesOf, widthFor } from '../../ui/pen';
 import { newId } from '../../model/ids';
 
-export type Tool = 'select' | 'hand' | 'pen' | 'note' | 'text' | 'rect' | 'ellipse' | 'arrow' | 'frame';
+export type Tool = 'select' | 'hand' | 'pen' | 'note' | 'text' | 'rect' | 'ellipse' | 'arrow' | 'frame' | 'connect';
 
 interface View { x: number; y: number; s: number }
 
@@ -30,7 +31,8 @@ type Drag =
   | { kind: 'pan'; sx: number; sy: number; vx: number; vy: number }
   | { kind: 'marquee'; x0: number; y0: number; x1: number; y1: number; add: boolean }
   | { kind: 'stroke'; points: number[]; pressures?: number[] }
-  | { kind: 'create'; type: BoardItemType; shape?: BoardItem['shape']; x0: number; y0: number; x1: number; y1: number };
+  | { kind: 'create'; type: BoardItemType; shape?: BoardItem['shape']; x0: number; y0: number; x1: number; y1: number }
+  | { kind: 'connect'; from: string; x1: number; y1: number; moved: boolean };
 
 const QUICK: { type: BoardItemType; label: string; icon: string; shape?: BoardItem['shape'] }[] = [
   { type: 'note', label: 'Sticky note', icon: '▤' },
@@ -120,7 +122,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
         onSelect(copies.map((c) => c.id));
       } else if (e.key === 'Escape') { onSelect([]); setQuick(null); setTool('select'); }
       else if (!mod && !e.altKey) {
-        const map: Record<string, Tool> = { v: 'select', h: 'hand', p: 'pen', n: 'note', t: 'text', r: 'rect', o: 'ellipse', a: 'arrow', f: 'frame' };
+        const map: Record<string, Tool> = { v: 'select', h: 'hand', p: 'pen', n: 'note', t: 'text', r: 'rect', o: 'ellipse', a: 'arrow', f: 'frame', c: 'connect' };
         const t = map[e.key.toLowerCase()];
         if (t) setTool(t);
         if (e.key === ']' || e.key === '[') {
@@ -225,6 +227,11 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       return;
     }
     if (tool === 'pen') { const pr = pressureOf(e); setDrag({ kind: 'stroke', points: [w.x, w.y], ...(pr != null ? { pressures: [pr] } : {}) }); return; }
+    // Connect: drag from an item's ◦ handle (or anywhere on an item with the connect tool) to another item.
+    const connectFrom = (el.closest('[data-connect]') as HTMLElement | null)?.dataset.connect
+      ?? (tool === 'connect' ? board.items.find((i) => i.id === itemAt(e.target)?.dataset.itemId && i.type !== 'connector')?.id : undefined);
+    if (connectFrom) { setDrag({ kind: 'connect', from: connectFrom, x1: w.x, y1: w.y, moved: false }); return; }
+    if (tool === 'connect') return;
     if (tool !== 'select') {
       const type: BoardItemType = tool === 'rect' || tool === 'ellipse' || tool === 'arrow' ? 'shape' : tool;
       setDrag({ kind: 'create', type, shape: type === 'shape' ? (tool as BoardItem['shape']) : undefined, x0: w.x, y0: w.y, x1: w.x, y1: w.y });
@@ -240,6 +247,8 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     const itemEl = itemAt(e.target);
     if (itemEl) {
       const id = itemEl.dataset.itemId!;
+      // Connectors are selected, not dragged (they follow their items).
+      if (board.items.find((i) => i.id === id)?.type === 'connector') { onSelect([id]); return; }
       let ids = selected;
       if (e.shiftKey || e.metaKey) ids = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
       else if (!selected.includes(id)) ids = [id];
@@ -312,6 +321,9 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       case 'create':
         setDrag({ ...drag, x1: w.x, y1: w.y });
         break;
+      case 'connect':
+        setDrag({ ...drag, x1: w.x, y1: w.y, moved: drag.moved || Math.hypot(w.x - drag.x1, w.y - drag.y1) > 4 });
+        break;
     }
   };
 
@@ -334,6 +346,24 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     }
     if (d.kind === 'resize' && (d.dw || d.dh)) {
       updateItems(board.id, [d.id], (it) => { it.w = Math.max(24, Math.round(d.w + d.dw)); it.h = Math.max(16, Math.round(d.h + d.dh)); }, 'Resize');
+    }
+    if (d.kind === 'connect' && d.moved) {
+      const hitId = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('[data-item-id]')?.getAttribute('data-item-id');
+      const target = board.items.find((i) => i.id === hitId && i.type !== 'connector' && i.id !== d.from);
+      if (target) {
+        if (!board.items.some((i) => i.type === 'connector' && ((i.from === d.from && i.to === target.id) || (i.from === target.id && i.to === d.from)))) {
+          const c = connector(d.from, target.id);
+          addItems(board.id, [c], 'Connect');
+          onSelect([c.id]);
+        }
+      } else {
+        // Released on empty space: a new note, connected (like dragging out a mind-map branch).
+        const n = makeItem('note', d.x1, d.y1, {});
+        addItems(board.id, [n, connector(d.from, n.id)], 'Add connected note');
+        onSelect([n.id]);
+        setEditing(n.id);
+      }
+      if (tool === 'connect') setTool('select');
     }
     if (d.kind === 'marquee') {
       const x0 = Math.min(d.x0, d.x1), x1 = Math.max(d.x0, d.x1), y0 = Math.min(d.y0, d.y1), y1 = Math.max(d.y0, d.y1);
@@ -370,6 +400,8 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     const itemEl = itemAt(e.target);
     if (itemEl) {
       const it = board.items.find((i) => i.id === itemEl.dataset.itemId);
+      if (it?.type === 'card' && it.ref) { openRef(it.ref); return; }
+      if (it?.type === 'connector') { setEditing(it.id); return; }
       if (it && (it.type === 'note' || it.type === 'text' || it.type === 'frame' || it.type === 'swatch' || it.type === 'shape')) setEditing(it.id);
       else if (it) onSelect([it.id]); // details panel opens for images / links
       return;
@@ -419,6 +451,18 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
   const onDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDropHover(false);
+    // A project thing dragged from the side panel: a live card.
+    const ref = e.dataTransfer.getData(REF_MIME);
+    if (ref) {
+      try {
+        const r = JSON.parse(ref) as NonNullable<BoardItem['ref']>;
+        const at = toWorld(e.clientX, e.clientY);
+        const card = makeItem('card', at.x, at.y, { ref: r });
+        addItems(board.id, [card], 'Add card');
+        onSelect([card.id]);
+      } catch { /* not ours */ }
+      return;
+    }
     const c = readTransfer(e.dataTransfer);
     if (!c.files.length && !c.images.length && !c.links.length && !c.text) return;
     const w = toWorld(e.clientX, e.clientY);
@@ -456,7 +500,10 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       tabIndex={0}
     >
       <div className="board-layer" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}>
-        {sorted.map((it) => {
+        <Connectors board={board} moveSet={moveSet} off={drag?.kind === 'move' ? { x: drag.dx, y: drag.dy } : null} selected={selected} editing={editing}
+          onEdit={(id, caption) => updateItems(board.id, [id], (x) => { x.caption = caption || undefined; }, 'Label connector')} onDoneEditing={() => setEditing(null)}
+          live={drag?.kind === 'connect' ? drag : null} />
+        {sorted.filter((it) => it.type !== 'connector').map((it) => {
           const off = moveSet?.has(it.id) && drag?.kind === 'move' ? { x: drag.dx, y: drag.dy } : { x: 0, y: 0 };
           const rs = drag?.kind === 'resize' && drag.id === it.id ? { w: drag.dw, h: drag.dh } : { w: 0, h: 0 };
           return (
@@ -484,8 +531,10 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
 
       {!board.items.length && (
         <div className="board-empty">
-          <h3>{board.kind === 'mood' ? 'Drop images here' : 'Start sketching'}</h3>
-          <p>Drag images from your desktop or another browser tab · paste with ⌘V · double-click anywhere to add a note, text, image, link, swatch, shape or section · import a Pinterest board from the toolbar</p>
+          <h3>{board.kind === 'mood' ? 'Drop images here' : board.kind === 'story' ? 'Map your story' : 'Start sketching'}</h3>
+          <p>{board.kind === 'story'
+            ? 'Drag characters, places, scenes or shots from the left onto the board · double-click for a note — type [[Name]] to link · drag an item’s ◦ handle to connect it, or into space for a new connected note'
+            : 'Drag images from your desktop or another browser tab · paste with ⌘V · double-click anywhere to add a note, text, image, link, swatch, shape or section · import a Pinterest board from the toolbar'}</p>
         </div>
       )}
 
@@ -536,7 +585,7 @@ function ItemView({ item, x, y, w, h, selected, single, editing, linking, onEdit
     case 'note':
       body = editing
         ? <textarea className="board-item-editor" autoFocus defaultValue={item.text} onBlur={(e) => { onEdit({ text: e.target.value }); onDoneEditing(); }} onKeyDown={(e) => { if (e.key === 'Escape') (e.target as HTMLTextAreaElement).blur(); }} />
-        : <div className="note-text">{item.text || <span className="muted">Double-click to write</span>}</div>;
+        : <div className="note-text">{item.text ? <NoteText text={item.text} /> : <span className="muted">Double-click to write · [[Name]] links</span>}</div>;
       break;
     case 'text':
       body = editing
@@ -585,6 +634,9 @@ function ItemView({ item, x, y, w, h, selected, single, editing, linking, onEdit
         </svg>
       );
       break;
+    case 'card':
+      body = <CardBody item={item} />;
+      break;
     case 'stroke':
       body = (
         <svg width={w} height={h} style={{ overflow: 'visible' }}>
@@ -607,6 +659,7 @@ function ItemView({ item, x, y, w, h, selected, single, editing, linking, onEdit
       {(item.sourceUrl || item.pinUrl) && item.type === 'image' && <span className="src-badge" title={item.sourceUrl ?? item.pinUrl}>↗</span>}
       {linked > 0 && <span className="link-badge" title="Linked to scenes / locations / characters / shots">⛓ {linked}</span>}
       {selected && single && item.type !== 'stroke' && <span className="resize-handle" data-resize={item.id} />}
+      {selected && single && item.type !== 'stroke' && item.type !== 'frame' && <span className="connect-handle" data-connect={item.id} title="Drag to another item to connect — or to empty space for a new connected note" />}
     </div>
   );
 }
@@ -621,4 +674,51 @@ function PressureLine({ points, pressures, color, width }: { points: number[]; p
   }
   if (points.length === 2) segs.push(<circle key="dot" cx={points[0]} cy={points[1]} r={widthFor(width * 1.4, pressures[0]) / 2} fill={color} stroke="none" />);
   return <g stroke={color} strokeLinecap="round">{segs}</g>;
+}
+
+/** Lines between connected items, following them as they move; labels in the middle. */
+function Connectors({ board, moveSet, off, selected, editing, onEdit, onDoneEditing, live }: {
+  board: Board; moveSet: Set<string> | null; off: { x: number; y: number } | null; selected: string[]; editing: string | null;
+  onEdit: (id: string, caption: string) => void; onDoneEditing: () => void; live: { from: string; x1: number; y1: number } | null;
+}) {
+  const byId = new Map(board.items.map((i) => [i.id, i]));
+  const box = (i: BoardItem) => (moveSet?.has(i.id) && off ? { x: i.x + off.x, y: i.y + off.y, w: i.w, h: i.h } : i);
+  const lines = board.items.filter((i) => i.type === 'connector' && i.from && i.to && byId.has(i.from) && byId.has(i.to));
+  const liveFrom = live ? byId.get(live.from) : undefined;
+  return (
+    <>
+      <svg className="board-connectors" width={1} height={1}>
+        <defs>
+          {[...new Set(lines.map((l) => l.color ?? '#71717A'))].map((c) => (
+            <marker key={c} id={`ah-${c.replace('#', '')}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill={c} />
+            </marker>
+          ))}
+        </defs>
+        {lines.map((l) => {
+          const a = box(byId.get(l.from!)!), b = box(byId.get(l.to!)!);
+          const p0 = edgePoint(a, b.x + b.w / 2, b.y + b.h / 2), p1 = edgePoint(b, a.x + a.w / 2, a.y + a.h / 2);
+          const c = l.color ?? '#71717A';
+          const m = `url(#ah-${c.replace('#', '')})`;
+          const sel = selected.includes(l.id);
+          return (
+            <g key={l.id} data-item-id={l.id} className={`conn ${sel ? 'sel' : ''}`}>
+              <line className="conn-hit" x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} />
+              <line x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke={c} strokeWidth={(l.strokeWidth ?? 2) + (sel ? 1.5 : 0)} strokeDasharray={l.dashed ? '8 6' : undefined}
+                markerEnd={(l.arrow ?? 'end') !== 'none' ? m : undefined} markerStart={l.arrow === 'both' ? m : undefined} />
+            </g>
+          );
+        })}
+        {live && liveFrom && (() => { const p0 = edgePoint(liveFrom, live.x1, live.y1); return <line className="conn-live" x1={p0.x} y1={p0.y} x2={live.x1} y2={live.y1} />; })()}
+      </svg>
+      {lines.filter((l) => l.caption || editing === l.id).map((l) => {
+        const a = box(byId.get(l.from!)!), b = box(byId.get(l.to!)!);
+        const mx = (a.x + a.w / 2 + b.x + b.w / 2) / 2, my = (a.y + a.h / 2 + b.y + b.h / 2) / 2;
+        return editing === l.id
+          ? <input key={l.id} className="board-item-editor conn-label-edit" style={{ left: mx, top: my }} autoFocus defaultValue={l.caption} placeholder="Label"
+              onBlur={(e) => { onEdit(l.id, e.target.value.trim()); onDoneEditing(); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur(); }} />
+          : <span key={l.id} data-item-id={l.id} className={`conn-label ${selected.includes(l.id) ? 'sel' : ''}`} style={{ left: mx, top: my, borderColor: l.color }}>{l.caption}</span>;
+      })}
+    </>
+  );
 }

@@ -540,7 +540,7 @@ hr.el-pageBreak { border: none; border-top: 2px dashed #bbb; margin: 18pt 0 6pt;
 .pin-sections li { margin-bottom: 10px; }
 .pin-strip { display: flex; gap: 4px; overflow: hidden; margin-top: 4px; }
 .pin-strip img { height: 64px; width: 64px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
-@media (max-width: 900px) { .boards-tab { grid-template-columns: 1fr; } .item-details { position: absolute; right: 0; top: 0; bottom: 0; box-shadow: var(--shadow); } }
+@media (max-width: 900px) { .boards-tab { grid-template-columns: 200px 1fr; } .item-details { position: absolute; right: 0; top: 0; bottom: 0; box-shadow: var(--shadow); } }
 
 /* ---- Call sheet page (styled like a paper call sheet) ---- */
 .cs-scroll { background: var(--bg); }
@@ -1531,3 +1531,42 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border: 1px solid
   .day-scene { padding: 8px; }
   .day-scene .cell-num { width: 56px; flex-basis: 56px; font-size: 16px; }
 }
+
+/* ---------- Story maps: connectors, cards, [[links]] ---------- */
+.board-connectors { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.board-connectors .conn { pointer-events: auto; cursor: pointer; }
+.board-connectors .conn-hit { stroke: transparent; stroke-width: 16; }
+.board-connectors .conn.sel line:not(.conn-hit) { filter: drop-shadow(0 0 3px var(--accent)); }
+.board-connectors .conn-live { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+.conn-label { position: absolute; transform: translate(-50%, -50%); background: var(--panel); color: var(--text); border: 1.5px solid #71717A; border-radius: 10px; padding: 1px 8px; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.conn-label.sel { box-shadow: 0 0 0 2px var(--accent); }
+.conn-label-edit { position: absolute; transform: translate(-50%, -50%); width: 160px; z-index: 5; }
+.connect-handle { position: absolute; right: -9px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; background: var(--panel); border: 2px solid var(--accent); cursor: crosshair; touch-action: none; }
+.connect-handle::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent); }
+@media (pointer: coarse) { .connect-handle { width: 26px; height: 26px; margin-top: -13px; right: -15px; } }
+.board-item.t-card { background: var(--panel); border-radius: 10px; box-shadow: var(--shadow); }
+.board-item.t-card .ref-card { overflow: hidden; border-radius: 10px; }
+.ref-card { display: flex; gap: 8px; height: 100%; padding: 8px; border-left: 4px solid var(--accent); color: var(--text); }
+.ref-card.k-character { border-left-color: #8b5cf6; }
+.ref-card.k-place { border-left-color: #16a34a; }
+.ref-card.k-scene { border-left-color: #2563eb; }
+.ref-card.k-location { border-left-color: #d97706; }
+.ref-card.k-shot { border-left-color: #db2777; }
+.ref-card.missing { opacity: .55; border-left-style: dashed; }
+.ref-card img { width: 56px; height: 100%; object-fit: cover; border-radius: 6px; flex: 0 0 56px; }
+.ref-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ref-card-text b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-kind { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.ref-sub { font-size: 11px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.wikilink { display: inline; border: none; background: rgba(37, 99, 235, .15); color: #1d4ed8; padding: 0 3px; border-radius: 3px; font: inherit; cursor: pointer; min-height: 0; }
+.wikilink.broken { background: rgba(0, 0, 0, .06); color: inherit; border-bottom: 1px dashed currentColor; cursor: help; }
+.target-list li { display: flex; align-items: center; gap: 4px; }
+.target-list .add-card { opacity: .5; }
+.target-list li:hover .add-card { opacity: 1; }
+@media (pointer: coarse) { .target-list .add-card { opacity: 1; min-width: 36px; min-height: 36px; } }
+.template-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.template-pick { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left; padding: 10px 12px; border-radius: 10px; min-height: 70px; }
+.mentions { display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: baseline; }
+/* Phones: the board list is a sheet (Boards button), so the canvas gets the whole screen. */
+@media (max-width: 760px) { .boards-tab { grid-template-columns: 1fr; } }
+@media (min-width: 761px) and (max-width: 900px) { .boards-side .row.pad-x { flex-wrap: wrap; } .boards-side .side-tabs.small button { font-size: 10px; padding: 4px 2px; } }

@@ -17,7 +17,7 @@ export function nextZ(board: Board): number {
 export function makeItem(type: BoardItemType, x: number, y: number, extra: Partial<BoardItem> = {}): BoardItem {
   const size: Record<BoardItemType, [number, number]> = {
     image: [IMAGE_WIDTH, 180], note: [200, 160], text: [260, 48], link: [260, 96], swatch: [120, 140],
-    shape: [200, 140], frame: [640, 420], stroke: [1, 1],
+    shape: [200, 140], frame: [640, 420], stroke: [1, 1], connector: [1, 1], card: [220, 96],
   };
   const [w, h] = size[type];
   const base: BoardItem = { id: newId(), type, x: Math.round(x - w / 2), y: Math.round(y - h / 2), w, h, z: 0 };
@@ -54,7 +54,8 @@ export function updateItems(boardId: string, ids: string[], fn: (it: BoardItem) 
 export function removeItems(boardId: string, ids: string[]) {
   useStore.getState().update((d) => {
     const b = d.boards.find((x) => x.id === boardId);
-    if (b) b.items = b.items.filter((i) => !ids.includes(i.id));
+    // Connectors go with the items they join.
+    if (b) b.items = b.items.filter((i) => !ids.includes(i.id) && !(i.type === 'connector' && (ids.includes(i.from ?? '') || ids.includes(i.to ?? ''))));
   }, ids.length > 1 ? `Delete ${ids.length} items` : 'Delete item');
 }
 
@@ -172,6 +173,7 @@ export function newBoard(kind: Board['kind'], title?: string): Board {
 
 /** Bounding box of items (for zoom-to-fit). */
 export function bounds(items: BoardItem[]): { x: number; y: number; w: number; h: number } | null {
+  items = items.filter((i) => i.type !== 'connector');
   if (!items.length) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const i of items) {
@@ -179,4 +181,66 @@ export function bounds(items: BoardItem[]): { x: number; y: number; w: number; h
     x1 = Math.max(x1, i.x + i.w); y1 = Math.max(y1, i.y + i.h);
   }
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** A connector between two items (one undoable step). */
+export function connector(from: string, to: string, extra: Partial<BoardItem> = {}): BoardItem {
+  return { id: newId(), type: 'connector', x: 0, y: 0, w: 1, h: 1, z: 0, from, to, color: '#71717A', strokeWidth: 2, arrow: 'end', ...extra };
+}
+
+/** Where a line from the centre of `a` toward point (tx, ty) leaves a's box. */
+export function edgePoint(a: { x: number; y: number; w: number; h: number }, tx: number, ty: number): { x: number; y: number } {
+  const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+  const dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return { x: cx, y: cy };
+  const sx = dx ? (a.w / 2) / Math.abs(dx) : Infinity, sy = dy ? (a.h / 2) / Math.abs(dy) : Infinity;
+  const s = Math.min(sx, sy, 1);
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+
+/** [[Name]] links in a note's text. */
+export function wikiLinks(text: string): string[] {
+  return [...text.matchAll(/\[\[([^\]\n]{1,80})\]\]/g)].map((m) => m[1].trim());
+}
+
+/** Boards that mention a name in a note ([[NAME]]) or show it as a card — "mentioned on". */
+export function mentionsOf(boards: Board[], names: string[], ref?: { kind: string; id: string }): { boardId: string; title: string }[] {
+  const want = names.map((n) => n.trim().toUpperCase()).filter(Boolean);
+  return boards.filter((b) => b.items.some((i) =>
+    (i.text && wikiLinks(i.text).some((l) => want.includes(l.toUpperCase()))) || (ref && i.ref?.kind === ref.kind && i.ref.id === ref.id))).map((b) => ({ boardId: b.id, title: b.title }));
+}
+
+/** Auto-arrange: lays items out in a grid, circle, tree (following connectors) or timeline. Returns new positions. */
+export function arrange(items: BoardItem[], mode: 'grid' | 'circle' | 'tree' | 'timeline', order?: (i: BoardItem) => number): Map<string, { x: number; y: number }> {
+  const nodes = items.filter((i) => i.type !== 'connector' && i.type !== 'frame' && i.type !== 'stroke');
+  const out = new Map<string, { x: number; y: number }>();
+  if (!nodes.length) return out;
+  const b = bounds(nodes)!;
+  const gap = 40;
+  const cw = Math.max(...nodes.map((n) => n.w)) + gap, ch = Math.max(...nodes.map((n) => n.h)) + gap;
+  if (mode === 'grid' || mode === 'timeline') {
+    const sorted = mode === 'timeline' && order ? [...nodes].sort((a, c) => order(a) - order(c)) : nodes;
+    const cols = mode === 'timeline' ? sorted.length : Math.ceil(Math.sqrt(sorted.length));
+    sorted.forEach((n, i) => out.set(n.id, { x: b.x + (i % cols) * cw, y: b.y + Math.floor(i / cols) * ch }));
+  } else if (mode === 'circle') {
+    const r = Math.max(cw, ch) * nodes.length / (2 * Math.PI) + 80;
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    nodes.forEach((n, i) => { const a = (i / nodes.length) * Math.PI * 2 - Math.PI / 2; out.set(n.id, { x: Math.round(cx + Math.cos(a) * r - n.w / 2), y: Math.round(cy + Math.sin(a) * r - n.h / 2) }); });
+  } else {
+    // Tree: roots are items nothing points to; each level goes one row down.
+    const edges = items.filter((i) => i.type === 'connector' && i.from && i.to);
+    const ids = new Set(nodes.map((n) => n.id));
+    const kids = new Map<string, string[]>();
+    for (const e of edges) if (ids.has(e.from!) && ids.has(e.to!)) kids.set(e.from!, [...(kids.get(e.from!) ?? []), e.to!]);
+    const pointed = new Set(edges.map((e) => e.to!));
+    const roots = nodes.filter((n) => !pointed.has(n.id)).map((n) => n.id);
+    const level = new Map<string, number>();
+    const queue = (roots.length ? roots : [nodes[0].id]).map((id) => ({ id, l: 0 }));
+    while (queue.length) { const { id, l } = queue.shift()!; if (level.has(id)) continue; level.set(id, l); for (const k of kids.get(id) ?? []) queue.push({ id: k, l: l + 1 }); }
+    for (const n of nodes) if (!level.has(n.id)) level.set(n.id, 0);
+    const rows = new Map<number, string[]>();
+    for (const [id, l] of level) rows.set(l, [...(rows.get(l) ?? []), id]);
+    for (const [l, row] of rows) row.forEach((id, i) => out.set(id, { x: Math.round(b.x + (i - (row.length - 1) / 2) * cw + b.w / 2), y: b.y + l * (ch + 40) }));
+  }
+  return out;
 }

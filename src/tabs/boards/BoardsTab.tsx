@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Board, BoardItem } from '../../model/types';
 import { BoardCanvas, type Tool } from './BoardCanvas';
-import { newBoard, updateItems, removeItems, hostOf, NOTE_COLORS, INK_COLORS } from './boardOps';
+import { newBoard, updateItems, removeItems, hostOf, arrange, addItems, makeItem, NOTE_COLORS, INK_COLORS } from './boardOps';
+import { REF_MIME, TEMPLATES, openRef, templateItems, timelineOrder, type TemplateId } from './cards';
+import { bibleOf } from '../../bible/bible';
+import type { BoardRefKind } from '../../model/types';
 import { Empty, Modal, toast } from '../../components/common';
 import { PinterestImport } from './PinterestImport';
 import { useSync } from '../../sync/state';
@@ -22,6 +25,7 @@ const TOOLS: { id: Tool; label: string; key: string; icon: string }[] = [
   { id: 'ellipse', label: 'Ellipse', key: 'O', icon: '◯' },
   { id: 'arrow', label: 'Arrow', key: 'A', icon: '➝' },
   { id: 'frame', label: 'Section frame', key: 'F', icon: '⬚' },
+  { id: 'connect', label: 'Connect two items', key: 'C', icon: '⤳' },
 ];
 
 export function BoardsTab() {
@@ -49,8 +53,11 @@ export function BoardsTab() {
   useEffect(() => { if (board) try { localStorage.setItem('slateline.board', board.id); } catch { /* ignore */ } }, [board?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setSelected([]); }, [board?.id]);
 
-  const create = (kind: Board['kind']) => {
-    const b = newBoard(kind, kind === 'mood' ? `Mood board ${p.boards.filter((x) => x.kind === 'mood').length + 1}` : `Whiteboard ${p.boards.filter((x) => x.kind === 'whiteboard').length + 1}`);
+  const [picking, setPicking] = useState(false);
+  const create = (kind: Board['kind'], template?: TemplateId) => {
+    const n = p.boards.filter((x) => x.kind === kind).length + 1;
+    const b = newBoard(kind, kind === 'mood' ? `Mood board ${n}` : kind === 'story' ? `${template && template !== 'blank' ? TEMPLATES.find((t) => t.id === template)!.label : 'Story map'} ${n}` : `Whiteboard ${n}`);
+    if (template) b.items = templateItems(template).map((it, i) => ({ ...it, z: it.type === 'frame' ? -1 - i : i + 1 }));
     update((d) => { d.boards.push(b); }, 'New board');
     setBoardId(b.id);
     setRenaming(b.id);
@@ -85,11 +92,12 @@ export function BoardsTab() {
         <div className="row pad-x">
           <button className="small" onClick={() => create('mood')}>+ Mood board</button>
           <button className="small" onClick={() => create('whiteboard')}>+ Whiteboard</button>
+          <button className="small" onClick={() => setPicking(true)}>+ Story map</button>
         </div>
         <ul className="board-list">
           {p.boards.map((b) => (
             <li key={b.id} className={board?.id === b.id ? 'active' : ''} onClick={() => setBoardId(b.id)} onDoubleClick={() => setRenaming(b.id)}>
-              <span className="bk">{b.kind === 'mood' ? '🖼' : '✎'}</span>
+              <span className="bk">{b.kind === 'mood' ? '🖼' : b.kind === 'story' ? '🗺' : '✎'}</span>
               {renaming === b.id ? (
                 <input autoFocus defaultValue={b.title} onClick={(e) => e.stopPropagation()}
                   onBlur={(e) => { const v = e.target.value.trim(); if (v) update((dr) => { dr.boards.find((x) => x.id === b.id)!.title = v; }, 'Rename board'); setRenaming(null); }}
@@ -101,7 +109,7 @@ export function BoardsTab() {
           ))}
         </ul>
         {!p.boards.length && <p className="muted small pad"><Hint>{'Double-click here or use the buttons to make a board.'}</Hint></p>}
-        {board && <LinkTargets />}
+        {board && <LinkTargets onAddCard={(kind, id) => { const c = makeItem('card', 0, 0, { ref: { kind, id } }); addItems(board.id, [c], 'Add card'); setSelected([c.id]); toast('Card added — it shows the latest details and opens on double-click'); }} />}
       </aside>
 
       {!board ? (
@@ -125,6 +133,14 @@ export function BoardsTab() {
             </div>
             <span className="spacer" />
             <More label="Board actions">
+            <select value="" aria-label="Arrange" title="Lay out the items on this board" onChange={(e) => {
+              const mode = e.target.value as 'grid' | 'circle' | 'tree' | 'timeline';
+              if (!mode) return;
+              const pos = arrange(selected.length > 1 ? board.items.filter((i) => selected.includes(i.id) || i.type === 'connector') : board.items, mode, timelineOrder(p, d));
+              updateItems(board.id, [...pos.keys()], (it) => { const q = pos.get(it.id)!; it.x = q.x; it.y = q.y; }, `Arrange (${mode})`);
+            }}>
+              <option value="">Arrange…</option><option value="grid">Grid</option><option value="circle">Circle</option><option value="tree">Tree (follows connectors)</option><option value="timeline">Timeline (story days)</option>
+            </select>
             <button onClick={() => setPinOpen(true)} title="Import a Pinterest board with sections and source links">📌 Import Pinterest</button>
             {live.peers.filter((x) => x.tab === 'Mood Boards').length > 0 && (
               <span className="presence live" title="Here now">
@@ -148,27 +164,45 @@ export function BoardsTab() {
           </div>
         </section>
       )}
+      {picking && (
+        <Modal title="New story map" onClose={() => setPicking(false)}>
+          <p className="muted small">A canvas for connecting ideas: cards for characters, places and scenes that stay up to date, notes with [[links]], and connectors that follow what they join.</p>
+          <div className="template-list">
+            {TEMPLATES.map((t) => <button key={t.id} className="template-pick" onClick={() => { create('story', t.id); setPicking(false); }}><b>{t.label}</b><span className="muted small">{t.hint}</span></button>)}
+          </div>
+        </Modal>
+      )}
       {pinOpen && <PinterestImport boardId={board?.id ?? null} onClose={() => setPinOpen(false)} onBoard={setBoardId} />}
     </div>
   );
 }
 
 /** Drop targets: drag board items onto these to link them into the production. */
-function LinkTargets() {
+function LinkTargets({ onAddCard }: { onAddCard: (kind: BoardRefKind, id: string) => void }) {
   const p = useProject();
   const d = useDerived();
-  const [open, setOpen] = useState<'scenes' | 'locations' | 'characters' | 'shots'>('scenes');
+  const [open, setOpen] = useState<'scenes' | 'locations' | 'characters' | 'shots' | 'places'>('scenes');
+  const places = bibleOf(p).places;
+  const row = (kind: BoardRefKind, id: string, target: string | null, label: React.ReactNode) => (
+    <li key={kind + id} {...(target ? { 'data-link-target': target } : {})} draggable onDragStart={(e) => { e.dataTransfer.setData(REF_MIME, JSON.stringify({ kind, id })); e.dataTransfer.effectAllowed = 'copy'; }}>
+      <span className="grow">{label}</span>
+      <button className="icon-btn add-card" title="Add as a card on the board" aria-label="Add as a card" onClick={() => onAddCard(kind, id)}>＋</button>
+    </li>
+  );
   return (
-    <div className="link-targets">
-      <div className="side-head"><b>Link by dragging</b></div>
+    <div className="link-targets keep-open">
+      <div className="side-head"><b>Project</b></div>
+      <p className="muted small pad-x"><Hint>{'Drag one onto the board for a live card (or ＋). Drag board images onto one here to link them.'}</Hint></p>
       <div className="side-tabs small">
-        {(['scenes', 'locations', 'characters', 'shots'] as const).map((k) => <button key={k} className={open === k ? 'active' : ''} onClick={() => setOpen(k)}>{k[0].toUpperCase() + k.slice(1)}</button>)}
+        {(['scenes', 'characters', 'places', 'locations', 'shots'] as const).map((k) => <button key={k} className={open === k ? 'active' : ''} onClick={() => setOpen(k)}>{k[0].toUpperCase() + k.slice(1)}</button>)}
       </div>
       <ul className="target-list">
-        {open === 'scenes' && d.scenes.map((s) => <li key={s.id} data-link-target={`scene:${s.id}`}><b>{s.number}</b> {s.heading}</li>)}
-        {open === 'locations' && p.locations.map((l) => <li key={l.id} data-link-target={`location:${l.id}`}>{l.realName || l.setName || 'Untitled location'}</li>)}
-        {open === 'characters' && d.characters.map((c) => <li key={c.name} data-link-target={`character:${c.name}`}>{c.name}</li>)}
-        {open === 'shots' && p.shots.map((s) => <li key={s.id} data-link-target={`shot:${s.id}`}><b>{s.shotNumber}</b> {s.name}</li>)}
+        {open === 'scenes' && d.scenes.map((s) => row('scene', s.id, `scene:${s.id}`, <><b>{s.number}</b> {s.heading}</>))}
+        {open === 'locations' && p.locations.map((l) => row('location', l.id, `location:${l.id}`, l.realName || l.setName || 'Untitled location'))}
+        {open === 'characters' && d.characters.map((c) => row('character', c.name, `character:${c.name}`, c.name))}
+        {open === 'shots' && p.shots.map((s) => row('shot', s.id, `shot:${s.id}`, <><b>{s.shotNumber}</b> {s.name}</>))}
+        {open === 'places' && places.map((pl) => row('place', pl.id, null, pl.name))}
+        {open === 'places' && !places.length && <li className="muted small">Add places in Write → Story Bible.</li>}
         {open === 'locations' && !p.locations.length && <li className="muted small">Add locations in Shoot → Locations.</li>}
         {open === 'shots' && !p.shots.length && <li className="muted small">No shots yet.</li>}
       </ul>
@@ -197,9 +231,19 @@ function ItemDetails({ board, item, onClose }: { board: Board; item: BoardItem; 
   };
   return (
     <div className="item-details" onPointerDown={(e) => e.stopPropagation()}>
-      <div className="row"><b className="spacer">{({ image: 'Image', note: 'Note', text: 'Text', link: 'Link', swatch: 'Color', shape: 'Shape', frame: 'Section', stroke: 'Drawing' } as const)[item.type]}</b><button className="icon-btn" onClick={onClose}>×</button></div>
+      <div className="row"><b className="spacer">{({ image: 'Image', note: 'Note', text: 'Text', link: 'Link', swatch: 'Color', shape: 'Shape', frame: 'Section', stroke: 'Drawing', connector: 'Connector', card: 'Card' } as const)[item.type]}</b><button className="icon-btn" onClick={onClose}>×</button></div>
+      {item.type === 'card' && item.ref && <button className="primary" onClick={() => openRef(item.ref!)}>Open</button>}
+      {item.type === 'connector' && (
+        <>
+          <label className="field"><span>Label</span><input value={item.caption ?? ''} placeholder="e.g. sister of, betrays" onChange={(e) => set({ caption: e.target.value || undefined })} /></label>
+          <div className="seg small">{(['none', 'end', 'both'] as const).map((a) => <button key={a} className={(item.arrow ?? 'end') === a ? 'active' : ''} onClick={() => set({ arrow: a }, 'Arrowheads')}>{a === 'none' ? '—' : a === 'end' ? '→' : '↔'}</button>)}</div>
+          <label className="check"><input type="checkbox" checked={!!item.dashed} onChange={(e) => set({ dashed: e.target.checked }, 'Dashed')} /> Dashed</label>
+          <div className="swatches">{['#71717A', '#DC2626', '#2563EB', '#16A34A', '#D97706', '#7C3AED', '#111827'].map((c) => <button key={c} className={`swatch ${item.color === c ? 'on' : ''}`} style={{ background: c }} aria-label={`Colour ${c}`} onClick={() => set({ color: c }, 'Colour')} />)}</div>
+          <button onClick={() => set({ from: item.to, to: item.from }, 'Reverse')}>Reverse direction</button>
+        </>
+      )}
       {item.type === 'image' && (src || item.imageUrl) && <button className="detail-thumb" onClick={() => setBig(true)} title="View larger"><img src={src ?? item.imageUrl} alt="" /></button>}
-      {item.type !== 'stroke' && item.type !== 'note' && item.type !== 'text' && (
+      {item.type !== 'stroke' && item.type !== 'note' && item.type !== 'text' && item.type !== 'card' && item.type !== 'connector' && (
         <label className="field"><span>{item.type === 'frame' ? 'Section title' : 'Caption'}</span><input value={item.caption ?? ''} onChange={(e) => set({ caption: e.target.value })} /></label>
       )}
       {(item.type === 'image' || item.type === 'link') && (
@@ -216,7 +260,7 @@ function ItemDetails({ board, item, onClose }: { board: Board; item: BoardItem; 
       {(item.type === 'shape' || item.type === 'stroke' || item.type === 'text' || item.type === 'swatch') && (
         <label className="field"><span>Color</span><input type="color" value={item.color ?? '#000000'} onChange={(e) => set({ color: e.target.value })} /></label>
       )}
-      {item.type !== 'frame' && (
+      {item.type !== 'frame' && item.type !== 'connector' && item.type !== 'card' && (
         <>
           <div className="field"><span>Linked to</span>
             <div className="chips">{chips.map((c) => <span key={c.key} className="chip">{c.label}<button className="icon-btn" onClick={c.remove}>×</button></span>)}{!chips.length && <span className="muted small">Nothing yet — drag onto the left panel, or pick:</span>}</div>

@@ -430,7 +430,10 @@ export interface AVScript {
 
 // ---- Visualize: mood boards and whiteboards ----
 
-export type BoardItemType = 'image' | 'note' | 'text' | 'link' | 'swatch' | 'shape' | 'frame' | 'stroke';
+export type BoardItemType = 'image' | 'note' | 'text' | 'link' | 'swatch' | 'shape' | 'frame' | 'stroke' | 'connector' | 'card';
+
+/** A live card on a board: shows a project thing's current info and opens it. */
+export type BoardRefKind = 'character' | 'place' | 'scene' | 'location' | 'shot';
 
 export interface BoardItem {
   id: Id;
@@ -462,6 +465,14 @@ export interface BoardItem {
   locationIds?: Id[];
   characters?: string[];
   shotIds?: Id[];
+  /** Connectors: the items they join (they follow them when moved). */
+  from?: Id;
+  to?: Id;
+  dashed?: boolean;
+  /** Arrowheads on a connector (default: at the end). */
+  arrow?: 'none' | 'end' | 'both';
+  /** Cards: the project thing shown. */
+  ref?: { kind: BoardRefKind; id: string };
 }
 
 export interface Board {

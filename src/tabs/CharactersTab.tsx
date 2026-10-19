@@ -4,7 +4,7 @@ import { newId } from '../model/ids';
 import type { CharacterProfile, ContinuityPhoto } from '../model/types';
 import { putMedia, useMediaUrl } from '../store/media';
 import { prepareImage } from './storyboard/images';
-import { readTransfer } from './boards/boardOps';
+import { mentionsOf, readTransfer } from './boards/boardOps';
 import { Empty, Modal, toast } from '../components/common';
 import { askConfirm } from '../components/dialogs';
 import { deletedToast } from '../components/deleted';
@@ -174,6 +174,7 @@ function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterP
             <span><b>{scenes.length}</b> scenes</span>
             <span><b>{lines}</b> lines</span>
             {scenes.length > 0 && <span>Sc <b>{scenes[0].number}</b>–<b>{scenes[scenes.length - 1].number}</b></span>}
+            {(() => { const on = mentionsOf(p.boards, [prof.name], { kind: 'character', id: prof.name }); return on.length ? <span className="mentions">On {on.map((b, i) => <button key={b.boardId} className="link small" onClick={() => { window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'boards' })); setTimeout(() => window.dispatchEvent(new CustomEvent('slateline:select-board', { detail: b.boardId })), 50); }}>{b.title}{i < on.length - 1 ? ',' : ''}</button>)}</span> : null; })()}
             <span>{cast ? <>Played by <b>{cast.actorName || '—'}</b>{cast.castNumber ? ` (#${cast.castNumber})` : ''}</> : <span className="muted">Not in cast list</span>}</span>
           </div>
           <div className="form-grid tight">
