@@ -1,6 +1,7 @@
 import type { Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { accountLabel } from './accounts';
+import { costReport } from './costReport';
 import { budgetReport, lineBase, lineFringes, linePremium, lineTotal, UNIT_LABEL } from './report';
 
 // Budget workbook: Top Sheet, Detail (with live formulas for each line), Expenses.
@@ -45,6 +46,18 @@ export async function budgetXlsx(p: Project, d: Derived, scenarioId?: string): P
     const wsEx = XLSX.utils.aoa_to_sheet(ex);
     wsEx['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 30 }, { wch: 28 }, { wch: 12 }, { wch: 6 }];
     XLSX.utils.book_append_sheet(wb, wsEx, 'Expenses');
+  }
+
+  const cr = costReport(b, r.t);
+  if (cr) {
+    const name = (id: string) => accountLabel(b.accounts.find((a) => a.id === id) ?? { id, code: '', name: id, group: 'other' });
+    const rows: (string | number)[][] = [[`Cost report vs. ${cr.lock.label || 'locked budget'} (${cr.lock.at.slice(0, 10)})`], [], ['Account', 'Budget', 'Spent', 'Committed', 'To date', 'Estimate to complete', 'Estimated final cost', 'Over (−) / under']];
+    for (const x of cr.rows) rows.push([name(x.accountId), round(x.budget), round(x.spent), round(x.committed), round(x.toDate), round(x.etc), round(x.efc), round(x.variance)]);
+    rows.push(['TOTAL (accounts)', round(cr.totals.budget), round(cr.totals.spent), round(cr.totals.committed), round(cr.totals.toDate), round(cr.totals.etc), round(cr.totals.efc), round(cr.totals.variance)]);
+    rows.push([], ['Contingency & added % in the locked budget', round(cr.reserve)]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 30 }, ...Array(7).fill({ wch: 14 })];
+    XLSX.utils.book_append_sheet(wb, ws, 'Cost Report');
   }
 
   const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });

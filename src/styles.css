@@ -1305,3 +1305,7 @@ input.bad { outline: 2px solid #dc2626; }
 .var-name { font-family: ui-monospace, Menlo, monospace; width: 140px; }
 .budget-notes { flex: 1 1 100%; }
 .budget-notes textarea { width: 100%; }
+.cost-table input.cell-num { min-width: 80px; }
+.cost-table input.typed { color: var(--accent); font-weight: 600; }
+.cost-summary { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.cost-table tr.group td { font-weight: 700; border-bottom: 2px solid var(--border); }

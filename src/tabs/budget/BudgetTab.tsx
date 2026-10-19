@@ -16,6 +16,7 @@ import { Hint } from '../../components/Hint';
 import { budgetView } from '../../budget/pipeline';
 import { evaluate, isFormula, type Vars } from '../../budget/expr';
 import { BUILT_IN_VARS } from '../../budget/pipeline';
+import { costReport, lockBudget } from '../../budget/costReport';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -36,12 +37,13 @@ export async function exportBudget(p: Project, kind: 'pdf' | 'xlsx', scenarioId?
 // actual spending, or scenarios side by side. Linked lines take their quantities live from
 // the breakdown and schedule; while a scenario is selected, line edits are saved to it.
 
-export type BudgetMode = 'build' | 'target' | 'actual' | 'scenarios';
+export type BudgetMode = 'build' | 'target' | 'actual' | 'scenarios' | 'cost';
 const MODES: { id: BudgetMode; label: string; hint: string }[] = [
   { id: 'build', label: 'Build from breakdown', hint: 'Add lines and rates; import cast, crew, locations and tagged elements' },
   { id: 'target', label: 'Top-down target', hint: 'Set a total and split it across accounts' },
   { id: 'actual', label: 'Actual spending', hint: 'Estimate vs. what has been spent' },
   { id: 'scenarios', label: 'Compare versions', hint: 'Every version of the budget side by side' },
+  { id: 'cost', label: 'Cost report', hint: 'The locked budget vs. spent, committed and estimate to complete' },
 ];
 const UNITS: { id: BudgetUnits; label: string }[] = [
   { id: 'days', label: 'Days' }, { id: 'weeks', label: 'Weeks' }, { id: 'hours', label: 'Hours' },
@@ -187,7 +189,9 @@ function BudgetScreen() {
       {settings && <BudgetSettings ro={ro} vars={view.vars} />}
       {scenario && mode !== 'scenarios' && <p className="budget-note">Showing <b>{scenario.name}</b>. Changes to quantities and rates are saved to this version only; the base budget stays as it is.</p>}
 
-      {mode === 'scenarios' ? (
+      {mode === 'cost' ? (
+        <CostReportView view={view} ro={ro} />
+      ) : mode === 'scenarios' ? (
         <ScenariosView scenarioId={scenarioId} setScenarioId={setScenarioId} ro={ro} />
       ) : (
         <div className="budget-split">
@@ -784,6 +788,80 @@ function ScenariosView({ scenarioId, setScenarioId, ro }: { scenarioId?: string;
         </table>
       </div>
       {!ro && <div className="row"><button className="primary" onClick={() => duplicate(scenarioId)}>＋ New version{scenarioId ? ' from the selected one' : ''}</button></div>}
+    </div>
+  );
+}
+
+function CostReportView({ view, ro }: { view: ReturnType<typeof useBudgetView>; ro: boolean }) {
+  const p = useProject();
+  const update = useStore((s) => s.update);
+  const b = p.budget;
+  const $ = (n: number) => money(n, b.currency);
+  const r = costReport(b, view.t);
+  const lock = async () => {
+    const label = await askText(b.locked ? 'Lock the budget again' : 'Lock the approved budget', {
+      initial: `Approved ${new Date().toLocaleDateString()}`, confirmLabel: 'Lock',
+      message: 'The cost report compares spending with the budget as it is now. You can keep editing the budget; lock again to update the comparison.',
+    });
+    if (label === null) return;
+    update((dr) => { dr.budget.locked = lockBudget(view.t, label || undefined); }, 'Lock budget');
+  };
+  if (!r) {
+    return (
+      <div className="scenarios">
+        <h3>Cost report</h3>
+        <p className="muted">Once the budget is approved, lock it. The cost report then tracks each account against the locked budget: what's been spent, what's committed (expenses logged but not paid yet), the estimate to complete, and whether it will finish over or under.</p>
+        {!ro && <button className="primary" onClick={lock}>Lock the current budget ({$(view.t.total)})</button>}
+      </div>
+    );
+  }
+  const name = (id: string) => { const a = b.accounts.find((x) => x.id === id); return a ? `${a.code} ${a.name}` : id; };
+  const cell = (n: number, cls = '') => <td className={`num ${cls}`}>{n ? $(n) : '—'}</td>;
+  const varCell = (n: number) => <td className={`num ${n < -0.5 ? 'over' : n > 0.5 ? 'under' : ''}`}>{Math.abs(n) < 0.5 ? '—' : n < 0 ? `${$(-n)} over` : `${$(n)} under`}</td>;
+  const projected = r.lock.subtotal - r.totals.efc;
+  return (
+    <div className="scenarios cost-report">
+      <div className="row">
+        <h3 style={{ margin: 0 }}>Cost report</h3>
+        <span className="muted small">vs. {r.lock.label || 'locked budget'} · {new Date(r.lock.at).toLocaleDateString()} · {$(r.lock.total)}</span>
+        <span className="spacer" />
+        {!ro && <button onClick={lock}>Lock again</button>}
+        {!ro && <button onClick={async () => { if (await askConfirm('Unlock the budget?', { message: 'The cost report goes away until you lock again. Expenses and the budget are kept.', confirmLabel: 'Unlock' })) update((dr) => { delete dr.budget.locked; }, 'Unlock budget'); }}>Unlock</button>}
+      </div>
+      <div className="scenario-scroll">
+        <table className="table cost-table">
+          <thead><tr><th>Account</th><th className="num">Budget</th><th className="num">Spent</th><th className="num">Committed</th><th className="num">To date</th><th className="num" title="Estimate to complete — type one to override">To complete</th><th className="num" title="Estimated final cost">Final (est.)</th><th className="num">Over / under</th></tr></thead>
+          <tbody>
+            {GROUPS.map((g) => {
+              const rows = r.rows.filter((x) => b.accounts.find((a) => a.id === x.accountId)?.group === g.id);
+              if (!rows.length) return null;
+              const gt = r.groups[g.id];
+              return (
+                <Fragment key={g.id}>
+                  <tr className="group"><td>{g.label}</td>{cell(gt.budget)}{cell(gt.spent)}{cell(gt.committed)}{cell(gt.toDate)}{cell(gt.etc)}{cell(gt.efc)}{varCell(gt.variance)}</tr>
+                  {rows.map((x) => (
+                    <tr key={x.accountId}>
+                      <td>{name(x.accountId)}</td>{cell(x.budget)}{cell(x.spent)}{cell(x.committed)}{cell(x.toDate)}
+                      <td className="num">
+                        <input className={`cell-num ${x.etcTyped ? 'typed' : ''}`} disabled={ro} inputMode="decimal" value={x.etcTyped ? String(x.etc) : ''} placeholder={String(Math.round(x.etc))}
+                          title={x.etcTyped ? 'Typed estimate — clear it to go back to the automatic one' : 'Automatic: the current estimate minus what is spent and committed'}
+                          onChange={(e) => update((dr) => { const v = e.target.value.trim(); dr.budget.etc = { ...dr.budget.etc }; if (v === '') delete dr.budget.etc[x.accountId]; else if (Number.isFinite(Number(v))) dr.budget.etc[x.accountId] = Number(v); }, null)} />
+                      </td>
+                      {cell(x.efc)}{varCell(x.variance)}
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+            <tr className="grand"><td>Accounts</td>{cell(r.totals.budget)}{cell(r.totals.spent)}{cell(r.totals.committed)}{cell(r.totals.toDate)}{cell(r.totals.etc)}{cell(r.totals.efc)}{varCell(r.totals.variance)}</tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="cost-summary">
+        <span>Contingency &amp; added % in the locked budget: <b>{$(r.reserve)}</b></span>
+        <span className={projected < 0 ? 'over' : 'under'}>Accounts are projected to finish <b>{$(Math.abs(projected))} {projected < 0 ? 'over' : 'under'}</b>{projected < 0 && r.reserve > 0 ? ` — ${-projected <= r.reserve ? 'covered by' : 'more than'} the contingency` : ''}.</span>
+      </div>
+      <p className="muted small">Committed = expenses logged but not marked paid (purchase orders, deposits due). Untick “Paid” on an expense in the Expenses tab to count it as committed.</p>
     </div>
   );
 }

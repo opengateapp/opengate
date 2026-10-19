@@ -228,3 +228,28 @@ describe('budget: formulas, sub-items and fringes', () => {
     expect(m.get('h')).toBe(20);
   });
 });
+
+describe('cost report', () => {
+  it('compares spent, committed and estimate to complete with the locked budget', async () => {
+    const { costReport, lockBudget } = await import('./budget/costReport');
+    const b = newBudget();
+    b.contingencyPct = 10;
+    const lines = [L({ id: 'cam', accountId: 'acc-2200', qty: 10, rate: 500 }), L({ id: 'cast', accountId: 'acc-1400', qty: 5, rate: 400 })];
+    b.locked = lockBudget(totals(b, lines), 'Approved');
+    expect(b.locked.accounts['acc-2200']).toBe(5000);
+    b.expenses = [
+      { id: 'e1', date: '2026-11-01', vendor: 'Rental', description: '', amount: 3000, accountId: 'acc-2200', paid: true },
+      { id: 'e2', date: '2026-11-02', vendor: 'Rental', description: 'deposit', amount: 2500, accountId: 'acc-2200', paid: false },
+    ];
+    // The camera estimate later grew to $6,000; nothing typed for cast, a typed ETC of $500 for cast.
+    const now = totals(b, [L({ id: 'cam', accountId: 'acc-2200', qty: 12, rate: 500 }), lines[1]]);
+    b.etc = { 'acc-1400': 500 };
+    const r = costReport(b, now)!;
+    const cam = r.rows.find((x) => x.accountId === 'acc-2200')!;
+    expect(cam).toMatchObject({ budget: 5000, spent: 3000, committed: 2500, toDate: 5500, etc: 500, efc: 6000, variance: -1000 });
+    const cast = r.rows.find((x) => x.accountId === 'acc-1400')!;
+    expect(cast).toMatchObject({ budget: 2000, toDate: 0, etc: 500, etcTyped: true, efc: 500, variance: 1500 });
+    expect(r.totals.variance).toBe(500);
+    expect(r.reserve).toBe(700);
+  });
+});
