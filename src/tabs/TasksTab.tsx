@@ -4,6 +4,7 @@ import { newId } from '../model/ids';
 import type { Task } from '../model/types';
 import { addDays, formatDate, todayISO } from '../model/dates';
 import { LongPress } from '../components/ActionSheet';
+import { Hint } from '../components/Hint';
 import { setDrag } from '../components/scheduleBits';
 
 // Tasks: prep to-dos with due dates, owners and departments. Dated tasks show on the Calendar,
@@ -82,7 +83,7 @@ export function TasksTab() {
           </ul>
         </div>
       ))}
-      {!p.tasks.length && <p className="muted pad">No tasks yet. Type one above, or double-click empty space. Tasks with due dates appear on the Calendar.</p>}
+      {!p.tasks.length && <p className="muted pad"><Hint>{'No tasks yet. Type one above, or double-click empty space. Tasks with due dates appear on the Calendar.'}</Hint></p>}
     </div>
   );
 }

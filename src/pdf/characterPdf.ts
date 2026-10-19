@@ -3,6 +3,7 @@ import type { CharacterProfile, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { blobToImage, getMedia } from '../store/media';
 import { PROFILE_SECTIONS, TRAIT_LISTS, alignmentLabel, normName, scenesFor } from '../script/characters';
+import { kindOf, relationshipsOf, toneLabel } from '../script/relationships';
 
 // Character profile sheets, laid out like a printed character profile template: section
 // titles, shaded label cells with ruled answer lines, portrait top right, and a last page of
@@ -118,6 +119,17 @@ export function characterPdf(p: Project, d: Derived, profiles: CharacterProfile[
 
     section('Strengths & Weaknesses');
     for (const t of TRAIT_LISTS) { const v = c[t.k].join(', '); need(22); y += row(t.label, v, M, PW - 2 * M, 110) + 2; }
+
+    const rels = relationshipsOf(p, c.name);
+    if (rels.length) {
+      section('Relationships');
+      for (const { r, other, outgoing } of rels) {
+        const dir = r.oneWay ? (outgoing ? ' (one way: ' + c.name + ' → ' + other + ')' : ' (one way: ' + other + ' → ' + c.name + ')') : '';
+        const what = [kindOf(r.kind).label, toneLabel(r.tone), r.label].filter(Boolean).join(' · ') + dir + (r.notes ? ' — ' + r.notes : '');
+        need(22);
+        y += row(other, what, M, PW - 2 * M, 110) + 2;
+      }
+    }
 
     const colW = (PW - 2 * M - 16) / 2;
     for (const sec of PROFILE_SECTIONS) {

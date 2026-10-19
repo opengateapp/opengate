@@ -106,6 +106,14 @@ export function HomeScreen() {
               <a href="https://github.com/InwoodParkProductions/DontPayforStoryboardingSoftware" target="_blank" rel="noreferrer noopener">Don't Pay for Storyboarding Software</a>,{' '}
               <a href="https://github.com/InwoodParkProductions/Shot-List-For-Free" target="_blank" rel="noreferrer noopener">Shot List for Free</a>
             </li>
+            <li>
+              <b>Open Shot Designer</b> — the free production planning suite by{' '}
+              <a href="https://github.com/koosoli" target="_blank" rel="noreferrer noopener">koosoli</a>{' '}
+              (<a href="https://github.com/koosoli/OpenShotDesigner" target="_blank" rel="noreferrer noopener">koosoli/OpenShotDesigner</a>), which inspired our shot blocking and gear planning.
+              If it helps you too, support its developer:{' '}
+              <a href="https://github.com/sponsors/koosoli" target="_blank" rel="noreferrer noopener">GitHub Sponsors</a> ·{' '}
+              <a href="https://buymeacoffee.com/koosoli" target="_blank" rel="noreferrer noopener">Buy me a coffee</a>
+            </li>
           </ul>
         </div>
       </div>

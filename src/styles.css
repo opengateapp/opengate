@@ -1178,3 +1178,45 @@ hr.el-pageBreak { border: none; border-top: 2px dashed #bbb; margin: 18pt 0 6pt;
 .cast-wardrobe { cursor: pointer; margin-left: 4px; }
 @media (max-width: 1100px) { .char-top { grid-template-columns: 140px 1fr; } .char-align { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .char-top { grid-template-columns: 1fr; } .char-portrait { max-width: 200px; } }
+.inline-field { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.inline-field > span { color: var(--muted); font-size: 12px; }
+.budget-bar { align-items: center; }
+.budget-bar .budget-total { align-self: center; }
+/* Touch: no double-tap zoom, so double-tap reliably acts like double-click. */
+@media (pointer: coarse) { html, body { touch-action: manipulation; } }
+
+/* ---------- Character relationships ---------- */
+.rel-view-toggle { margin: 4px 8px 6px; display: flex; }
+.rel-view-toggle button { flex: 1; font-size: 12px; }
+.rel-list { margin: 12px 0 16px; }
+.rel-list h4 { margin: 0 0 6px; }
+.rel-row { border: 1px solid var(--border); border-left: 4px solid var(--rel); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
+.rel-main { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rel-who { font-weight: 700; padding: 0; min-width: 0; text-decoration: none; color: var(--text); }
+.rel-pair { display: inline-flex; gap: 4px; }
+.rel-dir { font-size: 16px; }
+.rel-dir.on { color: var(--accent); }
+.rel-kind, .rel-tone { font-size: 12px; }
+.rel-main .icon-btn:last-child { margin-left: auto; }
+.rel-label, .rel-notes { width: 100%; }
+.rel-notes { resize: vertical; min-height: 30px; }
+.rel-add { margin-top: 4px; }
+.rel-map-wrap { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.rel-map { flex: 1; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; align-items: center; }
+.rel-map svg { width: min(100%, 78vh); aspect-ratio: 1; touch-action: none; user-select: none; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.rel-help { text-align: center; }
+.rel-legend { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.rel-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--rel); cursor: pointer; }
+.rel-chip input { display: none; }
+.rel-chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--rel); }
+.rel-chip.off { opacity: .4; border-style: dashed; }
+.rel-node { cursor: grab; }
+.rel-node-bg { fill: var(--panel-2); stroke: var(--border); stroke-width: 3; }
+.rel-node.picked .rel-node-bg { stroke: var(--accent); stroke-width: 6; }
+.rel-node-initial { font-size: 40px; font-weight: 700; fill: var(--text); }
+.rel-node-name { font-size: 24px; font-weight: 700; fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; }
+.rel-edge { cursor: pointer; }
+.rel-edge .hit { stroke: transparent; stroke-width: 30; }
+.rel-edge.sel line:not(.hit) { filter: drop-shadow(0 0 4px var(--accent)); }
+.rel-edge-label { font-size: 22px; fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 5px; }
+.rel-edit { margin: 0 12px 12px; padding: 10px 12px; }

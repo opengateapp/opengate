@@ -6,6 +6,7 @@ import { download, safeName } from '../io/files';
 import { csv } from '../io/reports';
 import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
+import { Hint } from '../components/Hint';
 import { toast } from '../components/common';
 
 // Contacts: one place for everyone on the production. Cast and crew are the same records
@@ -128,10 +129,10 @@ export function ContactsTab() {
               <td><button className="icon-btn" onClick={() => remove(r)}>×</button></td>
             </tr>
           ))}
-          {!shown.length && <tr><td colSpan={7} className="muted pad">No contacts. Double-click here to add one, or drop .vcf contact cards anywhere on this page.</td></tr>}
+          {!shown.length && <tr><td colSpan={7} className="muted pad"><Hint>{'No contacts. Double-click here to add one, or drop .vcf contact cards anywhere on this page.'}</Hint></td></tr>}
         </tbody>
       </table>
-      <p className="muted small">Double-click empty space to add · drop .vcf cards to import · cast and crew here are the same people on call sheets (edit unavailable dates and daily crew in ⚙ Settings).</p>
+      <p className="muted small"><Hint>{'Double-click empty space to add · drop .vcf cards to import · cast and crew here are the same people on call sheets (edit unavailable dates and daily crew in ⚙ Settings).'}</Hint></p>
     </div>
   );
 }

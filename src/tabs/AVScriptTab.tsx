@@ -10,6 +10,7 @@ import { download, safeName } from '../io/files';
 import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
 import { LongPress } from '../components/ActionSheet';
+import { Hint } from '../components/Hint';
 import { csv } from '../io/reports';
 
 // A/V scripts: two-column Video | Audio scripts for commercials, documentaries and corporate work.
@@ -143,7 +144,7 @@ export function AVScriptTab() {
               ))}
             </tbody>
           </table>
-          <p className="muted small">Double-click empty space to add a row · drag rows by ⋮⋮ to reorder</p>
+          <p className="muted small"><Hint>{'Double-click empty space to add a row · drag rows by ⋮⋮ to reorder'}</Hint></p>
         </div>
       </section>
     </div>

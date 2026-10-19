@@ -13,6 +13,7 @@ import { newId } from '../model/ids';
 import { download, safeName } from '../io/files';
 import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
+import { Hint } from '../components/Hint';
 import { Empty } from '../components/common';
 
 // Docs: treatments, synopses, director's notes, lookbook text — rich text saved in the project.
@@ -91,7 +92,7 @@ export function DocsTab() {
             </li>
           ))}
         </ul>
-        {!p.docs.length && <p className="muted small pad">Double-click here to add a document.</p>}
+        {!p.docs.length && <p className="muted small pad"><Hint>{'Double-click here to add a document.'}</Hint></p>}
       </aside>
       {doc ? <DocEditor key={doc.id} id={doc.id} /> : (
         <Empty title="No documents yet">

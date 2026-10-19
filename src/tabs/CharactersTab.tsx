@@ -11,6 +11,9 @@ import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
 import { openActions } from '../components/ActionSheet';
 import { download, safeName } from '../io/files';
+import { RelationshipList, RelationshipMap } from './characters/Relationships';
+import { renameInRelationships } from '../script/relationships';
+import { Hint } from '../components/Hint';
 import {
   ALIGNMENTS, GENDERS, PROFILE_SECTIONS, RACES, ROLES, TRAIT_LISTS, alignmentLabel, characterEntries, newProfile, normName, scenesFor, useCharacterFocus,
 } from '../script/characters';
@@ -53,6 +56,9 @@ export function CharactersTab() {
   useEffect(() => { if (focus) { setSel(focus); useCharacterFocus.setState({ name: null }); } }, [focus]);
   const entries = characterEntries(p, d);
   const current = entries.find((e) => e.name === sel) ?? entries[0];
+  const [view, setView] = useState<'sheet' | 'map'>('sheet');
+  const mapEntries = entries.map((e) => ({ name: e.name, portraitId: e.profile?.portraitId }));
+  const open = (n: string) => { setSel(n); setView('sheet'); };
 
   const ensure = (name: string): CharacterProfile => {
     const existing = useStore.getState().project!.characters.find((c) => c.name === normName(name));
@@ -72,9 +78,13 @@ export function CharactersTab() {
     <div className="with-side characters-tab">
       <aside className="side" data-panel="Characters" data-panel-pick onDoubleClick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('doc-list')) addNew(); }}>
         <div className="side-head"><b>Characters</b><button className="small" onClick={addNew}>+ Character</button></div>
+        <div className="seg rel-view-toggle">
+          <button className={view === 'sheet' ? 'active' : ''} onClick={() => setView('sheet')}>Profiles</button>
+          <button className={view === 'map' ? 'active' : ''} onClick={() => setView('map')}>Relationship map{p.relationships.length ? ` · ${p.relationships.length}` : ''}</button>
+        </div>
         <ul className="doc-list char-list">
           {entries.map((e) => (
-            <li key={e.name} className={`${current?.name === e.name ? 'active' : ''} ${e.profile ? '' : 'no-profile'}`} onClick={() => setSel(e.name)} title={e.profile ? '' : 'No profile yet — click to start one'}>
+            <li key={e.name} className={`${view === 'sheet' && current?.name === e.name ? 'active' : ''} ${e.profile ? '' : 'no-profile'}`} onClick={() => open(e.name)} title={e.profile ? '' : 'No profile yet — click to start one'}>
               <Thumb id={e.profile?.portraitId} name={e.name} />
               <span className="grow">
                 <b>{e.name}</b><br />
@@ -84,16 +94,19 @@ export function CharactersTab() {
             </li>
           ))}
         </ul>
-        {!entries.length && <p className="muted small pad">Characters from your script show up here. Double-click to add one by hand.</p>}
+        {!entries.length && <p className="muted small pad"><Hint>{'Characters from your script show up here. Double-click to add one by hand.'}</Hint></p>}
       </aside>
-      {current
+      {view === 'map' ? <RelationshipMap entries={mapEntries} onOpen={open} /> : current
         ? current.profile
-          ? <CharacterSheet key={current.profile.id} prof={current.profile} onRenamed={setSel} />
+          ? <CharacterSheet key={current.profile.id} prof={current.profile} onRenamed={setSel} entries={mapEntries} onOpen={open} />
           : (
-            <Empty title={current.name}>
-              <p className="muted">{current.scenes} scene{current.scenes === 1 ? '' : 's'}{current.lines ? ` · ${current.lines} lines` : ''}{current.actor ? ` · played by ${current.actor}` : ''}</p>
-              <button className="primary" onClick={() => ensure(current.name)}>Build this character</button>
-            </Empty>
+            <section className="main pad scroll">
+              <Empty title={current.name}>
+                <p className="muted">{current.scenes} scene{current.scenes === 1 ? '' : 's'}{current.lines ? ` · ${current.lines} lines` : ''}{current.actor ? ` · played by ${current.actor}` : ''}</p>
+                <button className="primary" onClick={() => ensure(current.name)}>Build this character</button>
+              </Empty>
+              <div className="char-sheet"><RelationshipList name={current.name} entries={mapEntries} onOpen={open} /></div>
+            </section>
           )
         : <Empty title="No characters yet"><p className="muted">Write or import a script, or add a character by hand.</p><button className="primary" onClick={addNew}>+ Character</button></Empty>}
     </div>
@@ -105,7 +118,7 @@ function Thumb({ id, name }: { id?: string; name: string }) {
   return <span className="char-thumb">{url ? <img src={url} alt="" /> : name[0]}</span>;
 }
 
-function CharacterSheet({ prof, onRenamed }: { prof: CharacterProfile; onRenamed: (n: string) => void }) {
+function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterProfile; onRenamed: (n: string) => void; entries: { name: string; portraitId?: string }[]; onOpen: (n: string) => void }) {
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
@@ -120,7 +133,11 @@ function CharacterSheet({ prof, onRenamed }: { prof: CharacterProfile; onRenamed
     const n = normName(name);
     if (!n || n === prof.name) { setName(prof.name); return; }
     if (p.characters.some((c) => c.name === n)) { toast(`${n} already has a profile.`); setName(prof.name); return; }
-    set((c) => { c.name = n; }, 'Rename character');
+    update((dr) => {
+      const c = dr.characters.find((x) => x.id === prof.id);
+      if (c) c.name = n;
+      renameInRelationships(dr, prof.name, n);
+    }, 'Rename character');
     onRenamed(n);
   };
 
@@ -185,6 +202,8 @@ function CharacterSheet({ prof, onRenamed }: { prof: CharacterProfile; onRenamed
         {TRAIT_LISTS.map((t) => <TraitList key={t.k} label={t.label} hint={t.hint} items={prof[t.k as TraitKey]} onChange={(items, label) => set((c) => { c[t.k as TraitKey] = items; }, label)} />)}
       </div>
 
+      <RelationshipList name={prof.name} entries={entries} onOpen={onOpen} />
+
       {PROFILE_SECTIONS.map((sec) => (
         <details key={sec.id} className="char-section" open>
           <summary><h4>{sec.title}</h4></summary>
@@ -200,7 +219,7 @@ function CharacterSheet({ prof, onRenamed }: { prof: CharacterProfile; onRenamed
         </details>
       ))}
 
-      <h4>Continuity <span className="muted small">— drop photos on a strip, or double-click it to choose files. Drag photos between looks.</span></h4>
+      <h4>Continuity <span className="muted small"><Hint>{'— drop photos on a strip, or double-click it to choose files. Drag photos between looks.'}</Hint></span></h4>
       <ContinuityStrip prof={prof} kind="wardrobe" title="Wardrobe" set={set} />
       <ContinuityStrip prof={prof} kind="hair" title="Hair & Makeup" set={set} />
     </section>

@@ -14,6 +14,7 @@ import { FrameEditor } from './storyboard/FrameEditor';
 import { exportStoryboardPdf } from './storyboard/render';
 import { prepareImage } from './storyboard/images';
 import { More } from '../components/More';
+import { Hint } from '../components/Hint';
 import { blankShot } from './ShotsTab';
 
 // Storyboard panels laid out like a storyboard sheet: scene / shot #, the frame, a set plan /
@@ -147,7 +148,7 @@ export function StoryboardTab() {
                 <h4>{scene ? `${scene.number}. ${scene.heading}` : 'Panels without a scene'}</h4>
                 <span className="muted small">{list.length} panel{list.length === 1 ? '' : 's'}</span>
                 <span className="spacer" />
-                <span className="muted small">Drop images to add panels · double-click empty space</span>
+                <span className="muted small"><Hint>{'Drop images to add panels · double-click empty space'}</Hint></span>
                 <button className="small" onClick={() => void addPanels(scene?.id ?? null)}>+ Panel</button>
               </div>
               <div className={`sb-grid cols-${cols}`}>

@@ -12,6 +12,7 @@ import { toast } from '../../components/common';
 import { getDerived } from '../../store/project';
 import { More } from '../../components/More';
 import { LongPress } from '../../components/ActionSheet';
+import { Hint } from '../../components/Hint';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -37,7 +38,7 @@ const MODES: { id: BudgetMode; label: string; hint: string }[] = [
   { id: 'build', label: 'Build from breakdown', hint: 'Add lines and rates; import cast, crew, locations and tagged elements' },
   { id: 'target', label: 'Top-down target', hint: 'Set a total and split it across accounts' },
   { id: 'actual', label: 'Actual spending', hint: 'Estimate vs. what has been spent' },
-  { id: 'scenarios', label: 'Scenarios', hint: 'Compare versions side by side' },
+  { id: 'scenarios', label: 'Compare versions', hint: 'Every version of the budget side by side' },
 ];
 const UNITS: { id: BudgetUnits; label: string }[] = [
   { id: 'days', label: 'Days' }, { id: 'weeks', label: 'Weeks' }, { id: 'hours', label: 'Hours' },
@@ -49,6 +50,24 @@ const num = (v: string) => (v.trim() === '' ? 0 : Number(v));
 
 function NumIn({ value, onChange, disabled, className, title }: { value: number; onChange: (n: number) => void; disabled?: boolean; className?: string; title?: string }) {
   return <input type="number" step="any" className={className} title={title} disabled={disabled} value={Number.isFinite(value) ? round2(value) : ''} onChange={(e) => { const n = num(e.target.value); if (Number.isFinite(n)) onChange(n); }} />;
+}
+
+/** Asks for a name and adds a budget version (a copy of `fromId`, or empty = the base budget). */
+async function createVersion(fromId: string | undefined, select: (id: string) => void) {
+  const b = useStore.getState().project!.budget;
+  const from = b.scenarios.find((s) => s.id === fromId);
+  const name = await askText('Name this version', {
+    initial: from ? `${from.name} copy` : '', placeholder: 'e.g. Lean, Target, Ideal, 12 days', confirmLabel: 'Create',
+    message: from ? `Starts as a copy of ${from.name}.` : 'Starts from the base budget; change quantities, rates or shoot days without touching the base.',
+  });
+  if (!name) return;
+  const id = newId();
+  useStore.getState().update((dr) => {
+    dr.budget.scenarios.push(from
+      ? { ...JSON.parse(JSON.stringify(from)), id, name, added: from.added.map((l) => ({ ...l, id: newId() })) }
+      : { id, name, overrides: {}, added: [] });
+  }, 'Add budget version');
+  select(id);
 }
 
 /** Everything the screen needs, worked out once per render. */
@@ -110,20 +129,28 @@ function BudgetScreen() {
   return (
     <div className="budget">
       <div className="budget-bar">
-        <label className="budget-mode">
-          <span className="muted small">View</span>
+        <label className="inline-field">
+          <span>View</span>
           <select value={mode} onChange={(e) => pickMode(e.target.value as BudgetMode)} title={MODES.find((m) => m.id === mode)?.hint}>
             {MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </label>
-        <More label="Budget actions">
-        <label className="budget-mode">
-          <span className="muted small">Version</span>
-          <select value={scenarioId ?? ''} onChange={(e) => setScenarioId(e.target.value || undefined)}>
+        <label className="inline-field">
+          <span>Version</span>
+          <select value={scenarioId ?? ''} onChange={(e) => {
+            const v = e.target.value;
+            if (v === '__new') { void createVersion(scenarioId, setScenarioId); return; }
+            if (v === '__compare') { pickMode('scenarios'); return; }
+            setScenarioId(v || undefined);
+          }}>
             <option value="">Base budget</option>
             {b.scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {!ro && <option disabled>──────────</option>}
+            {!ro && <option value="__new">＋ New version{scenario ? ` (copy of ${scenario.name})` : ''}…</option>}
+            <option value="__compare">Compare versions…</option>
           </select>
         </label>
+        <More label="Budget actions">
         {mode === 'build' && !ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet">⛓ Update from breakdown</button>}
         <button onClick={() => exportBudget(p, 'pdf', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet and detail of the version shown">PDF</button>
         <button onClick={() => exportBudget(p, 'xlsx', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet, detail with formulas, and expenses">Excel</button>
@@ -446,7 +473,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
           </tbody>
         </table>
       ) : (
-        <p className="budget-empty muted">{ro ? 'No lines in this account.' : 'No lines yet — double-click here or use “Add line”.'}</p>
+        <p className="budget-empty muted">{ro ? 'No lines in this account.' : <Hint>{'No lines yet — double-click here or use “Add line”.'}</Hint>}</p>
       )}
       {!ro && <div className="lines-pad"><button onClick={addLine}>＋ Add line</button>{mode === 'build' && lines.some((l) => l.link) && <span className="muted small"> ⛓ = quantity follows the breakdown and schedule; type a number to override it.</span>}</div>}
       {mode === 'actual' && (
@@ -515,18 +542,7 @@ function ScenariosView({ scenarioId, setScenarioId, ro }: { scenarioId?: string;
   }, [p, d, b]);
   void base;
 
-  const duplicate = async (fromId?: string) => {
-    const from = b.scenarios.find((s) => s.id === fromId);
-    const name = await askText('Name this version', { initial: from ? `${from.name} copy` : '', placeholder: 'e.g. Lean, Target, Ideal, 12 days', confirmLabel: 'Create' });
-    if (!name) return;
-    const id = newId();
-    update((dr) => {
-      dr.budget.scenarios.push(from
-        ? { ...JSON.parse(JSON.stringify(from)), id, name, added: from.added.map((l) => ({ ...l, id: newId() })) }
-        : { id, name, overrides: {}, added: [] });
-    }, 'Add budget version');
-    setScenarioId(id);
-  };
+  const duplicate = (fromId?: string) => createVersion(fromId, setScenarioId);
 
   return (
     <div className="scenarios">

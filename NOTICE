@@ -19,6 +19,11 @@ and option lists are based on the free tools by Inwood Park Productions:
 "Don't Pay For Screenwriting Software", "Don't Pay For Storyboarding Software"
 and "Shot List for Free" — https://github.com/InwoodParkProductions
 
+Ideas for shot blocking (top-down floor plans where each camera is a shot) and
+the gear manifest were inspired by Open Shot Designer by koosoli, GPL-3.0 —
+https://github.com/koosoli/OpenShotDesigner (no code was copied). Support its
+developer: https://github.com/sponsors/koosoli · https://buymeacoffee.com/koosoli
+
 Third-party libraries (see package.json) keep their own licenses:
 React, ProseMirror, Zustand, Immer, Dexie (MIT / Apache-2.0), pdf.js (Apache-2.0),
 jsPDF (MIT), JSZip (MIT / GPL-3.0 dual), mammoth (BSD-2-Clause),

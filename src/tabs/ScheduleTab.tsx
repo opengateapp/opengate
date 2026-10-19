@@ -11,6 +11,7 @@ import { askText } from '../components/dialogs';
 import { addSceneToScript } from '../script/scenes';
 import { More } from '../components/More';
 import { LongPress, type Action } from '../components/ActionSheet';
+import { Hint } from '../components/Hint';
 import { safeName } from '../io/files';
 
 type Sort = 'script' | 'location' | 'intExt' | 'time' | 'cast' | 'length';
@@ -195,7 +196,14 @@ export function ScheduleTab() {
                 onDragOver={(e) => { e.preventDefault(); if (dropAt?.dayId !== day.id) setDropAt({ dayId: day.id, index: day.items.length }); }}
                 onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setDropAt(null); }}
                 onDrop={(e) => { e.preventDefault(); drop(getDrag(e), day.id, dropAt?.dayId === day.id ? dropAt.index : undefined); }}>
-                <div className="day-head" draggable onDragStart={(e) => setDrag(e, { kind: 'day', id: day.id })} title="Drag onto another day to swap">
+                <LongPress className="day-head" draggable onDragStart={(e) => setDrag(e, { kind: 'day', id: day.id })} title={formatDate(day.date, { weekday: 'long', month: 'long', day: 'numeric' })} actions={() => [
+                  { label: 'Swap with day…', items: p.schedule.days.filter((x) => x.id !== day.id).map((x) => ({
+                    label: `${formatDate(x.date, { weekday: 'short', month: 'short', day: 'numeric' })}${nums.get(x.id) ? ` · Day ${nums.get(x.id)}` : ''}${x.items.length ? '' : ' (empty)'}`,
+                    run: () => update((dr) => swapDays(dr.schedule, day.id, x.id), 'Swap days'),
+                  })) },
+                  { label: 'Add a banner…', run: () => setBanner({ day }) },
+                  { label: 'Day settings…', run: () => setDayDialog(day.id) },
+                ]}>
                   <span className="grip">⋮⋮</span>
                   <b>{formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}</b>
                   {n ? <span className="pill">Day {n}</span> : day.blackout ? <span className="pill off">Off</span> : null}
@@ -205,7 +213,7 @@ export function ScheduleTab() {
                   {day.times.generalCall && <span className="muted small">Call {formatClock12(Number(day.times.generalCall.split(':')[0]) * 60 + Number(day.times.generalCall.split(':')[1]))}</span>}
                   <button className="small" onClick={() => setBanner({ day })}>+ Banner</button>
                   <button className="small" onClick={() => setDayDialog(day.id)}>Day…</button>
-                </div>
+                </LongPress>
                 <div className="day-strips" onDoubleClick={(e) => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('drop-hint')) setBanner({ day }); }} title="Double-click empty space to add a banner">
                   {timed.map((t, idx) => {
                     const it = t.item;
@@ -255,7 +263,7 @@ export function ScheduleTab() {
                     );
                   })}
                   {dropAt?.dayId === day.id && dropAt.index >= timed.length && <div className="drop-line" />}
-                  {!timed.length && <div className="drop-hint">{day.blackout ? 'Day off' : 'Drop scenes here · double-click to add a banner'}</div>}
+                  {!timed.length && <div className="drop-hint">{day.blackout ? 'Day off' : <Hint>{'Drop scenes here · double-click to add a banner'}</Hint>}</div>}
                 </div>
                 {n && (
                   <div className="end-of-day">

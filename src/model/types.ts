@@ -626,6 +626,22 @@ export interface CharacterProfile {
   continuity: ContinuityPhoto[];
 }
 
+/** How two characters are connected (by name, so script characters without a profile count too). */
+export interface CharacterRelationship {
+  id: Id;
+  a: string;
+  b: string;
+  /** RELATIONSHIP_KINDS id. */
+  kind: string;
+  /** In words, from A's side: "older sister", "owes money to". */
+  label?: string;
+  /** Only A → B (a secret crush, a debt); otherwise both ways. */
+  oneWay?: boolean;
+  /** −2 hostile … 0 neutral … +2 close. */
+  tone?: number;
+  notes?: string;
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -658,6 +674,9 @@ export interface Project {
   budget: Budget;
   /** Character profiles (Write → Characters), matched to the script by name. */
   characters: CharacterProfile[];
+  relationships: CharacterRelationship[];
+  /** Where each character sits on the relationship map (by name). */
+  characterMap: Record<string, { x: number; y: number }>;
   notes: string;
   /** Present when this project is shared through a relay. */
   share?: ShareInfo;

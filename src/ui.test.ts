@@ -38,3 +38,21 @@ describe('Open Gate Lite', () => {
     expect(JSON.parse(localStorage.getItem('opengate.mobileTabs')!).tabs).toEqual(st().tabs);
   });
 });
+
+describe('character relationships', () => {
+  it('lists relationships from each side, renames, and lays out the map', async () => {
+    const { newProject } = await import('./model/defaults');
+    const { newRelationship, relationshipsOf, renameInRelationships, mapLayout } = await import('./script/relationships');
+    const p = newProject('x');
+    p.relationships.push({ ...newRelationship('MAYA', 'THEO', 'family'), label: 'niece of' }, { ...newRelationship('THEO', 'DALE', 'rival'), oneWay: true });
+    expect(relationshipsOf(p, 'THEO').map((x) => [x.other, x.outgoing])).toEqual([['MAYA', false], ['DALE', true]]);
+    p.characterMap.THEO = { x: 100, y: 200 };
+    renameInRelationships(p, 'THEO', 'THEODORE');
+    expect(p.relationships.map((r) => [r.a, r.b])).toEqual([['MAYA', 'THEODORE'], ['THEODORE', 'DALE']]);
+    expect(p.characterMap).toEqual({ THEODORE: { x: 100, y: 200 } });
+    const pos = mapLayout(p, ['MAYA', 'THEODORE', 'DALE']);
+    expect(pos.THEODORE).toEqual({ x: 100, y: 200 }); // saved positions are kept
+    for (const n of ['MAYA', 'DALE']) { expect(pos[n].x).toBeGreaterThan(0); expect(pos[n].x).toBeLessThan(1000); }
+    expect(Object.keys(mapLayout(p, ['MAYA', 'THEODORE', 'DALE'], true))).toHaveLength(3);
+  });
+});

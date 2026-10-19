@@ -8,11 +8,13 @@ import { addDays, dateRange, formatDate, formatEighths, fromISO, toISO, weekday 
 import { download, safeName } from '../io/files';
 import { More } from '../components/More';
 import { LongPress } from '../components/ActionSheet';
+import { useTouch } from '../ui/responsive';
 import { toast } from '../components/common';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function CalendarTab() {
+  const touch = useTouch();
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
@@ -129,7 +131,9 @@ export function CalendarTab() {
               {WEEKDAYS.map((w, i) => <button key={w} className="cal-wd" title={`Toggle every ${w} as a day off`} onClick={() => toggleWeekday(i)}>{w}</button>)}
               {weeks.flat().map(renderDay)}
             </div>
-            <p className="muted small pad">Drag scenes onto days · drag a day's header onto another day to swap · drag tasks onto days to set due dates · double-click a day for call times, events and days off · click a weekday name to mark every one off.</p>
+            <p className="muted small pad">{touch
+              ? 'Long-press an unscheduled scene to put it on a day · double-tap a day for call times, events and days off · tap a weekday name to mark every one off.'
+              : "Drag scenes onto days · drag a day's header onto another day to swap · drag tasks onto days to set due dates · double-click a day for call times, events and days off · click a weekday name to mark every one off."}</p>
           </section>
         ) : (
           <section className="cal-list">

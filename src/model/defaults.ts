@@ -108,6 +108,8 @@ export function newProject(title = 'Untitled Screenplay'): Project {
     boards: [],
     budget: newBudget(),
     characters: [],
+    relationships: [],
+    characterMap: {},
     notes: '',
   };
 }

@@ -13,6 +13,7 @@ import { download, safeName } from '../../io/files';
 import { askConfirm } from '../../components/dialogs';
 import { toast } from '../../components/common';
 import { More } from '../../components/More';
+import { Hint } from '../../components/Hint';
 import { BudgetHidden } from './BudgetTab';
 
 // Expenses: what has actually been spent, logged against budget accounts (and optionally a
@@ -184,7 +185,7 @@ function ExpensesScreen() {
         ) : (
           <div className="expenses-empty muted">
             <p><b>No expenses{filter || unpaidOnly ? ' here' : ' yet'}.</b></p>
-            {!ro && <p>Drop receipt photos or PDFs anywhere on this page, drop a bank or card CSV export, or double-click to add one.</p>}
+            {!ro && <p><Hint>{'Drop receipt photos or PDFs anywhere on this page, drop a bank or card CSV export, or double-click to add one.'}</Hint></p>}
           </div>
         )}
       </div>

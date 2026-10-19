@@ -9,6 +9,7 @@ import { useSync } from '../../sync/state';
 import { usePinterestInbox } from './pinterest';
 import { deletedToast } from '../../components/deleted';
 import { More } from '../../components/More';
+import { Hint } from '../../components/Hint';
 import { useMediaUrl } from '../../store/media';
 
 const TOOLS: { id: Tool; label: string; key: string; icon: string }[] = [
@@ -99,7 +100,7 @@ export function BoardsTab() {
             </li>
           ))}
         </ul>
-        {!p.boards.length && <p className="muted small pad">Double-click here or use the buttons to make a board.</p>}
+        {!p.boards.length && <p className="muted small pad"><Hint>{'Double-click here or use the buttons to make a board.'}</Hint></p>}
         {board && <LinkTargets />}
       </aside>
 

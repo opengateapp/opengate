@@ -5,6 +5,7 @@ import { useReview } from '../sync/review';
 import { useTheme, type ThemeMode } from '../theme';
 import { runEdit } from '../components/EditMenu';
 import { ShareBar } from '../components/share/ShareBar';
+import { SyncIssues } from '../components/SyncIssues';
 import { ProjectMenuItems } from '../components/ProjectMenu';
 import { ImportDialog } from '../components/ImportDialog';
 import { MoreMenu } from '../components/More';
@@ -40,6 +41,7 @@ export function PhoneTopbar({ sections, allSections, tab, setTab, saveState }: {
           <b>{current?.label ?? 'Open Gate'}</b>
           <span>{title || 'Untitled'}</span>
         </button>
+        <SyncIssues compact onGo={(t) => go(t)} />
         <ShareBar compact />
         <MoreMenu label="More actions" sheet>
           <button onClick={() => window.dispatchEvent(new Event('opengate:share'))}>{shared ? 'Share & invite…' : 'Share…'}</button>

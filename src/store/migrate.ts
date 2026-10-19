@@ -28,5 +28,7 @@ export function migrate(input: unknown): Project {
     : base.budget;
   // v5: character profiles
   out.characters = Array.isArray(p.characters) ? p.characters : [];
+  out.relationships = Array.isArray(p.relationships) ? p.relationships : [];
+  out.characterMap = p.characterMap && typeof p.characterMap === 'object' ? p.characterMap : {};
   return out;
 }
