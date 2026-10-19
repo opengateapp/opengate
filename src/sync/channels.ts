@@ -87,7 +87,7 @@ export const TAB_ACCESS: TabAccess[] = [
   { id: 'settings', label: 'Project settings', section: 'Settings', channels: ['settings'] },
 ];
 /** App tabs that show another tab's data (they follow its access). */
-export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', reports: 'stripboard' };
+export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', reports: 'stripboard' };
 
 /** Tagging, shot marks and storyboards add highlights to the script, so these tabs may write marks to it. */
 export const MARKS_TABS = ['breakdown', 'shots', 'storyboard'];
@@ -170,7 +170,7 @@ export function channelOf(key: string, f: RoomFormat = format): Channel {
 
 const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
 const RECORDS = new Set(['sceneMeta', 'callSheets', 'characterMap']);
-const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses'];
+const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses'];
 
 /** Which project field an entry key belongs to. */
 export function fieldOf(entryKey: string): string {

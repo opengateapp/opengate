@@ -39,6 +39,7 @@ export const DEFAULT_ACCOUNTS: BudgetAccount[] = [
   A('4300', 'Visual Effects', 'post'),
   A('4400', 'Post Sound', 'post'),
   A('4500', 'Color & Deliverables', 'post'),
+  A('4600', 'Licensing & Clearances', 'post'),
   A('5100', 'Festivals & Marketing', 'other'),
   A('5200', 'General & Admin', 'other'),
 ];
@@ -55,6 +56,7 @@ export function newBudget(): Budget {
     contingencyPct: 10,
     scenarios: [],
     expenses: [],
+    licenses: [],
   };
 }
 
