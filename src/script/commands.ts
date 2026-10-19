@@ -150,10 +150,12 @@ const integrity = new Plugin({
 // ---- Layout decorations: page-break markers + scene numbers, computed by the paginator ----
 
 export interface LayoutInfo {
-  /** Block index → page number for blocks that begin a new page. */
-  pageStarts: Map<number, number>;
+  /** Block index → page number (or locked label like "12A") for blocks that begin a new page. */
+  pageStarts: Map<number, number | string>;
   /** Block index of each heading → displayed scene number. */
   numbers: Map<number, string>;
+  /** Production revisions: blocks changed since the base draft (asterisk in the margin). */
+  revised?: Set<number>;
 }
 
 export const layoutKey = new PluginKey<DecorationSet>('layout');
@@ -175,6 +177,16 @@ function buildDecorations(doc: PMNode, info: LayoutInfo): DecorationSet {
     const num = info.numbers.get(i);
     if (num && node.type.name === 'sceneHeading') {
       decos.push(Decoration.node(offset, offset + node.nodeSize, { 'data-num': num }));
+    }
+    if (info.revised?.has(i) && node.isTextblock) {
+      // Revision asterisk in the right margin (a widget, so it doesn't fight the scene number).
+      decos.push(Decoration.widget(offset + 1, () => {
+        const el = document.createElement('span');
+        el.className = 'rev-star';
+        el.contentEditable = 'false';
+        el.textContent = '*';
+        return el;
+      }, { side: -1, key: `r${i}`, ignoreSelection: true }));
     }
     i++;
   });

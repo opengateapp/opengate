@@ -26,6 +26,8 @@ export interface ScreenplayPdfOptions {
   firstPageExists?: boolean;
   /** Title page logo, already loaded (see screenplayPdfAsync). */
   logo?: { data: string; w: number; h: number };
+  /** Production revision: header line, asterisks on changed blocks and locked page labels. */
+  revision?: { label: string; hex: string; revised: Set<number>; pageLabels?: string[] };
 }
 
 /** Where the title page logo and title sit, in inches (shared with the on-screen title page). */
@@ -68,7 +70,16 @@ export async function screenplayPdfAsync(p: Project, d: Derived, opts: Screenpla
       logo = { data: c.toDataURL('image/jpeg', 0.92), w: c.width, h: c.height };
     }
   }
-  return screenplayPdf(p, d, { ...opts, logo });
+  let revision = opts.revision;
+  if (!revision && p.revision) {
+    const { loadRevisionBase, changedBlocks, lockedPageLabels, colorInfo } = await import('../script/drafts');
+    const base = await loadRevisionBase(p);
+    if (base) {
+      const c = colorInfo(p.revision.color);
+      revision = { label: `${c.label} Revision — ${new Date(p.revision.date).toLocaleDateString()}`, hex: c.hex, revised: changedBlocks(base.blocks, d.blocks), pageLabels: p.revision.lockPages ? lockedPageLabels(base, d) : undefined };
+    }
+  }
+  return screenplayPdf(p, d, { ...opts, logo, revision });
 }
 
 export function screenplayPdf(p: Project, d: Derived, opts: ScreenplayPdfOptions = {}): jsPDF {
@@ -112,7 +123,18 @@ export function screenplayPdf(p: Project, d: Derived, opts: ScreenplayPdfOptions
     if (!first) doc.addPage();
     first = false;
     doc.setFont('courier', 'normal');
-    if (page.number > 1) doc.text(`${page.number}.`, 7.5, 0.5 + BASE, { align: 'right' });
+    const rv = opts.revision;
+    const pageLabel = rv?.pageLabels?.[page.number - 1] ?? String(page.number);
+    if (page.number > 1) doc.text(`${pageLabel}.`, 7.5, 0.5 + BASE, { align: 'right' });
+    if (rv) {
+      // Colour strip along the top edge (the page colour), and the revision line.
+      doc.setFillColor(rv.hex); doc.rect(0, 0, 8.5, 0.12, 'F');
+      doc.setFont('courier', 'normal'); doc.setFontSize(10);
+      doc.text(rv.label, 4.25, 0.5 + BASE, { align: 'center' });
+      doc.setFontSize(12);
+      // Asterisk in the right margin on every line of a changed block.
+      for (const ln of page.lines) if (rv.revised.has(ln.blockIndex) && ln.row < LINES_PER_PAGE + 2) doc.text('*', 8.0, TOP + ln.row * LINE + BASE);
+    }
     for (const ln of page.lines) {
       if (ln.row >= LINES_PER_PAGE + 2) continue;
       const y = TOP + ln.row * LINE + BASE;

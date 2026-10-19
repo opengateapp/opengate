@@ -801,6 +801,47 @@ export interface GearItem {
   fromPlan?: { key: string };
 }
 
+// ---------- Script drafts & revisions ----------
+
+/** Industry revision colours, in order. */
+export type RevisionColor = 'white' | 'blue' | 'pink' | 'yellow' | 'green' | 'goldenrod' | 'buff' | 'salmon' | 'cherry';
+
+/** A frozen copy of the script. The doc is gzip-compressed JSON (base64) to keep projects small. */
+export interface ScriptDraft {
+  id: Id;
+  name: string;
+  createdAt: string;
+  author?: string;
+  /** Saved automatically (once a day while writing, or before an import / restore). */
+  auto?: 'daily' | 'import' | 'restore';
+  /** 'z:' + base64 gzip of the doc JSON, or 'j:' + plain JSON where compression isn't available. */
+  data: string;
+  pages: number;
+  scenes: number;
+  words: number;
+  /** The revision colour the script was in when saved. */
+  color?: RevisionColor;
+}
+
+/** Production revisions: changes since the base draft are marked and printed in this colour. */
+export interface ScriptRevision {
+  color: RevisionColor;
+  baseDraftId: Id;
+  date: string;
+  /** Keep page numbers from the base draft; pages that grow get A, B suffixes. */
+  lockPages?: boolean;
+}
+
+/** An alternate version of one scene ("Ending B"), swapped in and out of the script. */
+export interface SceneVariant {
+  id: Id;
+  sceneId: Id;
+  name: string;
+  /** The scene's blocks (ProseMirror JSON nodes), heading included. */
+  blocks: unknown[];
+  createdAt: string;
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -836,6 +877,13 @@ export interface Project {
   relationships: CharacterRelationship[];
   gear?: GearItem[];
   plans?: ScenePlan[];
+  drafts?: ScriptDraft[];
+  revision?: ScriptRevision;
+  sceneVariants?: SceneVariant[];
+  /** Name of the version of each scene that's in the script now (default "Original"). */
+  sceneVariantActive?: Record<Id, string>;
+  /** Save a draft automatically once a day while writing (default on). */
+  autoDrafts?: boolean;
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;

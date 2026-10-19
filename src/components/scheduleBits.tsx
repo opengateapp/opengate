@@ -1,3 +1,4 @@
+import { useChangedScenes } from '../script/useChangedScenes';
 import { useState } from 'react';
 import type { BannerKind, DerivedScene, ShootDay } from '../model/types';
 import { useDerived, useProject, useStore } from '../store/project';
@@ -32,6 +33,7 @@ export function SceneStripView({ scene, compact, completed, selected, conflict, 
   time?: string; onClick?: (e: React.MouseEvent) => void; onDragStart?: (e: React.DragEvent) => void; extra?: React.ReactNode;
 }) {
   const p = useProject();
+  const changed = useChangedScenes().get(scene.id);
   const bg = completed ? '#9CA3AF' : conflict?.length ? '#FCA5A5' : stripColor(p, scene);
   const cast = sceneCast(p, scene).map((c) => {
     const m = p.cast.find((x) => x.characterName === c);
@@ -55,6 +57,7 @@ export function SceneStripView({ scene, compact, completed, selected, conflict, 
       <span className="s-len">{formatEighths(sceneEighths(p, scene))}</span>
       {!compact && <span className="s-min">{formatDuration(sceneMinutes(p, scene))}</span>}
       {conflict?.length ? <span className="s-warn">⚠</span> : null}
+      {changed && <span className="s-changed" title={`Script ${changed}`}>Δ</span>}
       {extra}
     </div>
   );

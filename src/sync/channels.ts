@@ -42,7 +42,7 @@ export const LOCAL_ONLY = new Set(['schemaVersion', 'id', 'updatedAt', 'scriptDo
 
 const KEY_CHANNEL: Record<string, Channel> = {
   title: 'settings', createdAt: 'settings', production: 'settings',
-  titlePage: 'write', notes: 'write', characters: 'write', relationships: 'write', characterMap: 'write', characterOptions: 'write', docs: 'write', avScripts: 'write', sceneNumbersLocked: 'write',
+  titlePage: 'write', notes: 'write', characters: 'write', drafts: 'write', revision: 'write', sceneVariants: 'write', sceneVariantActive: 'write', autoDrafts: 'write', relationships: 'write', characterMap: 'write', characterOptions: 'write', docs: 'write', avScripts: 'write', sceneNumbersLocked: 'write',
   elements: 'breakdown', sceneMeta: 'breakdown', categories: 'breakdown', schedule: 'breakdown',
   contacts: 'plan', tasks: 'plan', events: 'plan', cast: 'plan', crew: 'plan',
   shots: 'visualize', gear: 'visualize', plans: 'visualize', storyboard: 'visualize', storyboardSettings: 'visualize', boards: 'visualize',
@@ -55,7 +55,7 @@ export function channelOf(key: string): Channel {
   return KEY_CHANNEL[key] ?? 'settings';
 }
 
-const COLLECTIONS = new Set(['characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
+const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
 const RECORDS = new Set(['sceneMeta', 'callSheets', 'characterMap']);
 const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses'];
 
@@ -162,7 +162,7 @@ export function describeEntry(entryKey: string, value: unknown): string {
     sceneNumbersLocked: 'Scene numbering', elements: 'Breakdown elements', sceneMeta: 'Scene details', categories: 'Breakdown tags',
     schedule: entryKey.startsWith('schedule.days') ? 'Stripboard day' : 'Schedule settings', contacts: 'Contacts', tasks: 'Tasks', events: 'Calendar events',
     cast: 'Cast', crew: 'Crew', shots: 'Shots', storyboard: 'Storyboard frames', storyboardSettings: 'Storyboard layout', boards: entryKey.startsWith('boardItems') ? 'Board item' : 'Boards',
-    callSheets: 'Call sheets', locations: 'Locations', createdAt: 'Project info', characters: 'Characters', relationships: 'Relationships', characterMap: 'Relationship map', characterOptions: 'Character builder settings', gear: 'Gear', plans: 'Shot designer plans',
+    callSheets: 'Call sheets', locations: 'Locations', createdAt: 'Project info', characters: 'Characters', drafts: 'Script drafts', revision: 'Script revisions', sceneVariants: 'Scene variants', sceneVariantActive: 'Scene variants', autoDrafts: 'Draft settings', relationships: 'Relationships', characterMap: 'Relationship map', characterOptions: 'Character builder settings', gear: 'Gear', plans: 'Shot designer plans',
     budget: entryKey.startsWith('budget.lines') ? 'Budget line' : entryKey.startsWith('budget.expenses') ? 'Expense' : entryKey.startsWith('budget.accounts') ? 'Budget account'
       : entryKey.startsWith('budget.scenarios') ? 'Budget scenario' : entryKey.startsWith('budget.fringes') ? 'Fringe' : 'Budget settings',
   };

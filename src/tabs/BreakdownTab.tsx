@@ -7,6 +7,7 @@ import { useDerived, useProject, useStore, getDerived } from '../store/project';
 import { sceneAt, selectedText, addTagMark, removeTagMarks } from '../script/tagging';
 import { sceneCast, sceneEighths, sceneMinutes } from '../script/derive';
 import { looksInScene, openCharacter } from '../script/characters';
+import { useChangedScenes } from '../script/useChangedScenes';
 import { formatEighths, parseEighths } from '../model/dates';
 import { newId } from '../model/ids';
 import type { Category, DerivedScene } from '../model/types';
@@ -20,6 +21,7 @@ import { breakdownCsv } from '../io/reports';
 export function BreakdownTab() {
   const p = useProject();
   const d = useDerived();
+  const changedScenes = useChangedScenes();
   const update = useStore((s) => s.update);
   const [sel, setSel] = useState<{ text: string; sceneId?: string; empty: boolean }>({ text: '', empty: true });
   const [sceneId, setSceneId] = useState<string | undefined>(d.scenes[0]?.id);
@@ -106,11 +108,13 @@ export function BreakdownTab() {
         </div>
         <ol className="scene-nav">
           {d.scenes.map((s) => {
+            const changed = changedScenes.get(s.id);
             const count = s.taggedElementIds.length + p.elements.filter((e) => e.sceneIds.includes(s.id)).length;
             return (
               <li key={s.id} className={scene?.id === s.id ? 'active' : ''} onClick={() => jump(s.id)}>
                 <span className="num">{s.number}</span>
                 <span className="h">{s.heading}</span>
+                {changed && <span className="changed-badge" title={`Script ${changed} — check the breakdown`}>Δ</span>}
                 <span className="badge" title="Tagged elements">{count}</span>
               </li>
             );

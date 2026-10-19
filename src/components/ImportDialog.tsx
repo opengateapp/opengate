@@ -3,6 +3,8 @@ import { Modal, toast } from './common';
 import { importScriptFile, SCRIPT_ACCEPT } from '../io/importScript';
 import type { ParsedScript } from '../io/fountain';
 import { applyImportedScript } from '../io/applyImport';
+import { saveDraft } from './DraftsPanel';
+import { docToBlocks } from '../script/schema';
 import { useStore } from '../store/project';
 import { newProject } from '../model/defaults';
 import { normalizeCharacter } from '../script/derive';
@@ -34,9 +36,14 @@ export function ImportDialog({ onClose, asNewProject }: Props) {
     }
   };
 
-  const commit = () => {
+  const commit = async () => {
     if (!parsed) return;
     session.flush();
+    // Importing over the script: keep what was there as a draft first.
+    const cur = useStore.getState().project;
+    if (!asNewProject && cur?.scriptDoc && cur.autoDrafts !== false && docToBlocks(cur.scriptDoc).some((b) => b.text.trim())) {
+      await saveDraft(`Before importing ${fileName}`, { auto: 'import' }).catch(() => {});
+    }
     if (asNewProject) {
       const title = parsed.titlePage?.title || fileName.replace(/\.[^.]+$/, '');
       const p = produce(newProject(title), (d) => { applyImportedScript(d, parsed); });

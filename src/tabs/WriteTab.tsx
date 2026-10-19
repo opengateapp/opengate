@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { EditorState } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
 import { ScriptEditor } from '../components/ScriptEditor';
@@ -11,6 +11,14 @@ import { formatEighths } from '../model/dates';
 import { TitlePageEditor, TitleLogoControls } from '../components/TitlePageEditor';
 import { More } from '../components/More';
 import { FindReplace } from '../components/FindReplace';
+import { DraftsPanel, saveDraft } from '../components/DraftsPanel';
+import { dailyDraftDue, colorInfo } from '../script/drafts';
+import { saveVariant, switchVariant } from '../script/variants';
+import { openActions } from '../components/ActionSheet';
+import { askText, askConfirm } from '../components/dialogs';
+import { canWrite } from '../sync/state';
+import { useLongPress } from '../ui/responsive';
+import type { DerivedScene } from '../model/types';
 
 const BAR: ElementType[] = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'centered', 'pageBreak'];
 
@@ -19,7 +27,33 @@ export function WriteTab() {
   const p = useProject();
   const update = useStore((s) => s.update);
   const [current, setCurrent] = useState<{ type: ElementType; sceneId?: string }>({ type: 'action' });
-  const [side, setSide] = useState<'title' | 'scenes' | 'characters' | 'notes'>('scenes');
+  const [side, setSide] = useState<'title' | 'scenes' | 'characters' | 'drafts' | 'notes'>('scenes');
+
+  // A draft a day while writing (when the script changed since the last one).
+  useEffect(() => {
+    const check = async () => {
+      session.flush();
+      const cur = useStore.getState().project;
+      if (cur && canWrite('write') && await dailyDraftDue(cur)) await saveDraft(`Daily — ${new Date().toLocaleDateString()}`, { auto: 'daily' });
+    };
+    const t = setTimeout(() => void check(), 5000);
+    const iv = setInterval(() => void check(), 30 * 60_000);
+    return () => { clearTimeout(t); clearInterval(iv); };
+  }, [p.id]);
+
+  const sceneMenu = (s: DerivedScene, at?: { x: number; y: number }) => {
+    const variants = (p.sceneVariants ?? []).filter((v) => v.sceneId === s.id);
+    const ro = !canWrite('write');
+    openActions(`${s.number}. ${s.heading}`, [
+      { label: 'Go to scene', run: () => jumpTo(s.id) },
+      ...(ro ? [] : [{ label: 'Save as a variant…', run: async () => {
+        const name = await askText('Save this version of the scene', { initial: `Version ${variants.length + 2}`, confirmLabel: 'Save variant', message: 'Keeps the scene exactly as it is now under this name. Rewrite freely; switch back any time.' });
+        if (name?.trim()) { if (!p.sceneVariantActive?.[s.id] && !variants.length) update((d) => { (d.sceneVariantActive ??= {})[s.id] = 'Original'; }, null); saveVariant(s.id, name.trim()); }
+      } }]),
+      ...(variants.length && !ro ? [{ label: `Switch version (now: ${p.sceneVariantActive?.[s.id] ?? 'Original'})`, items: variants.map((v) => ({ label: v.name, run: () => switchVariant(v.id) })) }] : []),
+      ...(variants.length && !ro ? [{ label: 'Delete a variant…', items: variants.map((v) => ({ label: v.name, danger: true, run: async () => { if (await askConfirm(`Delete variant “${v.name}”?`)) update((d) => { d.sceneVariants = (d.sceneVariants ?? []).filter((x) => x.id !== v.id); }, 'Delete variant'); } })) }] : []),
+    ], at);
+  };
   const [findOpen, setFindOpen] = useState(false);
 
   const onState = (s: EditorState) => {
@@ -54,8 +88,8 @@ export function WriteTab() {
   return (
     <div className="write-tab with-side">
       <aside className="side" data-panel="Scenes & characters" data-panel-pick>
-        <div className="side-tabs">
-          {(['title', 'scenes', 'characters', 'notes'] as const).map((s) => (
+        <div className="side-tabs keep-open">
+          {(['title', 'scenes', 'characters', 'drafts', 'notes'] as const).map((s) => (
             <button key={s} className={side === s ? 'active' : ''} onClick={() => setSide(s)}>{s[0].toUpperCase() + s.slice(1)}</button>
           ))}
         </div>
@@ -63,11 +97,8 @@ export function WriteTab() {
         {side === 'scenes' && (
           <ol className="scene-nav">
             {d.scenes.map((s) => (
-              <li key={s.id} className={current.sceneId === s.id ? 'active' : ''} onClick={() => jumpTo(s.id)}>
-                <span className="num">{s.number}</span>
-                <span className="h">{s.heading || '(untitled scene)'}</span>
-                <span className="muted small">{formatEighths(s.eighths)}</span>
-              </li>
+              <SceneItem key={s.id} s={s} active={current.sceneId === s.id} variants={(p.sceneVariants ?? []).filter((v) => v.sceneId === s.id).length}
+                onGo={() => jumpTo(s.id)} onMenu={(at) => sceneMenu(s, at)} />
             ))}
           </ol>
         )}
@@ -79,6 +110,7 @@ export function WriteTab() {
             {!d.characters.length && <li className="muted">Characters appear as you write character cues.</li>}
           </ul>
         )}
+        {side === 'drafts' && <DraftsPanel />}
         {side === 'notes' && (
           <textarea className="notes" value={p.notes} placeholder="Project notes…" onChange={(e) => update((dr) => { dr.notes = e.target.value; }, null)} />
         )}
@@ -137,11 +169,24 @@ export function WriteTab() {
           <span>{d.scenes.length} scenes</span>
           <span>{d.characters.length} characters</span>
           <span>{d.wordCount.toLocaleString()} words</span>
+          {p.revision && <span className="rev-status" title="Production revisions: changes are marked * in the margin"><i className="rev-swatch" style={{ background: colorInfo(p.revision.color).hex }} />{colorInfo(p.revision.color).label} revision</span>}
           <span className="muted">Tab: change element · Enter: next element · ⌘1–8: element types</span>
         </footer>
       </section>
       )}
       {findOpen && <FindReplace onClose={() => setFindOpen(false)} />}
     </div>
+  );
+}
+
+function SceneItem({ s, active, variants, onGo, onMenu }: { s: DerivedScene; active: boolean; variants: number; onGo: () => void; onMenu: (at?: { x: number; y: number }) => void }) {
+  const lp = useLongPress((pos) => onMenu(pos));
+  return (
+    <li {...lp} className={active ? 'active' : ''} onClick={onGo} onContextMenu={(e) => { e.preventDefault(); onMenu({ x: e.clientX, y: e.clientY }); }}>
+      <span className="num">{s.number}</span>
+      <span className="h">{s.heading || '(untitled scene)'}</span>
+      {variants > 0 && <span className="variant-badge" title={`${variants} other version${variants > 1 ? 's' : ''} — right-click or long-press to switch`}>⑂{variants}</span>}
+      <span className="muted small">{formatEighths(s.eighths)}</span>
+    </li>
   );
 }

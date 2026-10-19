@@ -10,6 +10,7 @@ import { buildPlugins, isYChange, layoutKey, type AutocompleteHooks, type Layout
 import { canWrite, scriptMarksOnly } from '../sync/state';
 import { useStore } from '../store/project';
 import { derive } from './derive';
+import { changedBlocks, loadRevisionBase, lockedPageLabels, revisionBase } from './drafts';
 
 // One editing session per open project, shared by every tab that shows the script
 // (Write, Breakdown, Shots). Keeping the EditorState here means undo history and
@@ -143,6 +144,9 @@ class ScriptSession {
     this.writtenJson = useStore.getState().project?.scriptDoc ?? json;
   }
 
+  /** Redraw page markers, scene numbers and revision marks (e.g. after revisions start). */
+  relayout() { this.scheduleLayout(0); }
+
   private scheduleLayout(ms: number) {
     clearTimeout(this.layoutTimer);
     this.layoutTimer = setTimeout(() => this.applyLayout(), ms);
@@ -152,17 +156,21 @@ class ScriptSession {
     if (!this.state) return;
     const p = useStore.getState().project;
     const d = derive(this.state.doc.toJSON(), p?.sceneNumbersLocked ?? false);
-    const pageStarts = new Map<number, number>();
+    // Production revisions: compare with the base draft (loaded once, then redo the layout).
+    const base = p ? revisionBase(p) : null;
+    if (p?.revision && !base) void loadRevisionBase(p).then((b) => { if (b) this.scheduleLayout(0); });
+    const labels = base && p?.revision?.lockPages ? lockedPageLabels(base, d) : null;
+    const pageStarts = new Map<number, number | string>();
     let lastPage = 0;
     d.pagination.blockStart.forEach((s, i) => {
-      if (s.page > lastPage) { pageStarts.set(i, s.page + 1); lastPage = s.page; }
+      if (s.page > lastPage) { pageStarts.set(i, labels?.[s.page] ?? s.page + 1); lastPage = s.page; }
     });
     const numbers = new Map<number, string>();
     d.scenes.forEach((sc) => {
       const idx = d.pagination.scenes[sc.index]?.blockIndex;
       if (idx !== undefined) numbers.set(idx, sc.number);
     });
-    const info: LayoutInfo = { pageStarts, numbers };
+    const info: LayoutInfo = { pageStarts, numbers, ...(base ? { revised: changedBlocks(base.blocks, d.blocks) } : {}) };
     this.dispatch(this.state.tr.setMeta(layoutKey, info).setMeta('addToHistory', false));
   }
 
