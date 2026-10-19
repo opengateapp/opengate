@@ -1650,3 +1650,6 @@ td.nowrap { white-space: nowrap; }
 .pack.custom { flex-wrap: nowrap; }
 .sb-plan-btn { margin-left: auto; font-size: 11px; padding: 1px 8px; background: #fff !important; color: #374151 !important; border: 1px solid #d1d5db !important; border-radius: 4px; font-family: Inter, sans-serif; }
 .sb-plan-btn:hover { border-color: #e8730c !important; color: #e8730c !important; }
+.drawer-section > button.drawer-section-head { flex-direction: row; align-items: center; padding: 12px 10px; }
+.drawer-section > button.drawer-section-head span { font-size: inherit; color: inherit; }
+.drawer-section > button.drawer-section-head .muted { color: var(--muted); font-size: 12px; font-weight: 500; }
