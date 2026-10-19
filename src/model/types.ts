@@ -884,6 +884,8 @@ export interface Project {
   sceneVariantActive?: Record<Id, string>;
   /** Save a draft automatically once a day while writing (default on). */
   autoDrafts?: boolean;
+  /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
+  structure?: { frameworkId: string };
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;

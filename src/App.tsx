@@ -25,6 +25,7 @@ import { LocationsTab } from './tabs/LocationsTab';
 import { CharactersTab } from './tabs/CharactersTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
+import { ReferenceTab } from './tabs/ReferenceTab';
 import { CategoryStyles } from './components/CategoryStyles';
 import { ProjectMenu } from './components/ProjectMenu';
 import { SyncIssues } from './components/SyncIssues';
@@ -44,7 +45,7 @@ import { AccessBanner } from './components/share/AccessBanner';
 import { startSync, stopSync, currentSync } from './sync/engine';
 import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
-export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'settings';
+export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'reference' | 'settings';
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
@@ -52,6 +53,7 @@ export type TabId =
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
+  | 'reference'
   | 'setup';
 
 export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label: string; hint: string }[] }[] = [
@@ -88,6 +90,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'locations', label: 'Locations', hint: 'Locations, contacts, permits and photos' },
     { id: 'reports', label: 'Reports', hint: 'Every export in one place' },
   ] },
+  { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data and production — explainers, calculators and a library' }] },
   { id: 'settings', label: 'Settings', tabs: [{ id: 'setup', label: 'Project settings', hint: 'Production info, categories, colors' }] },
 ];
 
@@ -257,6 +260,7 @@ export function App() {
         {tab === 'characters' && <CharactersTab />}
         {tab === 'reports' && <ShootTab />}
         {tab === 'setup' && <SetupTab />}
+        {tab === 'reference' && <ReferenceTab />}
         </TabBoundary>
       </main>
     </div>

@@ -16,6 +16,7 @@ import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
 import { canWrite, useSync } from '../../sync/state';
 import { isPalm, notePointer } from '../../ui/pen';
+import { RefLink } from '../ReferenceTab';
 
 // Shot designer: a top-down plan per scene. Actors, cameras (with lens-accurate angle of view),
 // lights, props and walls on a grid in feet. Every camera is a shot in the Shot List (and so a
@@ -431,7 +432,7 @@ function Inspector({ el, ro, scene, onSet, onRemove, onAddPoint }: { el: PlanEle
         </label>
       )}
       {el.kind === 'camera' && <>
-        <label className="field"><span>Lens — {el.focal}mm · {Math.round(fov)}° wide</span>
+        <label className="field"><span>Lens — {el.focal}mm · {Math.round(fov)}° wide <RefLink page="dof" label="focus & depth" /></span>
           <div className="row">
             <select disabled={ro} value={FOCALS.includes(el.focal ?? 0) ? el.focal : ''} onChange={(e) => e.target.value && onSet({ focal: Number(e.target.value) }, 'Change lens')}>
               <option value="">Other</option>

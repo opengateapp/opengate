@@ -19,6 +19,8 @@ import { askText, askConfirm } from '../components/dialogs';
 import { canWrite } from '../sync/state';
 import { useLongPress } from '../ui/responsive';
 import type { DerivedScene } from '../model/types';
+import { FRAMEWORKS, beatPage } from '../reference/story';
+import { RefLink } from './ReferenceTab';
 
 const BAR: ElementType[] = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'centered', 'pageBreak'];
 
@@ -96,10 +98,12 @@ export function WriteTab() {
         {side === 'title' && <TitleLogoControls />}
         {side === 'scenes' && (
           <ol className="scene-nav">
-            {d.scenes.map((s) => (
+            {d.scenes.map((s, i) => [
+              <BeatsBefore key={`b${s.id}`} frameworkId={p.structure?.frameworkId} pages={d.pageCount} from={i === 0 ? 0 : d.scenes[i - 1].startPage} to={s.startPage} first={i === 0} />,
               <SceneItem key={s.id} s={s} active={current.sceneId === s.id} variants={(p.sceneVariants ?? []).filter((v) => v.sceneId === s.id).length}
-                onGo={() => jumpTo(s.id)} onMenu={(at) => sceneMenu(s, at)} />
-            ))}
+                onGo={() => jumpTo(s.id)} onMenu={(at) => sceneMenu(s, at)} />,
+            ])}
+            <BeatsBefore frameworkId={p.structure?.frameworkId} pages={d.pageCount} from={d.scenes[d.scenes.length - 1]?.startPage ?? 0} to={Infinity} first={!d.scenes.length} />
           </ol>
         )}
         {side === 'characters' && (
@@ -129,6 +133,7 @@ export function WriteTab() {
           <span className="spacer" />
           <More label="Script tools">
           <button onClick={() => setFindOpen(true)} title="Find & replace (⌘F)">Find</button>
+          <RefLink page="format" />
           <button onClick={() => setSide('title')}>Title page</button>
           <label className="check" title="Lock scene numbers so new scenes get A/B numbers">
             <input type="checkbox" checked={p.sceneNumbersLocked} onChange={(e) => {
@@ -189,4 +194,12 @@ function SceneItem({ s, active, variants, onGo, onMenu }: { s: DerivedScene; act
       <span className="muted small">{formatEighths(s.eighths)}</span>
     </li>
   );
+}
+
+/** Beat markers (from the story structure in use) whose target page falls before this scene. */
+function BeatsBefore({ frameworkId, pages, from, to, first }: { frameworkId?: string; pages: number; from: number; to: number; first: boolean }) {
+  const fw = FRAMEWORKS.find((f) => f.id === frameworkId);
+  if (!fw || !pages) return null;
+  const beats = fw.beats.filter((b) => { const t = beatPage(b, pages); return (first ? t >= 0 : t > from) && t <= to; });
+  return <>{beats.map((b) => <li key={b.name} className="beat-marker" title={b.what}><span>◆ {b.name}</span><span className="muted small">p. {beatPage(b, pages)}</span></li>)}</>;
 }

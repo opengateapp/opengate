@@ -11,6 +11,7 @@ import { deletedToast } from '../../components/deleted';
 import { openActions } from '../../components/ActionSheet';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
+import { RefLink } from '../ReferenceTab';
 
 // Budget → Gear: the gear manifest. Cameras and lights placed in the shot designer appear on
 // their own; add anything else by hand. For each item choose Own / Rent / Borrow / Buy: rented
@@ -53,6 +54,7 @@ export function GearTab() {
     <div className="gear-tab pad scroll" onDoubleClick={(e) => { if (!ro && (e.target as HTMLElement).classList.contains('gear-tab')) add(); }}>
       <div className="toolbar flat">
         <h3>Gear</h3>
+        <RefLink page="power" label="power & batteries" />
         <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Category">
           <option value="">All categories</option>
           {GEAR_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}

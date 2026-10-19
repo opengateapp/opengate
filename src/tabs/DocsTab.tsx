@@ -30,7 +30,7 @@ const TEMPLATES: { title: string; body: string[] }[] = [
   { title: 'Production notes', body: ['# Production notes', '## Budget', '', '## Schedule', '', '## Risks', ''] },
 ];
 
-function templateDoc(lines: string[]): unknown {
+export function templateDoc(lines: string[]): unknown {
   const nodes = lines.length ? lines.map((l) => {
     const h = l.match(/^(#{1,3})\s+(.*)$/);
     if (h) return docSchema.node('heading', { level: h[1].length }, [docSchema.text(h[2])]);

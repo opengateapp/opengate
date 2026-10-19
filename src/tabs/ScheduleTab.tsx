@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { RefLink } from './ReferenceTab';
 import { useDerived, useProject, useStore, getDerived } from '../store/project';
 import { boneyard, cascade, dayNumbers, dayTotals, moveBanner, moveScenes, scanConflicts, swapDays, unschedule, lockReport, workingDays } from '../schedule/engine';
 import { sceneCast, sceneTime } from '../script/derive';
@@ -135,6 +136,7 @@ export function ScheduleTab() {
         <button disabled={!canUndo} onClick={() => useStore.getState().undo()} title="Undo (⌘Z)">↶</button>
         <button disabled={!canRedo} onClick={() => useStore.getState().redo()} title="Redo (⇧⌘Z)">↷</button>
         <label className="check"><input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)} /> Hide empty days</label>
+        <RefLink page="scheduling" />
         <span className="spacer" />
         {p.schedule.lock
           ? <button className={lockChanges.length ? 'warn-btn' : ''} onClick={() => setLockOpen(true)}>🔒 Locked {lockChanges.length ? `· ${lockChanges.length} changed` : ''}</button>
