@@ -3,6 +3,7 @@ import { newId } from '../model/ids';
 import type { Derived } from '../script/derive';
 import { sceneCast, sceneElements } from '../script/derive';
 import { buildDood, shootDays } from '../schedule/dood';
+import { gearLineQty } from './gear';
 import { sceneLocation } from '../schedule/callsheet';
 
 // Budget lines linked to the breakdown. A linked line's quantity is worked out from the
@@ -71,7 +72,10 @@ export function linkedQty(p: Project, f: BreakdownFacts, link: NonNullable<Budge
     case 'location': return p.locations.some((l) => l.id === link.id) ? f.locationDays.get(link.id ?? '') ?? 0 : null;
     case 'element': return p.elements.some((e) => e.id === link.id) ? f.elementDays.get(link.id ?? '') ?? 0 : null;
     case 'headcount': return f.personDays;
-    case 'gear': return f.gearDays.has(link.id ?? '') ? f.gearDays.get(link.id ?? '')! : null;
+    case 'gear': {
+      const g = (p.gear ?? []).find((x) => x.id === link.id);
+      return g ? gearLineQty(g, f.gearDays.get(g.id) ?? 0) : null;
+    }
   }
 }
 

@@ -23,6 +23,7 @@ import { TasksTab } from './tabs/TasksTab';
 import { BoardsTab } from './tabs/boards/BoardsTab';
 import { LocationsTab } from './tabs/LocationsTab';
 import { CharactersTab } from './tabs/CharactersTab';
+import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { CategoryStyles } from './components/CategoryStyles';
 import { ProjectMenu } from './components/ProjectMenu';
 import { SyncIssues } from './components/SyncIssues';
@@ -48,7 +49,7 @@ export type TabId =
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
   | 'budget' | 'expenses'
   | 'contacts' | 'calendar' | 'tasks'
-  | 'storyboard' | 'boards' | 'shots'
+  | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
   | 'setup';
 
@@ -78,6 +79,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'storyboard', label: 'Storyboards', hint: 'Frames for each shot' },
     { id: 'boards', label: 'Mood Boards', hint: 'Mood boards and whiteboards' },
     { id: 'shots', label: 'Shot Lists', hint: 'Plan coverage per scene' },
+    { id: 'designer', label: 'Shot Designer', hint: 'Top-down plan per scene: actors, cameras with lens-accurate angles, lights, moves' },
   ] },
   { id: 'shoot', label: 'Shoot', tabs: [
     { id: 'callsheets', label: 'Call Sheets', hint: 'Daily call sheets' },
@@ -246,6 +248,7 @@ export function App() {
         {tab === 'storyboard' && <StoryboardTab />}
         {tab === 'boards' && <BoardsTab />}
         {tab === 'shots' && <ShotsTab />}
+        {tab === 'designer' && <ShotDesignerTab />}
         {tab === 'callsheets' && <CallSheetsView />}
         {tab === 'locations' && <LocationsTab />}
         {tab === 'characters' && <CharactersTab />}
