@@ -32,6 +32,19 @@ describe('licenses', () => {
     expect(p.budget.lines.filter((l) => l.link?.kind === 'license').map((l) => l.link!.id)).toEqual(['m1']);
   });
 
+  it('adds the Licensing & Clearances account if a budget is missing it, instead of using Editorial', () => {
+    const p = produce(newProject('x'), (d) => {
+      d.budget.accounts = d.budget.accounts.filter((a) => a.code !== '4600');
+      d.budget.licenses = [{ ...newLicense('stock'), fee: 199 }];
+      syncLicenseLines(d);
+    });
+    const acc = p.budget.accounts.find((a) => a.code === '4600')!;
+    expect(acc.name).toBe('Licensing & Clearances');
+    expect(p.budget.lines.find((l) => l.link?.kind === 'license')!.accountId).toBe(acc.id);
+    const codes = p.budget.accounts.map((a) => a.code);
+    expect(codes.indexOf('4600')).toBe(codes.indexOf('4500') + 1);
+  });
+
   it('suggests credit lines, works out durations and builds a cue sheet', () => {
     const song = { ...newLicense('music'), title: 'Night Drive', writers: 'A. Writer', performer: 'The Band', label: 'Indie Records' };
     expect(suggestedCredit(song)).toBe('“Night Drive”\nWritten by A. Writer\nPerformed by The Band\nCourtesy of Indie Records');

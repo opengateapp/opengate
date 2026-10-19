@@ -48,7 +48,16 @@ export function syncLicenseLines(d: Draft<Project>) {
   const lic = d.budget.licenses ?? [];
   const accountFor = (k: LicenseKind) => {
     const code = LICENSE_KINDS.find((x) => x.id === k)?.account ?? '4600';
-    return d.budget.accounts.find((a) => a.code === code)?.id ?? d.budget.accounts.find((a) => a.group === 'post')?.id ?? d.budget.accounts[0]?.id;
+    const found = d.budget.accounts.find((a) => a.code === code);
+    if (found) return found.id;
+    if (code === '4600') {
+      // Budgets from before Licenses (or synced from an older copy) may not have the account yet.
+      const acc = { id: 'acc-4600', code: '4600', name: 'Licensing & Clearances', group: 'post' as const };
+      const at = d.budget.accounts.findIndex((a) => a.code > '4600');
+      d.budget.accounts.splice(at < 0 ? d.budget.accounts.length : at, 0, acc);
+      return acc.id;
+    }
+    return d.budget.accounts.find((a) => a.group === 'post')?.id ?? d.budget.accounts[0]?.id;
   };
   const wanted = (l: License) => l.fee > 0 && l.status !== 'declined';
   for (const l of lic) {
