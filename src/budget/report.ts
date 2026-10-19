@@ -1,8 +1,8 @@
 import type { BudgetAccount, BudgetLine, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { GROUPS, accountLabel } from './accounts';
-import { lineBase, lineFringes, lineTotal, linePremium, scenarioLines, totals, money, type BudgetTotals } from './calc';
-import { breakdownFacts, resolveLines } from './fromBreakdown';
+import { lineBase, lineFringes, lineTotal, linePremium, totals, money, type BudgetTotals } from './calc';
+import { budgetView } from './pipeline';
 
 // The budget as it should be printed or exported: one version, with linked quantities filled in.
 // Shared by the PDF and the spreadsheet.
@@ -24,9 +24,10 @@ export const UNIT_LABEL: Record<string, string> = { days: 'Days', weeks: 'Weeks'
 
 export function budgetReport(p: Project, d: Derived, scenarioId?: string): BudgetReport {
   const b = p.budget;
-  const f = breakdownFacts(p, d);
   const sc = b.scenarios.find((s) => s.id === scenarioId);
-  const lines = scenarioLines(b, resolveLines(p, f).lines, sc?.id);
+  const v = budgetView(p, d, sc?.id);
+  const f = v.facts;
+  const lines = v.lines;
   const t = totals(b, lines);
   const groups = GROUPS.map((g) => {
     const accounts = b.accounts.filter((a) => a.group === g.id).map((a) => ({

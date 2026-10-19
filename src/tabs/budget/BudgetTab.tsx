@@ -4,8 +4,8 @@ import { useDerived, useProject, useStore } from '../../store/project';
 import type { Budget, BudgetAccount, BudgetGroup, BudgetLine, BudgetUnits, Project } from '../../model/types';
 import { newId } from '../../model/ids';
 import { GROUPS, TYPICAL_SPLIT, accountLabel } from '../../budget/accounts';
-import { money, scenarioLines, totals, lineTotal, round2, billedQty } from '../../budget/calc';
-import { breakdownFacts, importFromBreakdown, resolveLines, LINK_LABEL } from '../../budget/fromBreakdown';
+import { money, totals, lineTotal, round2, billedQty } from '../../budget/calc';
+import { breakdownFacts, importFromBreakdown, LINK_LABEL } from '../../budget/fromBreakdown';
 import { canWrite, useSync } from '../../sync/state';
 import { askConfirm, askText } from '../../components/dialogs';
 import { toast } from '../../components/common';
@@ -13,6 +13,9 @@ import { getDerived } from '../../store/project';
 import { More } from '../../components/More';
 import { LongPress } from '../../components/ActionSheet';
 import { Hint } from '../../components/Hint';
+import { budgetView } from '../../budget/pipeline';
+import { evaluate, isFormula, type Vars } from '../../budget/expr';
+import { BUILT_IN_VARS } from '../../budget/pipeline';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -71,14 +74,29 @@ async function createVersion(fromId: string | undefined, select: (id: string) =>
   select(id);
 }
 
+/** A quantity box that also takes formulas with named numbers ("SHOOT_WEEKS * 5"). */
+function ExprIn({ value, expr, vars, onNumber, onExpr, disabled, className, title }: {
+  value: number; expr?: string; vars: Vars; onNumber: (n: number) => void; onExpr: (s: string) => void; disabled?: boolean; className?: string; title?: string;
+}) {
+  const res = expr ? evaluate(expr, vars) : null;
+  return (
+    <input className={`${className ?? ''} ${expr ? 'is-formula' : ''} ${res?.error ? 'bad' : ''}`} disabled={disabled} inputMode="decimal"
+      value={expr ?? (Number.isFinite(value) ? String(round2(value)) : '')}
+      title={res ? (res.error ? res.error : `= ${round2(res.value)}`) : title}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (isFormula(v)) onExpr(v);
+        else { const n = num(v); if (Number.isFinite(n)) onNumber(n); }
+      }} />
+  );
+}
+
 /** Everything the screen needs, worked out once per render. */
 function useBudgetView(p: Project, scenarioId?: string) {
   const d = useDerived();
   return useMemo(() => {
-    const facts = breakdownFacts(p, d);
-    const { lines: base, orphaned } = resolveLines(p, facts);
-    const lines = scenarioLines(p.budget, base, scenarioId);
-    return { facts, base, lines, orphaned, t: totals(p.budget, lines) };
+    const v = budgetView(p, d, scenarioId);
+    return { ...v, t: totals(p.budget, v.lines) };
   }, [p, d, scenarioId]);
 }
 
@@ -166,7 +184,7 @@ function BudgetScreen() {
         </div>
       </div>
 
-      {settings && <BudgetSettings ro={ro} />}
+      {settings && <BudgetSettings ro={ro} vars={view.vars} />}
       {scenario && mode !== 'scenarios' && <p className="budget-note">Showing <b>{scenario.name}</b>. Changes to quantities and rates are saved to this version only; the base budget stays as it is.</p>}
 
       {mode === 'scenarios' ? (
@@ -394,8 +412,9 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
       Object.assign(target, rest);
       return;
     }
-    // Typing a quantity on a linked line unlinks it (the typed number is kept).
-    if ('qty' in patch && target.link?.auto) target.link.auto = false;
+    // Typing a quantity (or formula) on a linked line unlinks it (the typed value is kept).
+    if (('qty' in patch || 'qtyExpr' in patch) && target.link?.auto) target.link.auto = false;
+    for (const k of ['qtyExpr', 'xExpr'] as const) if (k in patch && patch[k] === undefined) { delete target[k]; delete patch[k]; }
     Object.assign(target, patch);
   }, label);
 
@@ -421,7 +440,9 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
     if (s?.overrides[l.id]) delete s.overrides[l.id].qty;
   }, 'Re-link line');
 
-  const total = lines.reduce((s, l) => s + lineTotal(b, l), 0);
+  const total = lines.reduce((s, l) => s + (view.t.lineTotal.get(l.id) ?? lineTotal(b, l)), 0);
+  /** The stored line (formulas live there; view lines have them worked out). */
+  const base = (l: BudgetLine): BudgetLine => b.lines.find((x) => x.id === l.id) ?? b.scenarios.flatMap((x) => x.added).find((x) => x.id === l.id) ?? l;
   return (
     <div onDoubleClick={(e) => { if (!ro && (e.target as HTMLElement).closest('.budget-empty, .lines-pad')) addLine(); }}>
       <div className="detail-head">
@@ -469,14 +490,16 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                     </div>
                     {extras.length > 0 && <div className="line-extras">{extras.map((x) => <span key={x}>{x}</span>)}</div>}
                   </td>
-                  <td className="num"><NumIn className="cell-num" disabled={ro} value={l.qty} onChange={(n) => set(l, { qty: n })} title={linked?.auto ? LINK_LABEL[linked.kind] : undefined} /></td>
+                  <td className="num"><ExprIn className="cell-num" disabled={ro} value={l.qty} expr={linked?.auto ? undefined : base(l).qtyExpr} vars={view.vars}
+                    onNumber={(n) => set(l, { qty: n, qtyExpr: undefined })} onExpr={(x) => set(l, { qtyExpr: x })} title={linked?.auto ? LINK_LABEL[linked.kind] : 'A number, or a formula like SHOOT_WEEKS * 5'} /></td>
                   <td>
                     <select disabled={ro} value={l.units} onChange={(e) => set(l, { units: e.target.value as BudgetUnits }, 'Edit budget')}>
                       {UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
                     </select>
                   </td>
-                  <td className="num"><NumIn className="cell-num small" disabled={ro} value={l.x} onChange={(n) => set(l, { x: n })} /></td>
-                  <td className="num"><NumIn className="cell-num" disabled={ro} value={l.rate} onChange={(n) => set(l, { rate: n })} /></td>
+                  <td className="num"><ExprIn className="cell-num small" disabled={ro} value={l.x} expr={base(l).xExpr} vars={view.vars}
+                    onNumber={(n) => set(l, { x: n, xExpr: undefined })} onExpr={(x) => set(l, { xExpr: x })} title="People, items… (or a formula like CREW)" /></td>
+                  <td className="num"><NumIn className="cell-num" disabled={ro || !!l.items?.length} value={l.rate} onChange={(n) => set(l, { rate: n })} title={l.items?.length ? 'Adds up the sub-items (open ▸ details)' : undefined} /></td>
                   {b.fringes.length > 0 && (
                     <td className="fringe-cell">
                       {b.fringes.map((f) => (
@@ -487,7 +510,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                       ))}
                     </td>
                   )}
-                  <td className="num"><b>{$(lineTotal(b, l))}</b></td>
+                  <td className="num"><b>{$(view.t.lineTotal.get(l.id) ?? lineTotal(b, l))}</b></td>
                   <td className="actions">
                     <button className={`icon-btn ${details ? 'on' : ''}`} title="Details: prep / wrap days, overtime, notes" aria-expanded={details} onClick={() => toggleDetails(l.id)}>{details ? '▾' : '▸'}</button>
                     {!ro && <button className="icon-btn" title={sc && !isAdded(l.id) ? `Remove from ${sc.name}` : 'Delete line'} onClick={() => removeLine(l)}>×</button>}
@@ -507,6 +530,18 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                           <label className="field"><span>7th days</span><NumIn disabled={ro} value={l.seventhDays ?? 0} title={`Days paid at ${b.seventhMult ?? 2}×`} onChange={(n) => set(l, { seventhDays: n > 0 ? n : undefined })} /></label>
                         </>}
                         {l.units === 'rentdays' && <p className="muted small">Rental week: every 7 days are billed as {b.rentalWeekDays ?? 3} days ({l.qty} days → {billedQty(l, b)} billed). Change it in budget Settings.</p>}
+                        <div className="sub-items">
+                          <span className="muted small">Sub-items {l.items?.length ? `— they add up to the rate (${$(l.rate)})` : '— break the rate into parts (camera body, lenses, support…)'}</span>
+                          {(base(l).items ?? []).map((it) => (
+                            <div key={it.id} className="row">
+                              <input disabled={ro} value={it.description} placeholder="Item" onChange={(e) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.description = e.target.value; }, null)} />
+                              <NumIn className="cell-num small" disabled={ro} value={it.qty} title="How many" onChange={(n) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.qty = n; }, null)} /> ×
+                              <NumIn className="cell-num" disabled={ro} value={it.rate} title="Rate each" onChange={(n) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.rate = n; }, null)} />
+                              {!ro && <button className="icon-btn" title="Remove" onClick={() => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); if (t?.items) { t.items = t.items.filter((y) => y.id !== it.id); if (!t.items.length) delete t.items; } }, 'Remove sub-item')}>×</button>}
+                            </div>
+                          ))}
+                          {!ro && <button className="link small" onClick={() => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); if (t) t.items = [...(t.items ?? (t.rate ? [{ id: newId(), description: t.description || 'Item', qty: 1, rate: t.rate }] : [])), { id: newId(), description: '', qty: 1, rate: 0 }]; }, 'Add sub-item')}>＋ Sub-item</button>}
+                        </div>
                         <label className="field wide"><span>Notes</span><textarea disabled={ro} rows={2} value={l.notes ?? ''} placeholder="Quote reference, what's included, assumptions…" onChange={(e) => set(l, { notes: e.target.value || undefined })} /></label>
                       </div>
                     </td>
@@ -539,6 +574,13 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
   );
 }
 
+const FRINGE_PRESETS: { name: string; pct: number; flat?: number; flatPer?: 'day' | 'week' | 'line' }[] = [
+  { name: 'Employer payroll taxes', pct: 10 },
+  { name: "Workers' comp", pct: 3 },
+  { name: 'Payroll service fee', pct: 1 },
+  { name: 'Union pension & health', pct: 20 },
+];
+
 const APPLIED_PRESETS: { name: string; pct: number; appliesTo: BudgetGroup[]; credit?: boolean }[] = [
   { name: 'Insurance', pct: 3, appliesTo: ['atl', 'btl', 'post', 'other'] },
   { name: 'Completion bond', pct: 2, appliesTo: ['atl', 'btl', 'post', 'other'] },
@@ -564,12 +606,35 @@ function GroupPicks({ value, onChange, ro }: { value?: BudgetGroup[]; onChange: 
   );
 }
 
-function BudgetSettings({ ro }: { ro: boolean }) {
+function BudgetSettings({ ro, vars }: { ro: boolean; vars: Vars }) {
   const p = useProject();
   const update = useStore((s) => s.update);
   const b = p.budget;
+  const builtIn = new Set(BUILT_IN_VARS.map((v) => v.name));
   return (
     <div className="budget-settings">
+      <div className="field"><span>Named numbers</span>
+        <div className="fringes">
+          <p className="muted small">Use these in any quantity or × box, e.g. <code>SHOOT_WEEKS * 5</code> or <code>CREW + 2</code>. Change one here and every line using it updates.</p>
+          <div className="var-list">
+            {BUILT_IN_VARS.map((v) => <span key={v.name} className="var-chip" title={v.hint}><code>{v.name}</code> {round2(vars[v.name] ?? 0)}</span>)}
+          </div>
+          {(b.globals ?? []).map((g) => (
+            <div key={g.id} className="row">
+              <input disabled={ro} className="var-name" value={g.name} placeholder="PREP_WEEKS" onChange={(e) => update((dr) => { dr.budget.globals!.find((x) => x.id === g.id)!.name = e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'); }, null)} />
+              =
+              <NumIn disabled={ro} className="cell-num" value={g.value} onChange={(n) => update((dr) => { dr.budget.globals!.find((x) => x.id === g.id)!.value = n; }, null)} />
+              <input disabled={ro} value={g.note ?? ''} placeholder="What it's for" onChange={(e) => update((dr) => { dr.budget.globals!.find((x) => x.id === g.id)!.note = e.target.value || undefined; }, null)} />
+              {builtIn.has(g.name) && <span className="over small">replaces the built-in {g.name}</span>}
+              {!ro && <button className="icon-btn" title="Remove" onClick={() => update((dr) => { dr.budget.globals = dr.budget.globals!.filter((x) => x.id !== g.id); }, 'Remove named number')}>×</button>}
+            </div>
+          ))}
+          {!ro && <button onClick={() => update((dr) => { dr.budget.globals = [...(dr.budget.globals ?? []), { id: newId(), name: `NUMBER_${(dr.budget.globals?.length ?? 0) + 1}`, value: 0 }]; }, 'Add named number')}>＋ Named number</button>}
+        </div>
+      </div>
+      <label className="field budget-notes"><span>Notes &amp; assumptions</span>
+        <textarea disabled={ro} rows={4} value={b.notes ?? ''} placeholder="Union / non-union, rates as of…, what's excluded — printed after the top sheet" onChange={(e) => update((dr) => { dr.budget.notes = e.target.value || undefined; }, null)} />
+      </label>
       <label className="field"><span>Currency</span>
         <select disabled={ro} value={b.currency} onChange={(e) => update((dr) => { dr.budget.currency = e.target.value; }, 'Budget currency')}>
           {[...new Set([b.currency, ...CURRENCIES])].map((c) => <option key={c}>{c}</option>)}
@@ -622,12 +687,25 @@ function BudgetSettings({ ro }: { ro: boolean }) {
               <input disabled={ro} value={f.name} onChange={(e) => update((dr) => { dr.budget.fringes.find((x) => x.id === f.id)!.name = e.target.value; }, null)} />
               <NumIn disabled={ro} className="cell-num" value={f.pct} onChange={(n) => update((dr) => { dr.budget.fringes.find((x) => x.id === f.id)!.pct = n; }, null)} /> %
               <span className="muted small">up to</span>
-              <NumIn disabled={ro} className="cell-num" value={f.cap ?? 0} title="Most of each line it applies to (0 = no cap)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.cap = n; else delete x.cap; }, null)} />
+              <NumIn disabled={ro} className="cell-num" value={f.cap ?? 0} title="Most of the wages it applies to (0 = no cap)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.cap = n; else delete x.cap; }, null)} />
+              {!!f.cap && <label className="check small" title="The cap counts all lines for the same cast or crew member, across the whole show"><input type="checkbox" disabled={ro} checked={!!f.capPerPerson} onChange={(e) => update((dr) => { dr.budget.fringes.find((y) => y.id === f.id)!.capPerPerson = e.target.checked || undefined; }, 'Edit fringe')} /> per person</label>}
+              <span className="muted small">+</span>
+              <NumIn disabled={ro} className="cell-num small" value={f.flat ?? 0} title="A flat amount on top (e.g. a union contribution per day)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.flat = n; else delete x.flat; }, null)} />
+              <select disabled={ro} value={f.flatPer ?? 'day'} onChange={(e) => update((dr) => { dr.budget.fringes.find((y) => y.id === f.id)!.flatPer = e.target.value as 'day' | 'week' | 'line'; }, 'Edit fringe')}>
+                <option value="day">per day</option><option value="week">per week</option><option value="line">per line</option>
+              </select>
               {!ro && <button className="icon-btn" title="Delete fringe" onClick={() => update((dr) => { dr.budget.fringes = dr.budget.fringes.filter((x) => x.id !== f.id); dr.budget.lines.forEach((l) => { l.fringeIds = l.fringeIds.filter((x) => x !== f.id); }); }, 'Delete fringe')}>×</button>}
             </div>
           ))}
-          {!ro && <button onClick={() => update((dr) => { dr.budget.fringes.push({ id: newId(), name: 'New fringe', pct: 0 }); }, 'Add fringe')}>＋ Fringe</button>}
-          <p className="muted small">Fringes are percentages added to the lines you tick them on (payroll taxes, union pension &amp; health, workers’ comp). “Up to” caps the amount of each line they apply to.</p>
+          {!ro && (
+            <div className="row">
+              <button onClick={() => update((dr) => { dr.budget.fringes.push({ id: newId(), name: 'New fringe', pct: 0 }); }, 'Add fringe')}>＋ Fringe</button>
+              {FRINGE_PRESETS.map((fp) => (
+                <button key={fp.name} className="small" disabled={b.fringes.some((x) => x.name === fp.name)} onClick={() => update((dr) => { dr.budget.fringes.push({ id: newId(), ...fp }); }, `Add ${fp.name}`)}>＋ {fp.name}</button>
+              ))}
+            </div>
+          )}
+          <p className="muted small">Fringes are added to the lines you tick them on: a percentage of wages (payroll taxes, pension &amp; health, workers’ comp), optionally capped, plus an optional flat amount per day or week. The presets are <b>examples</b> — use the rates from your payroll company or union agreement.</p>
         </div>
       </div>
     </div>
@@ -642,10 +720,10 @@ function ScenariosView({ scenarioId, setScenarioId, ro }: { scenarioId?: string;
   const $ = (n: number) => money(n, b.currency);
   const { facts, base, cols } = useMemo(() => {
     const f = breakdownFacts(p, d);
-    const baseLines = resolveLines(p, f).lines;
-    const c = [{ id: undefined as string | undefined, name: 'Base budget', t: totals(b, baseLines), shootDays: f.shootDays },
-      ...b.scenarios.map((s) => ({ id: s.id as string | undefined, name: s.name, t: totals(b, scenarioLines(b, baseLines, s.id)), shootDays: s.shootDays ?? f.shootDays }))];
-    return { facts: f, base: baseLines, cols: c };
+    const baseView = budgetView(p, d, undefined, f);
+    const c = [{ id: undefined as string | undefined, name: 'Base budget', t: totals(b, baseView.lines), shootDays: f.shootDays },
+      ...b.scenarios.map((s) => ({ id: s.id as string | undefined, name: s.name, t: totals(b, budgetView(p, d, s.id, f).lines), shootDays: s.shootDays ?? f.shootDays }))];
+    return { facts: f, base: baseView.base, cols: c };
   }, [p, d, b]);
   void base;
 

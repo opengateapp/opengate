@@ -1,5 +1,6 @@
 import type { Budget, BudgetGroup, BudgetLine } from '../model/types';
 import { GROUPS } from './accounts';
+import { evaluate, type Vars } from './expr';
 
 // Budget arithmetic, shared by the screen, the PDF and the spreadsheet so they always agree.
 // Lines passed in are already resolved (linked quantities and scenario changes applied).
@@ -34,6 +35,19 @@ export function lineBase(l: BudgetLine, b?: Partial<Budget>): number {
   return billedQty(l, b) * (Number(l.x) || 0) * (Number(l.rate) || 0) + linePremium(l, b);
 }
 
+/** Days a line covers, for flat per-day / per-week fringes. */
+function lineDays(l: BudgetLine): number {
+  const q = Number(l.qty) || 0;
+  return l.units === 'weeks' ? q * 5 : l.units === 'days' || l.units === 'rentdays' ? q : 1;
+}
+
+function flatFringe(f: Budget['fringes'][number], l: BudgetLine): number {
+  if (!f.flat) return 0;
+  const n = f.flatPer === 'week' ? lineDays(l) / 5 : f.flatPer === 'line' ? 1 : lineDays(l);
+  return f.flat * n * (Number(l.x) || 0);
+}
+
+/** One line's fringes on its own (per-line caps). Totals use fringeByLine, which also applies per-person caps. */
 export function lineFringes(b: Budget, l: BudgetLine): number {
   const base = lineBase(l, b);
   let total = 0;
@@ -41,9 +55,52 @@ export function lineFringes(b: Budget, l: BudgetLine): number {
     const f = b.fringes.find((x) => x.id === id);
     if (!f) continue;
     const subject = f.cap != null && f.cap > 0 ? Math.min(base, f.cap) : base;
-    total += (subject * (Number(f.pct) || 0)) / 100;
+    total += (subject * (Number(f.pct) || 0)) / 100 + flatFringe(f, l);
   }
   return total;
+}
+
+/**
+ * Fringes for every line. A cap marked "per person" is shared by all lines linked to the same
+ * person (cast member or crew member) across the show, in line order.
+ */
+export function fringeByLine(b: Budget, lines: BudgetLine[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const used = new Map<string, number>(); // fringe:person → wages already counted
+  for (const l of lines) {
+    const base = lineBase(l, b);
+    let total = 0;
+    for (const id of l.fringeIds) {
+      const f = b.fringes.find((x) => x.id === id);
+      if (!f) continue;
+      let subject = base;
+      if (f.cap != null && f.cap > 0) {
+        if (f.capPerPerson) {
+          const who = `${f.id}:${l.link?.id ?? l.id}`;
+          const before = used.get(who) ?? 0;
+          subject = Math.max(0, Math.min(base, f.cap - before));
+          used.set(who, before + base);
+        } else subject = Math.min(base, f.cap);
+      }
+      total += (subject * (Number(f.pct) || 0)) / 100 + flatFringe(f, l);
+    }
+    out.set(l.id, total);
+  }
+  return out;
+}
+
+/**
+ * Lines ready to add up: formulas (named numbers) worked out, and sub-items summed into the rate.
+ * Linked lines that follow the schedule keep their linked quantity.
+ */
+export function finalizeLines(lines: BudgetLine[], vars: Vars): BudgetLine[] {
+  return lines.map((l) => {
+    let next = l;
+    if (l.qtyExpr && !l.link?.auto) next = { ...next, qty: evaluate(l.qtyExpr, vars).value };
+    if (l.xExpr) next = { ...next, x: evaluate(l.xExpr, vars).value };
+    if (l.items?.length) next = { ...next, rate: l.items.reduce((a, it) => a + (Number(it.qty) || 0) * (Number(it.rate) || 0), 0) };
+    return next;
+  });
 }
 
 export const lineTotal = (b: Budget, l: BudgetLine) => lineBase(l, b) + lineFringes(b, l);
@@ -54,6 +111,9 @@ export interface BudgetTotals {
   fringes: number;
   subtotal: number;
   contingency: number;
+  /** Fringes and full totals per line (with per-person caps applied). */
+  lineFringe: Map<string, number>;
+  lineTotal: Map<string, number>;
   /** Insurance, bond, fees (+) and credits (−), in order. */
   applied: { id: string; name: string; pct: number; amount: number; credit: boolean }[];
   total: number;
@@ -67,9 +127,12 @@ export function totals(b: Budget, lines: BudgetLine[]): BudgetTotals {
   const byGroup = Object.fromEntries(GROUPS.map((g) => [g.id, 0])) as Record<BudgetGroup, number>;
   const groupOf = new Map(b.accounts.map((a) => [a.id, a.group]));
   let fringes = 0;
+  const lineFringe = fringeByLine(b, lines);
+  const lineTotalMap = new Map<string, number>();
   for (const l of lines) {
     const base = lineBase(l, b);
-    const fr = lineFringes(b, l);
+    const fr = lineFringe.get(l.id) ?? 0;
+    lineTotalMap.set(l.id, base + fr);
     const cur = byAccount.get(l.accountId) ?? { base: 0, fringes: 0, total: 0 };
     byAccount.set(l.accountId, { base: cur.base + base, fringes: cur.fringes + fr, total: cur.total + base + fr });
     const g = groupOf.get(l.accountId);
@@ -87,7 +150,7 @@ export function totals(b: Budget, lines: BudgetLine[]): BudgetTotals {
   const actualByAccount = new Map<string, number>();
   for (const e of b.expenses) actualByAccount.set(e.accountId, (actualByAccount.get(e.accountId) ?? 0) + (Number(e.amount) || 0));
   const actual = [...actualByAccount.values()].reduce((a, v) => a + v, 0);
-  return { byAccount, byGroup, fringes, subtotal, contingency, applied, total: subtotal + contingency + appliedSum, actualByAccount, actual };
+  return { byAccount, byGroup, fringes, lineFringe, lineTotal: lineTotalMap, subtotal, contingency, applied, total: subtotal + contingency + appliedSum, actualByAccount, actual };
 }
 
 /** The lines of a scenario: base lines with its changes (no scenario = the base budget). */

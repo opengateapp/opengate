@@ -518,7 +518,7 @@ export interface ShareInfo {
 export type BudgetGroup = 'atl' | 'btl' | 'post' | 'other';
 export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each' | 'rentdays';
 /** Where a linked line's quantity comes from. */
-export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays';
+export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear';
 
 export interface BudgetAccount {
   id: Id;
@@ -548,6 +548,11 @@ export interface BudgetLine {
   otHours?: number;
   sixthDays?: number;
   seventhDays?: number;
+  /** Formulas with named numbers (e.g. "SHOOT_WEEKS * 5"), used instead of the typed qty / x. */
+  qtyExpr?: string;
+  xExpr?: string;
+  /** Sub-items that add up to the rate (a camera package: body, lenses, support…). */
+  items?: { id: Id; description: string; qty: number; rate: number }[];
   /** Imported from the breakdown; `auto` keeps the quantity in step with the script and schedule. */
   link?: { kind: BudgetLinkKind; id?: Id; auto: boolean };
 }
@@ -559,6 +564,24 @@ export interface BudgetFringe {
   pct: number;
   /** Most of each line's amount the fringe applies to (wage caps). */
   cap?: number;
+  /** The cap is per person across the whole show (lines linked to the same person share it). */
+  capPerPerson?: boolean;
+  /** A flat amount on top of the percentage (union contributions per day or week). */
+  flat?: number;
+  flatPer?: 'day' | 'week' | 'line';
+}
+
+/** A named number lines can use in formulas (SHOOT_WEEKS * 5). */
+export interface BudgetGlobal { id: Id; name: string; value: number; note?: string }
+
+/** The approved budget, frozen for the cost report. */
+export interface BudgetLock {
+  at: string;
+  label?: string;
+  /** Account totals when locked (including fringes). */
+  accounts: Record<Id, number>;
+  subtotal: number;
+  total: number;
 }
 
 /** A what-if version of the budget: changes on top of the base lines. */
@@ -613,6 +636,12 @@ export interface Budget {
   seventhMult?: number;
   /** Top-down total to plan against. */
   targetTotal?: number;
+  globals?: BudgetGlobal[];
+  /** Notes & assumptions (printed after the top sheet). */
+  notes?: string;
+  locked?: BudgetLock;
+  /** Cost report: estimate to complete per account, where you've typed one. */
+  etc?: Record<Id, number>;
   scenarios: BudgetScenario[];
   expenses: BudgetExpense[];
 }
@@ -694,6 +723,30 @@ export interface CharacterRelationship {
   notes?: string;
 }
 
+// ---------- Gear ----------
+
+export type GearCategory = 'camera' | 'lens' | 'support' | 'grip' | 'lighting' | 'sound' | 'power' | 'other';
+/** Own it (no rental), rent it (per day / week), borrow it (free), or buy it (one-off). */
+export type GearSource = 'own' | 'rent' | 'borrow' | 'buy';
+
+export interface GearItem {
+  id: Id;
+  name: string;
+  category: GearCategory;
+  qty: number;
+  source: GearSource;
+  /** Rent: per day or per week; buy: the price. */
+  rate: number;
+  rateUnit: 'day' | 'week';
+  /** Scenes it's needed in (empty = the whole shoot). */
+  sceneIds: Id[];
+  /** Typed number of days, instead of counting shoot days with those scenes. */
+  days?: number;
+  notes?: string;
+  /** Put on the manifest by a shot designer plan (camera, light…); manual items have none. */
+  fromPlan?: { sceneId: Id; elementId: Id };
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -727,6 +780,7 @@ export interface Project {
   /** Character profiles (Write → Characters), matched to the script by name. */
   characters: CharacterProfile[];
   relationships: CharacterRelationship[];
+  gear?: GearItem[];
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;

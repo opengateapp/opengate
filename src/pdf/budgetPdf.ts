@@ -57,6 +57,15 @@ export function budgetPdf(p: Project, d: Derived, scenarioId?: string): jsPDF {
   doc.setLineWidth(1); doc.line(M, y - 14, PW - M, y - 14);
   row('TOTAL', { total: r.t.total, target: b.targetTotal, actual: r.t.actual }, { bold: true, size: 12 });
 
+  // ---------- notes & assumptions ----------
+  if (b.notes?.trim()) {
+    y += 14;
+    need(40);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('NOTES & ASSUMPTIONS', M, y); y += 14;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    for (const ln of doc.splitTextToSize(b.notes.trim(), CW) as string[]) { need(12); doc.text(ln, M, y); y += 12; }
+  }
+
   // ---------- detail ----------
   const lineGroups = r.groups.flatMap((g) => g.accounts).filter((x) => x.lines.length);
   if (lineGroups.length) {
@@ -81,10 +90,22 @@ export function budgetPdf(p: Project, d: Derived, scenarioId?: string): jsPDF {
         doc.text(UNIT_LABEL[l.units] ?? l.units, X.units, y);
         doc.text(String(l.x), X.x, y, { align: 'right' });
         doc.text(r.$(l.rate), X.rate, y, { align: 'right' });
-        const fr = lineFringes(b, l);
+        const fr = r.t.lineFringe.get(l.id) ?? lineFringes(b, l);
         doc.text(fr ? r.$(fr) : '', X.fr, y, { align: 'right' });
-        doc.text(r.$(lineTotal(b, l)), X.total, y, { align: 'right' });
+        doc.text(r.$(r.t.lineTotal.get(l.id) ?? lineTotal(b, l)), X.total, y, { align: 'right' });
         y += 13;
+        // Sub-items (what the rate is made of) and the line's note, indented under it.
+        doc.setFontSize(8); doc.setTextColor(90);
+        for (const it of l.items ?? []) {
+          need(11);
+          doc.text(clip(doc, `– ${it.description || 'Item'}`, X.qty - X.desc - 40), X.desc + 10, y);
+          doc.text(`${it.qty} × ${r.$(it.rate)}`, X.rate, y, { align: 'right' });
+          y += 11;
+        }
+        if (l.notes) {
+          for (const ln of doc.splitTextToSize(l.notes, X.rate - X.desc - 10) as string[]) { need(11); doc.text(ln, X.desc + 10, y); y += 11; }
+        }
+        doc.setFontSize(9); doc.setTextColor(20);
       }
       doc.setFont('helvetica', 'bold');
       doc.setLineWidth(0.4); doc.line(X.rate - 40, y - 9, PW - M, y - 9);

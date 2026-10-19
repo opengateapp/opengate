@@ -77,7 +77,9 @@ describe('budget from the breakdown', () => {
     expect(by('location', 'drivein')).toMatchObject({ accountId: 'acc-2900', rate: 1500 });
     expect(by('element', 'truck')).toMatchObject({ accountId: 'acc-3000', qty: 1, units: 'days' });
     expect(by('element', 'can')).toMatchObject({ accountId: 'acc-2500', units: 'allow' });
-    expect(by('shootDays').qty).toBe(3);
+    // Catering: people on set × days = (cast in each day's scenes + 2 daily crew) summed over 3 days.
+    const castPerDay = p.schedule.days.slice(0, 3).map((day) => new Set(day.items.flatMap((it) => it.kind === 'scene' ? (derive(p.scriptDoc).sceneById.get(it.sceneId)?.characters ?? []) : [])).size);
+    expect(by('headcount').qty).toBe(castPerDay.reduce((a, n) => a + n + 2, 0));
     expect(orphaned.size).toBe(0);
     // Importing again adds nothing new.
     expect(importFromBreakdown(withLines, f)).toEqual([]);
@@ -85,7 +87,7 @@ describe('budget from the breakdown', () => {
     // Unscheduling a day drops the per-day quantities; deleting the DP orphans that line.
     const later = produce(withLines, (dr) => { dr.schedule.days[2].items = []; dr.crew = dr.crew.filter((c) => c.id !== 'dp'); });
     const r2 = resolveLines(later, breakdownFacts(later, derive(later.scriptDoc)));
-    expect(r2.lines.find((l) => l.link?.kind === 'shootDays')!.qty).toBe(2);
+    expect(r2.lines.find((l) => l.link?.kind === 'headcount')!.qty).toBe(castPerDay[0] + castPerDay[1] + 2);
     expect(r2.orphaned.has(by('crew', 'dp').id)).toBe(true);
   });
 
@@ -116,8 +118,8 @@ describe('budget from the breakdown', () => {
   it('keeps a typed quantity once a line is unlinked', () => {
     const p = scheduled();
     const f = breakdownFacts(p, derive(p.scriptDoc));
-    const meals = { ...importFromBreakdown(p, f).find((l) => l.link?.kind === 'shootDays')!, qty: 7 };
-    expect(resolveLines(p, f, [meals]).lines[0].qty).toBe(3);
+    const meals = { ...importFromBreakdown(p, f).find((l) => l.link?.kind === 'headcount')!, qty: 7 };
+    expect(resolveLines(p, f, [meals]).lines[0].qty).toBe(f.personDays);
     expect(resolveLines(p, f, [{ ...meals, link: { ...meals.link!, auto: false } }]).lines[0].qty).toBe(7);
   });
 
@@ -192,5 +194,37 @@ describe('budget: prep/wrap, rentals, overtime and added percentages', () => {
     const base = [L({ id: 'dp', qty: 10, rate: 500, prepDays: 3, wrapDays: 1, link: { kind: 'crew', id: 'dp', auto: true } })];
     b.scenarios = [{ id: 's', name: '8 days', shootDays: 8, overrides: {}, added: [] }];
     expect(scenarioLines(b, base, 's')[0].qty).toBe(12);
+  });
+});
+
+describe('budget: formulas, sub-items and fringes', () => {
+  it('evaluates formulas safely', async () => {
+    const { evaluate, isFormula } = await import('./budget/expr');
+    expect(evaluate('SHOOT_WEEKS * 5 + 2', { SHOOT_WEEKS: 3 }).value).toBe(17);
+    expect(evaluate('(crew + 2) / 2', { CREW: 6 }).value).toBe(4);
+    expect(evaluate('-3 + 10', {}).value).toBe(7);
+    expect(evaluate('PREP + 1', {}).error).toMatch(/Unknown name PREP/);
+    expect(evaluate('alert(1)', {}).error).toBeTruthy();
+    expect(isFormula('12')).toBe(false);
+    expect(isFormula('SHOOT_DAYS + 2')).toBe(true);
+  });
+
+  it('works out formulas and sub-items before adding up', async () => {
+    const { finalizeLines } = await import('./budget/calc');
+    const [l] = finalizeLines([L({ qty: 1, qtyExpr: 'SHOOT_WEEKS', units: 'weeks', xExpr: 'CREW / 2', items: [{ id: 'a', description: 'Body', qty: 1, rate: 500 }, { id: 'b', description: 'Lenses', qty: 4, rate: 75 }] })], { SHOOT_WEEKS: 3, CREW: 4 });
+    expect(l).toMatchObject({ qty: 3, x: 2, rate: 800 });
+  });
+
+  it('applies flat fringes and per-person caps across lines', async () => {
+    const { fringeByLine } = await import('./budget/calc');
+    const b = newBudget();
+    b.fringes = [{ id: 'ph', name: 'P&H', pct: 10, cap: 1000, capPerPerson: true }, { id: 'day', name: 'Union per day', pct: 0, flat: 20, flatPer: 'day' }];
+    const lines = [
+      L({ id: 'w', qty: 2, rate: 400, fringeIds: ['ph', 'day'], link: { kind: 'cast', id: 'maya', auto: true } }), // 800 wages, 2 days
+      L({ id: 'h', qty: 1, rate: 400, fringeIds: ['ph'], link: { kind: 'castHold', id: 'maya', auto: true } }), // same person: only 200 left under the cap
+    ];
+    const m = fringeByLine(b, lines);
+    expect(m.get('w')).toBe(80 + 40);
+    expect(m.get('h')).toBe(20);
   });
 });

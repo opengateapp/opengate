@@ -1,7 +1,7 @@
 import type { BudgetLine, BudgetLinkKind, BudgetUnits, Project } from '../model/types';
 import { newId } from '../model/ids';
 import type { Derived } from '../script/derive';
-import { sceneElements } from '../script/derive';
+import { sceneCast, sceneElements } from '../script/derive';
 import { buildDood, shootDays } from '../schedule/dood';
 import { sceneLocation } from '../schedule/callsheet';
 
@@ -18,6 +18,10 @@ export interface BreakdownFacts {
   elementDays: Map<string, number>;
   /** Characters in the Day Out of Days, keyed like link ids (cast member id or `char:NAME`). */
   cast: { key: string; label: string; work: number; hold: number }[];
+  /** People on set summed over shoot days (cast in the day's scenes + daily crew), for catering. */
+  personDays: number;
+  /** Days each piece of gear is needed (from the shot designer's plans). */
+  gearDays: Map<string, number>;
 }
 
 export function breakdownFacts(p: Project, d: Derived): BreakdownFacts {
@@ -35,9 +39,12 @@ export function breakdownFacts(p: Project, d: Derived): BreakdownFacts {
   }
   const locationDays = new Map<string, number>();
   const elementDays = new Map<string, number>();
+  const dailyCrew = p.crew.filter((c) => c.dailyDefault !== false).length;
+  let personDays = 0;
   for (const { day } of days) {
     const locs = new Set<string>();
     const els = new Set<string>();
+    const castToday = new Set<string>();
     for (const it of day.items) {
       if (it.kind !== 'scene') continue;
       const sc = d.sceneById.get(it.sceneId);
@@ -45,11 +52,13 @@ export function breakdownFacts(p: Project, d: Derived): BreakdownFacts {
       const loc = sceneLocation(p, sc);
       if (loc) locs.add(loc.id);
       for (const e of sceneElements(p, sc)) els.add(e.id);
+      for (const n of sceneCast(p, sc)) castToday.add(n.toUpperCase());
     }
+    personDays += castToday.size + dailyCrew;
     for (const id of locs) locationDays.set(id, (locationDays.get(id) ?? 0) + 1);
     for (const id of els) elementDays.set(id, (elementDays.get(id) ?? 0) + 1);
   }
-  return { shootDays: days.length, castWork, castHold, locationDays, elementDays, cast };
+  return { shootDays: days.length, castWork, castHold, locationDays, elementDays, cast, personDays, gearDays: gearDaysOf(p, d) };
 }
 
 /** The quantity a linked line should have now; null when its source no longer exists. */
@@ -61,6 +70,8 @@ export function linkedQty(p: Project, f: BreakdownFacts, link: NonNullable<Budge
     case 'castHold': return f.castHold.get(link.id ?? '') ?? (p.cast.some((c) => c.id === link.id) ? 0 : null);
     case 'location': return p.locations.some((l) => l.id === link.id) ? f.locationDays.get(link.id ?? '') ?? 0 : null;
     case 'element': return p.elements.some((e) => e.id === link.id) ? f.elementDays.get(link.id ?? '') ?? 0 : null;
+    case 'headcount': return f.personDays;
+    case 'gear': return f.gearDays.has(link.id ?? '') ? f.gearDays.get(link.id ?? '')! : null;
   }
 }
 
@@ -160,7 +171,7 @@ export function importFromBreakdown(p: Project, f: BreakdownFacts): BudgetLine[]
     const cat = p.categories.find((c) => c.id === e.categoryId)?.name ?? '';
     add(line(m.account, `${e.name}${cat ? ` (${cat})` : ''}`, m.units, { kind: 'element', id: e.id }));
   }
-  if (f.shootDays > 0) add(line('3500', 'Meals & craft services (per shoot day)', 'days', { kind: 'shootDays' }));
+  if (f.shootDays > 0) add(line('3500', 'Meals & craft services (per person per day)', 'each', { kind: 'headcount' }));
   return out;
 }
 
@@ -171,4 +182,20 @@ export const LINK_LABEL: Record<BudgetLinkKind, string> = {
   location: 'Shoot days at this location',
   element: 'Shoot days with this element',
   shootDays: 'Shoot days',
+  headcount: 'People on set × shoot days (cast in each day’s scenes + daily crew)',
+  gear: 'Days the gear is needed, from the shot designer',
 };
+
+/** Days each gear item is needed; filled in by the gear manifest (shot designer plans). */
+export function gearDaysOf(p: Project, d: Derived): Map<string, number> {
+  void d;
+  const days = shootDays(p);
+  const out = new Map<string, number>();
+  for (const g of p.gear ?? []) {
+    if (g.days != null) { out.set(g.id, g.days); continue; }
+    if (!g.sceneIds.length) { out.set(g.id, days.length); continue; }
+    const want = new Set(g.sceneIds);
+    out.set(g.id, days.filter(({ day }) => day.items.some((it) => it.kind === 'scene' && want.has(it.sceneId))).length);
+  }
+  return out;
+}

@@ -32,8 +32,8 @@ export async function budgetXlsx(p: Project, d: Derived, scenarioId?: string): P
   const detail: (string | number | { f: string; v?: number })[][] = [header];
   for (const g of r.groups) for (const x of g.accounts) for (const l of x.lines) {
     const row = detail.length + 1;
-    const fr = lineFringes(b, l);
-    detail.push([accountLabel(x.a), l.description, round(l.qty), UNIT_LABEL[l.units] ?? l.units, l.x, l.rate, (l.units === 'rentdays' || linePremium(l, b) ? round(lineBase(l, b)) : { f: `C${row}*E${row}*F${row}`, v: round(l.qty * l.x * l.rate) }), round(fr), { f: `G${row}+H${row}`, v: round(lineTotal(b, l)) }]);
+    const fr = r.t.lineFringe.get(l.id) ?? lineFringes(b, l);
+    detail.push([accountLabel(x.a), l.description, round(l.qty), UNIT_LABEL[l.units] ?? l.units, l.x, l.rate, (l.units === 'rentdays' || linePremium(l, b) ? round(lineBase(l, b)) : { f: `C${row}*E${row}*F${row}`, v: round(l.qty * l.x * l.rate) }), round(fr), { f: `G${row}+H${row}`, v: round(r.t.lineTotal.get(l.id) ?? lineTotal(b, l)) }]);
   }
   const wsDetail = XLSX.utils.aoa_to_sheet(detail);
   wsDetail['!cols'] = [{ wch: 28 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
