@@ -1309,3 +1309,9 @@ input.bad { outline: 2px solid #dc2626; }
 .cost-table input.typed { color: var(--accent); font-weight: 600; }
 .cost-summary { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 .cost-table tr.group td { font-weight: 700; border-bottom: 2px solid var(--border); }
+.template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.template-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; text-align: left; border-radius: var(--radius); }
+.template-card:hover { border-color: var(--accent); }
+.budget-start { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; background: var(--accent-soft); border-bottom: 1px solid var(--border); }
+.budget-start .muted { flex: 1 1 260px; }
+.budget-lines input.is-formula { min-width: 120px; }

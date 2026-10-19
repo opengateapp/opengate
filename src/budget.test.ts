@@ -253,3 +253,39 @@ describe('cost report', () => {
     expect(r.reserve).toBe(700);
   });
 });
+
+describe('budget templates and spreadsheet import', () => {
+  it('builds template lines into the right accounts', async () => {
+    const { BUDGET_TEMPLATES, templateLines } = await import('./budget/templates');
+    const b = newBudget();
+    for (const t of BUDGET_TEMPLATES) {
+      const accounts = t.accounts ?? b.accounts;
+      const lines = templateLines(t, accounts);
+      expect(lines).toHaveLength(t.lines.length);
+      for (const l of lines) expect(accounts.some((a) => a.id === l.accountId), `${t.id}: ${l.description}`).toBe(true);
+    }
+    const short = templateLines(BUDGET_TEMPLATES.find((t) => t.id === 'short')!, b.accounts);
+    expect(short.find((l) => l.description === 'Camera package')?.items?.length).toBe(4);
+    expect(short.find((l) => l.link?.kind === 'headcount')).toBeTruthy();
+  });
+
+  it('reads a spreadsheet budget, matching accounts by code or name', async () => {
+    const { parseCsv } = await import('./budget/expenses');
+    const { guessSheetMapping, headerRow, sheetToLines } = await import('./budget/importSheet');
+    const rows = parseCsv('My Film budget,,,,,\nAccount,Description,Qty,Units,X,Rate\n2200,Camera package,5,days,1,"$1,200"\nCatering,Lunch,5,days,20,15\nMystery,Something,,,,\nOther,Festival fees,,,,\n');
+    const h = headerRow(rows);
+    expect(h).toBe(1);
+    const map = guessSheetMapping(rows[h]);
+    expect(map).toMatchObject({ account: 0, description: 1, qty: 2, units: 3, x: 4, rate: 5 });
+    const b = newBudget();
+    const lines = sheetToLines(rows, map, b.accounts, 'acc-5200', h + 1);
+    expect(lines.map((l) => [l.accountId, l.description, l.qty, l.units, l.x, l.rate])).toEqual([
+      ['acc-2200', 'Camera package', 5, 'days', 1, 1200],
+      ['acc-3500', 'Lunch', 5, 'days', 20, 15],
+      ['acc-5200', 'Something', 1, 'flat', 1, 0],
+      ['acc-5200', 'Festival fees', 1, 'flat', 1, 0],
+    ]);
+    const totalsOnly = parseCsv('Line item,Total\nInsurance,2500\n');
+    expect(sheetToLines(totalsOnly, guessSheetMapping(totalsOnly[0]), b.accounts, 'acc-5200')).toMatchObject([{ description: 'Insurance', qty: 1, x: 1, rate: 2500 }]);
+  });
+});

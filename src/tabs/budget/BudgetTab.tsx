@@ -17,6 +17,7 @@ import { budgetView } from '../../budget/pipeline';
 import { evaluate, isFormula, type Vars } from '../../budget/expr';
 import { BUILT_IN_VARS } from '../../budget/pipeline';
 import { costReport, lockBudget } from '../../budget/costReport';
+import { SheetImport, TemplatePicker } from './BudgetImport';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -130,6 +131,7 @@ function BudgetScreen() {
   const [accountId, setAccountId] = useState<string>(() => b.accounts.find((a) => a.code === '1400')?.id ?? b.accounts[0]?.id);
   const [showEmpty, setShowEmpty] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [dialog, setDialog] = useState<'templates' | 'import' | null>(null);
   const cur = b.currency;
   const $ = (n: number) => money(n, cur);
   const pages = useDerived().pageCount;
@@ -173,6 +175,8 @@ function BudgetScreen() {
           </select>
         </label>
         <More label="Budget actions">
+        {!ro && <button onClick={() => setDialog('templates')} title="Typical lines for a short, a feature, a music video or a commercial">Templates…</button>}
+        {!ro && <button onClick={() => setDialog('import')} title="Bring in an existing budget from CSV or Excel">Import spreadsheet…</button>}
         {mode === 'build' && !ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet">⛓ Update from breakdown</button>}
         <button onClick={() => exportBudget(p, 'pdf', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet and detail of the version shown">PDF</button>
         <button onClick={() => exportBudget(p, 'xlsx', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet, detail with formulas, and expenses">Excel</button>
@@ -187,6 +191,17 @@ function BudgetScreen() {
       </div>
 
       {settings && <BudgetSettings ro={ro} vars={view.vars} />}
+      {dialog === 'templates' && <TemplatePicker onClose={() => setDialog(null)} />}
+      {dialog === 'import' && <SheetImport onClose={() => setDialog(null)} />}
+      {!ro && !b.lines.length && mode === 'build' && (
+        <div className="budget-start">
+          <b>Starting a budget?</b>
+          <span className="muted small">Begin from a template, pull in your breakdown, or import a spreadsheet you already have.</span>
+          <button className="primary" onClick={() => setDialog('templates')}>Templates…</button>
+          <button onClick={importLines}>⛓ From the breakdown</button>
+          <button onClick={() => setDialog('import')}>Import spreadsheet…</button>
+        </div>
+      )}
       {scenario && mode !== 'scenarios' && <p className="budget-note">Showing <b>{scenario.name}</b>. Changes to quantities and rates are saved to this version only; the base budget stays as it is.</p>}
 
       {mode === 'cost' ? (
