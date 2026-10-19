@@ -67,6 +67,15 @@ export function TitlePageEditor() {
         <textarea className="tp-contact" rows={4} value={tp.contact} placeholder={'Contact\nAddress\nPhone\nEmail'} onChange={(e) => set('contact', e.target.value)} />
         <input className="tp-draft" value={tp.draftDate} placeholder="Draft / date" onChange={(e) => set('draftDate', e.target.value)} />
       </div>
+      <div className="tp-phone-form">
+        <p className="muted small">The page above shows the real layout; edit the text here.</p>
+        <label className="field"><span>Title</span><input value={tp.title} onChange={(e) => set('title', e.target.value)} /></label>
+        <label className="field"><span>Credit</span><input value={tp.credit} placeholder="Written by" onChange={(e) => set('credit', e.target.value)} /></label>
+        <label className="field"><span>Author(s)</span><input value={tp.author} onChange={(e) => set('author', e.target.value)} /></label>
+        <label className="field"><span>Based on</span><input value={tp.source} placeholder="Optional" onChange={(e) => set('source', e.target.value)} /></label>
+        <label className="field"><span>Contact</span><textarea rows={4} value={tp.contact} placeholder={'Address\nPhone\nEmail'} onChange={(e) => set('contact', e.target.value)} /></label>
+        <label className="field"><span>Draft / date</span><input value={tp.draftDate} onChange={(e) => set('draftDate', e.target.value)} /></label>
+      </div>
     </div>
   );
 }

@@ -73,3 +73,25 @@ describe('Character builder options', () => {
     expect(basic[basic.length - 1]).toBe('custom:f1');
   });
 });
+
+describe('stylus', () => {
+  it('rejects fingers once a pen is used, honours the setting, and maps pressure to width', async () => {
+    const { usePen, notePointer, drawsWith, isPalm, isPenEraser, pressureOf, widthFor } = await import('./ui/pen');
+    usePen.setState({ seen: false, mode: 'auto' });
+    expect(drawsWith({ pointerType: 'touch' })).toBe(true);
+    notePointer({ pointerType: 'pen', type: 'pointerdown' });
+    expect(drawsWith({ pointerType: 'touch' })).toBe(false);
+    expect(drawsWith({ pointerType: 'pen' })).toBe(true);
+    expect(isPalm({ pointerType: 'touch' })).toBe(true);
+    notePointer({ pointerType: 'pen', type: 'pointerup' });
+    usePen.getState().setMode('any');
+    expect(drawsWith({ pointerType: 'touch' })).toBe(true);
+    expect(isPenEraser({ pointerType: 'pen', button: 5, buttons: 32 })).toBe(true);
+    expect(isPenEraser({ pointerType: 'pen', button: 0, buttons: 1 })).toBe(false);
+    expect(pressureOf({ pointerType: 'mouse', pressure: 0.5 })).toBeUndefined();
+    expect(pressureOf({ pointerType: 'pen', pressure: 0 })).toBe(0.5);
+    expect(widthFor(10, 1)).toBeCloseTo(18);
+    expect(widthFor(10, 0.1)).toBeLessThan(5);
+    expect(widthFor(10)).toBe(10);
+  });
+});

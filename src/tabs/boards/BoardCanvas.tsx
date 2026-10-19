@@ -5,6 +5,7 @@ import { toast } from '../../components/common';
 import { addItems, bounds, hostOf, itemsFromTransfer, makeItem, readTransfer, removeItems, updateItems } from './boardOps';
 import { askText } from '../../components/dialogs';
 import { BOARD_MIME, getBoardClipboard, setBoardClipboard } from '../../components/clipboard';
+import { isPalm, notePointer, pressureOf, samplesOf, widthFor } from '../../ui/pen';
 import { newId } from '../../model/ids';
 
 export type Tool = 'select' | 'hand' | 'pen' | 'note' | 'text' | 'rect' | 'ellipse' | 'arrow' | 'frame';
@@ -27,7 +28,7 @@ type Drag =
   | { kind: 'resize'; id: string; sx: number; sy: number; w: number; h: number; dw: number; dh: number; keep: number | null }
   | { kind: 'pan'; sx: number; sy: number; vx: number; vy: number }
   | { kind: 'marquee'; x0: number; y0: number; x1: number; y1: number; add: boolean }
-  | { kind: 'stroke'; points: number[] }
+  | { kind: 'stroke'; points: number[]; pressures?: number[] }
   | { kind: 'create'; type: BoardItemType; shape?: BoardItem['shape']; x0: number; y0: number; x1: number; y1: number };
 
 const QUICK: { type: BoardItemType; label: string; icon: string; shape?: BoardItem['shape'] }[] = [
@@ -194,6 +195,9 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
   const itemAt = (target: EventTarget | null) => (target as HTMLElement | null)?.closest?.('[data-item-id]') as HTMLElement | null;
 
   const onPointerDown = (e: React.PointerEvent) => {
+    notePointer(e);
+    // A palm resting on the screen while a pen writes is ignored.
+    if (isPalm(e)) return;
     if (e.pointerType === 'touch') {
       touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touches.current.size === 2) {
@@ -202,7 +206,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
         const { d, mx, my } = twoFinger();
         const w = toWorld(mx, my);
         pinch.current = { d0: d, s0: viewRef.current.s, wx: w.x, wy: w.y };
-        host.current!.setPointerCapture(e.pointerId);
+        try { host.current!.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
         return;
       }
       if (touches.current.size > 2) return;
@@ -211,13 +215,13 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     setQuick(null);
     const el = e.target as HTMLElement;
     if (el.closest('.board-item-editor, .quick-add, .board-toolbar')) return;
-    host.current!.setPointerCapture(e.pointerId);
+    try { host.current!.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
     const w = toWorld(e.clientX, e.clientY);
     if (e.button === 1 || space || tool === 'hand') {
       setDrag({ kind: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y });
       return;
     }
-    if (tool === 'pen') { setDrag({ kind: 'stroke', points: [w.x, w.y] }); return; }
+    if (tool === 'pen') { const pr = pressureOf(e); setDrag({ kind: 'stroke', points: [w.x, w.y], ...(pr != null ? { pressures: [pr] } : {}) }); return; }
     if (tool !== 'select') {
       const type: BoardItemType = tool === 'rect' || tool === 'ellipse' || tool === 'arrow' ? 'shape' : tool;
       setDrag({ kind: 'create', type, shape: type === 'shape' ? (tool as BoardItem['shape']) : undefined, x0: w.x, y0: w.y, x1: w.x, y1: w.y });
@@ -252,6 +256,8 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       return;
     }
     if (!e.shiftKey) onSelect([]);
+    // A pen on empty space draws, without switching tools (fingers keep panning).
+    if (e.pointerType === 'pen') { setDrag({ kind: 'stroke', points: [w.x, w.y], pressures: [pressureOf(e) ?? 0.5] }); return; }
     // One finger on empty space pans (a finger can't hold Shift for a selection box).
     if (e.pointerType === 'touch') { setDrag({ kind: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y }); return; }
     setDrag({ kind: 'marquee', x0: w.x, y0: w.y, x1: w.x, y1: w.y, add: e.shiftKey });
@@ -290,9 +296,16 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       case 'marquee':
         setDrag({ ...drag, x1: w.x, y1: w.y });
         break;
-      case 'stroke':
-        setDrag({ kind: 'stroke', points: [...drag.points, w.x, w.y] });
+      case 'stroke': {
+        // Every sample the pen produced since the last event, for smooth lines.
+        const samples = samplesOf(e).map((ev) => ({ ...toWorld(ev.clientX, ev.clientY), p: pressureOf(ev) }));
+        setDrag({
+          kind: 'stroke',
+          points: [...drag.points, ...samples.flatMap((s) => [s.x, s.y])],
+          ...(drag.pressures ? { pressures: [...drag.pressures, ...samples.map((s) => s.p ?? 0.5)] } : {}),
+        });
         break;
+      }
       case 'create':
         setDrag({ ...drag, x1: w.x, y1: w.y });
         break;
@@ -300,6 +313,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    notePointer(e);
     if (e.pointerType === 'touch') {
       touches.current.delete(e.pointerId);
       if (pinch.current) { if (touches.current.size < 2) pinch.current = null; setDrag(null); return; }
@@ -330,7 +344,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
       const ys = d.points.filter((_, i) => i % 2 === 1);
       const x = Math.min(...xs), y = Math.min(...ys);
       const pts = d.points.map((v, i) => Math.round((i % 2 === 0 ? v - x : v - y) * 10) / 10);
-      addItems(board.id, [{ id: newId(), type: 'stroke', x: Math.round(x), y: Math.round(y), w: Math.max(1, Math.max(...xs) - x), h: Math.max(1, Math.max(...ys) - y), z: 0, points: pts, color: ink, strokeWidth: 3 }], 'Draw');
+      addItems(board.id, [{ id: newId(), type: 'stroke', x: Math.round(x), y: Math.round(y), w: Math.max(1, Math.max(...xs) - x), h: Math.max(1, Math.max(...ys) - y), z: 0, points: pts, color: ink, strokeWidth: 3, ...(d.pressures ? { pressures: d.pressures.map((p) => Math.round(p * 100) / 100) } : {}) }], 'Draw');
     }
     if (d.kind === 'create') {
       const big = Math.abs(d.x1 - d.x0) > 8 || Math.abs(d.y1 - d.y0) > 8;
@@ -452,7 +466,9 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
         })}
         {drag?.kind === 'stroke' && (
           <svg className="board-ink" style={{ left: 0, top: 0, overflow: 'visible' }} width={1} height={1}>
-            <polyline points={pairs(drag.points)} fill="none" stroke={ink} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+            {drag.pressures
+              ? <PressureLine points={drag.points} pressures={drag.pressures} color={ink} width={3} />
+              : <polyline points={pairs(drag.points)} fill="none" stroke={ink} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />}
           </svg>
         )}
         {drag?.kind === 'marquee' && (
@@ -569,7 +585,9 @@ function ItemView({ item, x, y, w, h, selected, single, editing, linking, onEdit
     case 'stroke':
       body = (
         <svg width={w} height={h} style={{ overflow: 'visible' }}>
-          <polyline points={pairs((item.points ?? []).map((v, i) => (i % 2 === 0 ? v * (w / Math.max(1, item.w)) : v * (h / Math.max(1, item.h)))))} fill="none" stroke={item.color} strokeWidth={item.strokeWidth ?? 3} strokeLinecap="round" strokeLinejoin="round" />
+          {item.pressures
+            ? <PressureLine points={(item.points ?? []).map((v, i) => (i % 2 === 0 ? v * (w / Math.max(1, item.w)) : v * (h / Math.max(1, item.h))))} pressures={item.pressures} color={item.color ?? '#000'} width={item.strokeWidth ?? 3} />
+            : <polyline points={pairs((item.points ?? []).map((v, i) => (i % 2 === 0 ? v * (w / Math.max(1, item.w)) : v * (h / Math.max(1, item.h)))))} fill="none" stroke={item.color} strokeWidth={item.strokeWidth ?? 3} strokeLinecap="round" strokeLinejoin="round" />}
         </svg>
       );
       break;
@@ -590,3 +608,14 @@ function ItemView({ item, x, y, w, h, selected, single, editing, linking, onEdit
   );
 }
 
+
+/** A pen stroke whose width follows the pressure at each point. */
+function PressureLine({ points, pressures, color, width }: { points: number[]; pressures: number[]; color: string; width: number }) {
+  const segs: JSX.Element[] = [];
+  for (let i = 2; i < points.length; i += 2) {
+    const p = ((pressures[i / 2 - 1] ?? 0.5) + (pressures[i / 2] ?? 0.5)) / 2;
+    segs.push(<line key={i} x1={points[i - 2]} y1={points[i - 1]} x2={points[i]} y2={points[i + 1]} strokeWidth={widthFor(width * 1.4, p)} />);
+  }
+  if (points.length === 2) segs.push(<circle key="dot" cx={points[0]} cy={points[1]} r={widthFor(width * 1.4, pressures[0]) / 2} fill={color} stroke="none" />);
+  return <g stroke={color} strokeLinecap="round">{segs}</g>;
+}

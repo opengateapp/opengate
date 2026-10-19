@@ -32,7 +32,7 @@ export function SetupTab() {
     <div className="setup-tab with-side">
       <aside className="side">
         {(['appearance', 'phone', 'characters', 'production', 'cast', 'locations', 'crew', 'categories', 'colors'] as const).map((s) => (
-          <button key={s} className={`side-link ${section === s ? 'active' : ''}`} onClick={() => setSection(s)}>
+          <button key={s} className={`side-link ${section === s ? 'active' : ''}`} onClick={(e) => { setSection(s); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}>
             {{ appearance: 'Appearance', phone: 'Phone layout', characters: 'Character builder', production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors' }[s]}
           </button>
         ))}

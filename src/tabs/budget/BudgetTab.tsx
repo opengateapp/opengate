@@ -688,6 +688,9 @@ function ScenariosView({ scenarioId, setScenarioId, ro }: { scenarioId?: string;
               <tr key={g.id}><td>{g.label}</td>{cols.map((c) => <td key={c.id ?? 'base'} className="num">{$(c.t.byGroup[g.id])}</td>)}</tr>
             ))}
             <tr><td>Contingency ({b.contingencyPct}%)</td>{cols.map((c) => <td key={c.id ?? 'base'} className="num">{$(c.t.contingency)}</td>)}</tr>
+            {(b.applied ?? []).map((a) => (
+              <tr key={a.id} className={a.credit ? 'credit' : ''}><td>{a.name} ({a.credit ? '−' : ''}{a.pct}%)</td>{cols.map((c) => <td key={c.id ?? 'base'} className="num">{$(c.t.applied.find((x) => x.id === a.id)?.amount ?? 0)}</td>)}</tr>
+            ))}
             <tr className="grand"><td>Total</td>{cols.map((c) => <td key={c.id ?? 'base'} className="num">{$(c.t.total)}</td>)}</tr>
             <tr>
               <td>vs. base</td>

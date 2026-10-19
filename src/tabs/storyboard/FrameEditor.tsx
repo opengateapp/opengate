@@ -6,6 +6,8 @@ import { boardFrames } from '../../script/storyboard';
 import { SHOT_TYPES } from '../../model/defaults';
 import { FRAME_H, FRAME_W, drawContain } from './render';
 import { More } from '../../components/More';
+import { drawsWith, isPenEraser, notePointer, pressureOf, samplesOf, widthFor, usePen, type PenMode } from '../../ui/pen';
+import { useTouch } from '../../ui/responsive';
 import { prepareImage } from './images';
 
 // Frame editor after DontPayForStoryboardingSoftware: pen / brush / eraser / fill / line /
@@ -50,7 +52,11 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const [, force] = useState(0);
   const dirty = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const drawing = useRef<{ start: { x: number; y: number }; last: { x: number; y: number }; points: { x: number; y: number }[]; snap: ImageData } | null>(null);
+  type Pt = { x: number; y: number; p?: number };
+  const pen = usePen();
+  const touch = useTouch();
+  const drawing = useRef<{ start: Pt; last: Pt; points: Pt[]; snap: ImageData; erasing?: boolean } | null>(null);
+  const penLayer = useRef<HTMLCanvasElement | null>(null);
 
   const ctx = () => drawRef.current!.getContext('2d', { willReadFrequently: true })!;
 
@@ -180,9 +186,9 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   });
 
   // ---- Drawing ----
-  const at = (e: React.PointerEvent) => {
+  const at = (e: { clientX: number; clientY: number; pointerType: string; pressure: number }) => {
     const r = drawRef.current!.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) * FRAME_W) / r.width, y: ((e.clientY - r.top) * FRAME_H) / r.height, cssX: e.clientX - r.left, cssY: e.clientY - r.top, scale: FRAME_W / r.width };
+    return { x: ((e.clientX - r.left) * FRAME_W) / r.width, y: ((e.clientY - r.top) * FRAME_H) / r.height, cssX: e.clientX - r.left, cssY: e.clientY - r.top, scale: FRAME_W / r.width, p: pressureOf(e) };
   };
   const strokeStyle = (c: CanvasRenderingContext2D) => {
     c.lineCap = 'round'; c.lineJoin = 'round';
@@ -191,28 +197,52 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     c.lineWidth = tool === 'brush' ? size * 2.5 : size;
   };
   const down = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    notePointer(e);
+    // Palm rejection: once a pen is in use, fingers don't draw (Settings → Pencil in the brush menu).
+    if (!drawsWith(e)) return;
+    const penEraser = isPenEraser(e);
+    if (e.button !== 0 && !penEraser) return;
     const q = at(e);
     if (tool === 'text') { setTextAt({ x: q.x, y: q.y, cssX: q.cssX, cssY: q.cssY }); setTextVal(''); return; }
     snapshot();
     const c = ctx();
     if (tool === 'fill') { floodFill(c, Math.round(q.x), Math.round(q.y), color, opacity); changed(); return; }
-    drawRef.current!.setPointerCapture(e.pointerId);
-    drawing.current = { start: q, last: q, points: [q], snap: c.getImageData(0, 0, FRAME_W, FRAME_H) };
-    if (tool === 'eraser') erase(q, q);
+    try { drawRef.current!.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
+    drawing.current = { start: q, last: q, points: [q], snap: c.getImageData(0, 0, FRAME_W, FRAME_H), erasing: penEraser };
+    if (tool === 'eraser' || penEraser) erase(q, q);
     else if (tool === 'pen' || tool === 'brush') { strokePath([q]); }
   };
-  const erase = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+  const erase = (a: Pt, b: Pt) => {
     const c = ctx();
     c.save();
     c.globalCompositeOperation = 'destination-out';
     c.globalAlpha = opacity;
-    c.lineCap = 'round'; c.lineWidth = size * 2.5;
+    c.lineCap = 'round'; c.lineWidth = widthFor(size * 2.5, b.p);
     c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x + 0.01, b.y); c.stroke();
     c.restore();
   };
-  const strokePath = (pts: { x: number; y: number }[]) => {
+  const strokePath = (pts: Pt[]) => {
     const c = ctx();
+    if (pts.some((q) => q.p != null)) {
+      // Pen pressure: draw each piece at its own width on a scratch layer at full strength,
+      // then lay the whole stroke down once, so opacity stays even where pieces overlap.
+      const layer = (penLayer.current ??= Object.assign(document.createElement('canvas'), { width: FRAME_W, height: FRAME_H }));
+      const t = layer.getContext('2d')!;
+      t.clearRect(0, 0, FRAME_W, FRAME_H);
+      t.lineCap = 'round'; t.lineJoin = 'round'; t.strokeStyle = color; t.fillStyle = color;
+      const base = tool === 'brush' ? size * 2.5 : size;
+      if (pts.length === 1) { t.beginPath(); t.arc(pts[0].x, pts[0].y, widthFor(base, pts[0].p) / 2, 0, Math.PI * 2); t.fill(); }
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        t.lineWidth = widthFor(base, ((a.p ?? 0.5) + (b.p ?? 0.5)) / 2);
+        t.beginPath(); t.moveTo(a.x, a.y); t.lineTo(b.x, b.y); t.stroke();
+      }
+      c.save();
+      c.globalAlpha = tool === 'brush' ? opacity * 0.6 : opacity;
+      c.drawImage(layer, 0, 0);
+      c.restore();
+      return;
+    }
     c.save();
     strokeStyle(c);
     c.beginPath();
@@ -225,12 +255,14 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const move = (e: React.PointerEvent) => {
     const st = drawing.current;
     if (!st) return;
-    const q = at(e);
+    // Pens report many samples between frames; use them all for smooth lines.
+    const qs = samplesOf(e).map((ev) => at(ev));
+    const q = qs[qs.length - 1] ?? at(e);
     const c = ctx();
-    if (tool === 'eraser') { erase(st.last, q); st.last = q; return; }
+    if (tool === 'eraser' || st.erasing) { for (const x of qs) { erase(st.last, x); st.last = x; } return; }
     if (tool === 'pen' || tool === 'brush') {
       // Re-stroke the whole path over the snapshot so opacity stays even where it overlaps itself.
-      st.points.push(q);
+      st.points.push(...qs);
       c.putImageData(st.snap, 0, 0);
       strokePath(st.points);
       return;
@@ -252,7 +284,8 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     c.stroke();
     c.restore();
   };
-  const up = () => {
+  const up = (e?: React.PointerEvent) => {
+    if (e) notePointer(e);
     if (!drawing.current) return;
     drawing.current = null;
     changed();
@@ -304,6 +337,15 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)">↷</button>
         <More label="Brush and frame options">
         <label className="check small">Size <input type="range" min={1} max={40} value={size} onChange={(e) => setSize(Number(e.target.value))} /> {size}</label>
+        {(pen.seen || touch) && (
+          <label className="check small" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
+            <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
+              <option value="auto">Auto</option>
+              <option value="pen">Pencil only</option>
+              <option value="any">Pencil &amp; fingers</option>
+            </select>
+          </label>
+        )}
         <label className="check small">Opacity <input type="range" min={0.05} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} /> {Math.round(opacity * 100)}%</label>
         <span className="sep" />
         <button className={grid ? 'active' : ''} onClick={() => setGrid(!grid)} title="Grid + rule of thirds (G)">Grid</button>

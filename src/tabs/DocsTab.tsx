@@ -111,7 +111,10 @@ function DocEditor({ id }: { id: string }) {
   const doc = useProject().docs.find((x) => x.id === id)!;
 
   useEffect(() => {
-    const state = EditorState.create({ doc: PMNode.fromJSON(docSchema, doc.doc), plugins: plugins() });
+    // A document that can't be read (damaged, or from a newer version) opens empty instead of crashing.
+    let start: PMNode | undefined;
+    try { start = PMNode.fromJSON(docSchema, doc.doc); } catch { start = undefined; }
+    const state = EditorState.create({ ...(start ? { doc: start } : { schema: docSchema }), plugins: plugins() });
     let timer: ReturnType<typeof setTimeout> | undefined;
     const v = new EditorView(host.current!, {
       state,

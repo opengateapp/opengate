@@ -453,6 +453,8 @@ export interface BoardItem {
   /** Stroke points relative to x/y. */
   points?: number[];
   strokeWidth?: number;
+  /** Pen pressure per point of a drawn stroke (0–1); varies the line width. */
+  pressures?: number[];
   /** Links into the production: these make the image show up in breakdown, shots and locations. */
   sceneIds?: Id[];
   locationIds?: Id[];

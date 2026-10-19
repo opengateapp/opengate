@@ -34,6 +34,7 @@ import { usePhoneTabs, visibleSections, registerSections } from './ui/phoneTabs'
 import { PhoneTopbar } from './ui/PhoneChrome';
 import { PhonePanels } from './ui/PhonePanels';
 import { ActionSheetHost } from './components/ActionSheet';
+import { TabBoundary } from './components/TabBoundary';
 import { ThemeToggle } from './components/ThemeToggle';
 import { JoinHandler } from './sync/JoinHandler';
 import { ShareBar } from './components/share/ShareBar';
@@ -229,6 +230,7 @@ export function App() {
       <AccessBanner />
       {phone && <PhonePanels tab={tab} />}
       <main className="tab-body">
+        <TabBoundary tab={tab}>
         {tab === 'screenplay' && <WriteTab />}
         {tab === 'av' && <AVScriptTab />}
         {tab === 'docs' && <DocsTab />}
@@ -249,6 +251,7 @@ export function App() {
         {tab === 'characters' && <CharactersTab />}
         {tab === 'reports' && <ShootTab />}
         {tab === 'setup' && <SetupTab />}
+        </TabBoundary>
       </main>
     </div>
   );
