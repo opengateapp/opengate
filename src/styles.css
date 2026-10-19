@@ -1384,3 +1384,22 @@ input.bad { outline: 2px solid #dc2626; }
 }
 .designer-side { border-right: none; border-left: 1px solid var(--border); }
 .designer > .designer-side { align-self: stretch; }
+
+/* ---------- Gear ---------- */
+.gear-totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 8px 0 14px; }
+.gear-totals > * { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+.gear-totals b { font-size: 16px; }
+.gear-totals .good b { color: var(--ok); }
+.gear-totals .gear-upkeep { grid-column: span 2; }
+.gear-table td { vertical-align: middle; }
+.gear-table td input:not(.cell-num) { width: 100%; min-width: 120px; }
+.gear-table .seg.small button { padding: 3px 7px; font-size: 12px; }
+.row.nowrap { flex-wrap: nowrap; }
+@media (max-width: 760px) {
+  .gear-totals .gear-upkeep { grid-column: 1 / -1; }
+  .gear-table .seg.small button { padding: 8px 10px; min-height: 40px; }
+}
+.gear-table .cell-num, .gear-upkeep .cell-num { width: 72px; flex: 0 0 72px; }
+.gear-table select { width: auto; max-width: 150px; }
+.gear-upkeep .row { align-items: center; gap: 6px; }
+.table-scroll { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }

@@ -629,6 +629,8 @@ export interface Budget {
   applied?: BudgetApplied[];
   /** Rental week: a 7-day rental billed as this many days (default 3). */
   rentalWeekDays?: number;
+  /** Insurance & upkeep on gear you own, as a % of what renting it would cost (0 = none). */
+  ownedGearPct?: number;
   /** Overtime basis for day-rate lines: hours in a day, and the multipliers. */
   dayHours?: number;
   otMult?: number;

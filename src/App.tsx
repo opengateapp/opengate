@@ -24,6 +24,7 @@ import { BoardsTab } from './tabs/boards/BoardsTab';
 import { LocationsTab } from './tabs/LocationsTab';
 import { CharactersTab } from './tabs/CharactersTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
+import { GearTab } from './tabs/budget/GearTab';
 import { CategoryStyles } from './components/CategoryStyles';
 import { ProjectMenu } from './components/ProjectMenu';
 import { SyncIssues } from './components/SyncIssues';
@@ -47,7 +48,7 @@ export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' 
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
-  | 'budget' | 'expenses'
+  | 'budget' | 'expenses' | 'gear'
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
@@ -69,6 +70,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'budget', label: 'Budget', tabs: [
     { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
     { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
+    { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
   ] },
   { id: 'plan', label: 'Plan', tabs: [
     { id: 'contacts', label: 'Contacts', hint: 'Cast, crew, vendors and other contacts' },
@@ -242,6 +244,7 @@ export function App() {
         {tab === 'sides' && <SidesView />}
         {tab === 'budget' && <BudgetTab />}
         {tab === 'expenses' && <ExpensesTab />}
+        {tab === 'gear' && <GearTab />}
         {tab === 'contacts' && <ContactsTab />}
         {tab === 'calendar' && <CalendarTab />}
         {tab === 'tasks' && <TasksTab />}

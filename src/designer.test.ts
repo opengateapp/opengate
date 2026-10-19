@@ -49,3 +49,35 @@ describe('shot designer', () => {
     expect(mediaIds(p)).toContain('set1');
   });
 });
+
+describe('gear manifest', () => {
+  it('adds up rentals, purchases and what owned gear saves, with an upkeep line', async () => {
+    const { gearTotals, UPKEEP_LINE } = await import('./budget/gear');
+    const p = produce(newProject('x'), (d) => {
+      d.gear = [
+        { id: 'a', name: 'Camera', category: 'camera', qty: 1, source: 'own', rate: 100, rateUnit: 'day', sceneIds: [], days: 5 },
+        { id: 'b', name: 'Lights', category: 'lighting', qty: 2, source: 'rent', rate: 50, rateUnit: 'day', sceneIds: [], days: 2 },
+        { id: 'c', name: 'Mic', category: 'sound', qty: 1, source: 'buy', rate: 300, rateUnit: 'day', sceneIds: [] },
+      ];
+      d.budget.ownedGearPct = 10;
+      syncPlanGear(d);
+    });
+    const t = gearTotals(p);
+    // 5 days at a 3-day rental week = 3 billed days (5 days < 7, min(5,3)=3)
+    expect(t.ownSaves).toBe(300);
+    expect(t.rent).toBe(200);
+    expect(t.buy).toBe(300);
+    expect(t.upkeep).toBe(30);
+    expect(p.budget.lines.find((l) => l.id === UPKEEP_LINE)?.rate).toBe(30);
+    expect(p.budget.lines.filter((l) => l.link?.kind === 'gear').map((l) => l.link!.id).sort()).toEqual(['b', 'c']);
+    const off = produce(p, (d) => { d.budget.ownedGearPct = 0; syncPlanGear(d); });
+    expect(off.budget.lines.some((l) => l.id === UPKEEP_LINE)).toBe(false);
+  });
+  it('prints a manifest, with or without costs', async () => {
+    const { gearPdf } = await import('./pdf/gearPdf');
+    const p = produce(newProject('x'), (d) => { d.gear = [{ id: 'b', name: 'Lights', category: 'lighting', qty: 2, source: 'rent', rate: 50, rateUnit: 'day', sceneIds: [] }]; });
+    const { derive } = await import('./script/derive');
+    expect(gearPdf(p, derive(p.scriptDoc)).getNumberOfPages()).toBe(1);
+    expect(gearPdf(p, derive(p.scriptDoc), false).getNumberOfPages()).toBe(1);
+  });
+});

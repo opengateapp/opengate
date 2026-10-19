@@ -191,7 +191,7 @@ export const LINK_LABEL: Record<BudgetLinkKind, string> = {
 };
 
 /** Days each gear item is needed; filled in by the gear manifest (shot designer plans). */
-export function gearDaysOf(p: Project, d: Derived): Map<string, number> {
+export function gearDaysOf(p: Project, d?: Derived): Map<string, number> {
   void d;
   const days = shootDays(p);
   const out = new Map<string, number>();

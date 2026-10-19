@@ -1,6 +1,7 @@
 import type { Draft } from 'immer';
 import type { BudgetLine, GearCategory, GearItem, Project } from '../model/types';
 import { newId } from '../model/ids';
+import { gearDaysOf } from './fromBreakdown';
 
 // The gear manifest: what the shoot needs, whether you own, rent, borrow or buy each item,
 // and what it costs. Cameras and lights placed in the shot designer appear here on their own
@@ -78,6 +79,36 @@ export function syncGearLines(d: Draft<Project>) {
     else lines.push({ id: newId(), accountId: accountFor(g.category)!, qty: 1, fringeIds: [], ...want, link: { kind: 'gear', id: g.id, auto: true } } as BudgetLine);
   }
   d.budget.lines = lines.filter((l) => l.link?.kind !== 'gear' || gear.some((g) => g.id === l.link!.id && (g.source === 'rent' || g.source === 'buy')));
+
+  // Owned gear isn't free to keep: an optional insurance & upkeep line, a % of what renting it would cost.
+  const pct = d.budget.ownedGearPct ?? 0;
+  const days = gearDaysOf(d as Project);
+  const ownedValue = gear.filter((g) => g.source === 'own').reduce((n, g) => n + gearCost(g, days.get(g.id) ?? 0, d.budget.rentalWeekDays ?? 3), 0);
+  const upkeep = Math.round(ownedValue * pct) / 100;
+  const at = d.budget.lines.findIndex((l) => l.id === UPKEEP_LINE);
+  if (pct > 0 && upkeep > 0) {
+    const want = { description: `Owned gear: insurance & upkeep (${pct}%)`, units: 'flat' as const, x: 1, qty: 1, rate: upkeep };
+    if (at >= 0) Object.assign(d.budget.lines[at], want);
+    else d.budget.lines.push({ id: UPKEEP_LINE, accountId: accountFor('other')!, fringeIds: [], ...want } as BudgetLine);
+  } else if (at >= 0) d.budget.lines.splice(at, 1);
+}
+
+export const UPKEEP_LINE = 'gear-owned-upkeep';
+
+/** What the gear list adds up to: paid out, and what owning / borrowing saves compared with renting. */
+export function gearTotals(p: Project): { rent: number; buy: number; ownSaves: number; borrowSaves: number; upkeep: number; days: Map<string, number> } {
+  const days = gearDaysOf(p);
+  const wk = p.budget.rentalWeekDays ?? 3;
+  const t = { rent: 0, buy: 0, ownSaves: 0, borrowSaves: 0, upkeep: 0, days };
+  for (const g of p.gear ?? []) {
+    const c = gearCost(g, days.get(g.id) ?? 0, wk);
+    if (g.source === 'rent') t.rent += c;
+    else if (g.source === 'buy') t.buy += c;
+    else if (g.source === 'own') t.ownSaves += c;
+    else t.borrowSaves += c;
+  }
+  t.upkeep = Math.round(t.ownSaves * (p.budget.ownedGearPct ?? 0)) / 100;
+  return t;
 }
 
 /** Cost of one item over `days` (what it would cost to rent, for owned / borrowed gear). */
