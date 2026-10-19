@@ -1,7 +1,7 @@
 import type { Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { accountLabel } from './accounts';
-import { budgetReport, lineFringes, lineTotal, UNIT_LABEL } from './report';
+import { budgetReport, lineBase, lineFringes, linePremium, lineTotal, UNIT_LABEL } from './report';
 
 // Budget workbook: Top Sheet, Detail (with live formulas for each line), Expenses.
 
@@ -21,6 +21,7 @@ export async function budgetXlsx(p: Project, d: Derived, scenarioId?: string): P
   top.push(['', 'Fringes (included above)', round(r.t.fringes)]);
   top.push(['', 'Subtotal', round(r.t.subtotal)]);
   top.push(['', `Contingency (${b.contingencyPct}%)`, round(r.t.contingency)]);
+  for (const a of r.t.applied) top.push(['', `${a.name} (${a.credit ? '−' : ''}${a.pct}%)`, round(a.amount)]);
   top.push(['', 'TOTAL', round(r.t.total), ...extra(b.targetTotal, r.t.actual)]);
   const wsTop = XLSX.utils.aoa_to_sheet(top);
   wsTop['!cols'] = [{ wch: 30 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
@@ -32,7 +33,7 @@ export async function budgetXlsx(p: Project, d: Derived, scenarioId?: string): P
   for (const g of r.groups) for (const x of g.accounts) for (const l of x.lines) {
     const row = detail.length + 1;
     const fr = lineFringes(b, l);
-    detail.push([accountLabel(x.a), l.description, round(l.qty), UNIT_LABEL[l.units] ?? l.units, l.x, l.rate, { f: `C${row}*E${row}*F${row}`, v: round(l.qty * l.x * l.rate) }, round(fr), { f: `G${row}+H${row}`, v: round(lineTotal(b, l)) }]);
+    detail.push([accountLabel(x.a), l.description, round(l.qty), UNIT_LABEL[l.units] ?? l.units, l.x, l.rate, (l.units === 'rentdays' || linePremium(l, b) ? round(lineBase(l, b)) : { f: `C${row}*E${row}*F${row}`, v: round(l.qty * l.x * l.rate) }), round(fr), { f: `G${row}+H${row}`, v: round(lineTotal(b, l)) }]);
   }
   const wsDetail = XLSX.utils.aoa_to_sheet(detail);
   wsDetail['!cols'] = [{ wch: 28 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];

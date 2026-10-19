@@ -52,6 +52,7 @@ export function budgetPdf(p: Project, d: Derived, scenarioId?: string): jsPDF {
   row('Fringes (included above)', { total: r.t.fringes });
   row('Subtotal', { total: r.t.subtotal }, { bold: true });
   row(`Contingency (${b.contingencyPct}%)`, { total: r.t.contingency });
+  for (const a of r.t.applied) row(`${a.name} (${a.credit ? '−' : ''}${a.pct}%)`, { total: a.amount });
   y += 6;
   doc.setLineWidth(1); doc.line(M, y - 14, PW - M, y - 14);
   row('TOTAL', { total: r.t.total, target: b.targetTotal, actual: r.t.actual }, { bold: true, size: 12 });

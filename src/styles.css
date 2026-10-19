@@ -1242,3 +1242,16 @@ hr.el-pageBreak { border: none; border-top: 2px dashed #bbb; margin: 18pt 0 6pt;
 .custom-field > input { flex: 1; }
 .align-grid.archetypes { grid-template-columns: repeat(3, 1fr); }
 .align-grid.archetypes button { font-size: 11px; }
+.line-extras { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.line-extras span { font-size: 10px; padding: 0 6px; border-radius: 8px; background: var(--panel-2); color: var(--muted); }
+.line-details td { background: var(--panel-2); }
+.line-details-grid { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; padding: 6px 4px; }
+.line-details-grid .field { min-width: 110px; }
+.line-details-grid .field.wide { flex: 1 1 260px; }
+.budget-lines .actions .icon-btn.on { color: var(--accent); }
+.topsheet .pct { font-size: 10px; color: var(--muted); margin-left: 2px; }
+.topsheet tr.credit td { color: #16a34a; }
+.topsheet tr.stats td { font-weight: 400; font-size: 11px; color: var(--muted); display: table-cell; }
+.topsheet tr.stats span + span::before { content: ' · '; }
+.group-picks { display: inline-flex; gap: 2px; flex-wrap: wrap; }
+.applied-row input:not([type]) { width: 150px; }

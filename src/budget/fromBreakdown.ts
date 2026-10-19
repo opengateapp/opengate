@@ -71,7 +71,7 @@ export function resolveLines(p: Project, f: BreakdownFacts, lines = p.budget.lin
     if (!l.link) return l;
     const q = linkedQty(p, f, l.link);
     if (q === null) { orphaned.add(l.id); return l; }
-    return l.link.auto ? { ...l, qty: q } : l;
+    return l.link.auto ? { ...l, qty: q + (Number(l.prepDays) || 0) + (Number(l.wrapDays) || 0) } : l;
   });
   return { lines: out, orphaned };
 }

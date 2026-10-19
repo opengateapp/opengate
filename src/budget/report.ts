@@ -1,7 +1,7 @@
 import type { BudgetAccount, BudgetLine, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { GROUPS, accountLabel } from './accounts';
-import { lineBase, lineFringes, lineTotal, scenarioLines, totals, money, type BudgetTotals } from './calc';
+import { lineBase, lineFringes, lineTotal, linePremium, scenarioLines, totals, money, type BudgetTotals } from './calc';
 import { breakdownFacts, resolveLines } from './fromBreakdown';
 
 // The budget as it should be printed or exported: one version, with linked quantities filled in.
@@ -20,7 +20,7 @@ export interface BudgetReport {
   $: (n: number) => string;
 }
 
-export const UNIT_LABEL: Record<string, string> = { days: 'Days', weeks: 'Weeks', hours: 'Hours', each: 'Each', flat: 'Flat', allow: 'Allow' };
+export const UNIT_LABEL: Record<string, string> = { days: 'Days', weeks: 'Weeks', hours: 'Hours', each: 'Each', flat: 'Flat', allow: 'Allow', rentdays: 'Rental days' };
 
 export function budgetReport(p: Project, d: Derived, scenarioId?: string): BudgetReport {
   const b = p.budget;
@@ -54,4 +54,4 @@ export function budgetReport(p: Project, d: Derived, scenarioId?: string): Budge
   };
 }
 
-export { accountLabel, lineBase, lineFringes, lineTotal };
+export { accountLabel, lineBase, lineFringes, lineTotal, linePremium };

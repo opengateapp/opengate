@@ -159,3 +159,38 @@ describe('expenses from bank exports', () => {
     expect(rowsToExpenses(card, guessMapping(card[0]), 'x').map((e) => e.amount)).toEqual([40, 12.5]);
   });
 });
+
+describe('budget: prep/wrap, rentals, overtime and added percentages', () => {
+  it('bills rental weeks, overtime and 6th/7th days', async () => {
+    const { rentalBilled, lineBase, linePremium } = await import('./budget/calc');
+    expect(rentalBilled(3)).toBe(3);
+    expect(rentalBilled(7)).toBe(3);
+    expect(rentalBilled(10)).toBe(6);
+    expect(rentalBilled(16, 4)).toBe(10);
+    const b = { ...newBudget(), dayHours: 10, otMult: 1.5, sixthMult: 1.5, seventhMult: 2 };
+    expect(lineBase(L({ qty: 10, units: 'rentdays', rate: 100 }), b)).toBe(600);
+    // $500 day, 2 people: 4 OT hours = 4 × 50 × 1.5; one 6th day = +250; one 7th day = +500.
+    const crew = L({ qty: 6, x: 2, rate: 500, otHours: 4, sixthDays: 1, seventhDays: 1 });
+    expect(linePremium(crew, b)).toBe((300 + 250 + 500) * 2);
+    expect(lineBase(crew, b)).toBe(6000 + 2100);
+  });
+
+  it('charges contingency and added percentages on chosen groups, credits come off', () => {
+    const b = newBudget();
+    b.contingencyPct = 10;
+    b.contingencyAppliesTo = ['btl', 'post'];
+    b.applied = [{ id: 'ins', name: 'Insurance', pct: 2, appliesTo: ['atl', 'btl', 'post', 'other'] }, { id: 'tc', name: 'Tax credit', pct: 25, appliesTo: ['btl'], credit: true }];
+    const t = totals(b, [L({ id: 'a', accountId: 'acc-1400', qty: 1, rate: 1000 }), L({ id: 'b', accountId: 'acc-2200', qty: 1, rate: 4000 })]);
+    expect(t.subtotal).toBe(5000);
+    expect(t.contingency).toBe(400); // 10% of BTL only
+    expect(t.applied.map((a) => a.amount)).toEqual([100, -1000]);
+    expect(t.total).toBe(5000 + 400 + 100 - 1000);
+  });
+
+  it('adds prep and wrap days to linked lines, also in a shorter version', () => {
+    const b = newBudget();
+    const base = [L({ id: 'dp', qty: 10, rate: 500, prepDays: 3, wrapDays: 1, link: { kind: 'crew', id: 'dp', auto: true } })];
+    b.scenarios = [{ id: 's', name: '8 days', shootDays: 8, overrides: {}, added: [] }];
+    expect(scenarioLines(b, base, 's')[0].qty).toBe(12);
+  });
+});

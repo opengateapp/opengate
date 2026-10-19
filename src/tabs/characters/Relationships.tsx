@@ -181,7 +181,9 @@ export function RelationshipMap({ entries, onOpen }: { entries: Entry[]; onOpen:
               // Parallel relationships between the same pair are fanned out a little.
               const twins = rels.filter((x) => (x.a === r.a && x.b === r.b) || (x.a === r.b && x.b === r.a));
               const off = (twins.indexOf(r) - (twins.length - 1) / 2) * 44;
-              const nx = -dy / len * off, ny = dx / len * off;
+              // Measure the offset against a fixed order of the pair, so A→B and B→A fan out to opposite sides.
+              const flip = r.a < r.b ? 1 : -1;
+              const nx = (-dy / len) * off * flip, ny = (dx / len) * off * flip;
               const x1 = A.x + dx / len * 54 + nx, y1 = A.y + dy / len * 54 + ny, x2 = B.x - dx / len * 54 + nx, y2 = B.y - dy / len * 54 + ny;
               const tone = r.tone ?? 0;
               return (

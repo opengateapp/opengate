@@ -514,7 +514,7 @@ export interface ShareInfo {
 
 /** Top-sheet groups: above the line, below the line (production), post, other. */
 export type BudgetGroup = 'atl' | 'btl' | 'post' | 'other';
-export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each';
+export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each' | 'rentdays';
 /** Where a linked line's quantity comes from. */
 export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays';
 
@@ -539,6 +539,13 @@ export interface BudgetLine {
   rate: number;
   fringeIds: Id[];
   notes?: string;
+  /** Extra paid days before / after the shoot, added to a linked quantity (crew prep, location set-up and strike). */
+  prepDays?: number;
+  wrapDays?: number;
+  /** Overtime hours in total, and days paid at the 6th / 7th-day rate (day-rate lines). */
+  otHours?: number;
+  sixthDays?: number;
+  seventhDays?: number;
   /** Imported from the breakdown; `auto` keeps the quantity in step with the script and schedule. */
   link?: { kind: BudgetLinkKind; id?: Id; auto: boolean };
 }
@@ -576,12 +583,32 @@ export interface BudgetExpense {
   method?: string;
 }
 
+export interface BudgetApplied {
+  id: Id;
+  name: string;
+  pct: number;
+  appliesTo: BudgetGroup[];
+  /** A credit or rebate (comes off the total), e.g. a film tax incentive. */
+  credit?: boolean;
+}
+
 export interface Budget {
   currency: string;
   accounts: BudgetAccount[];
   lines: BudgetLine[];
   fringes: BudgetFringe[];
   contingencyPct: number;
+  /** Groups contingency is charged on (default: all). */
+  contingencyAppliesTo?: BudgetGroup[];
+  /** Insurance, completion bond, production fee, tax credit…: percentages of chosen groups. */
+  applied?: BudgetApplied[];
+  /** Rental week: a 7-day rental billed as this many days (default 3). */
+  rentalWeekDays?: number;
+  /** Overtime basis for day-rate lines: hours in a day, and the multipliers. */
+  dayHours?: number;
+  otMult?: number;
+  sixthMult?: number;
+  seventhMult?: number;
   /** Top-down total to plan against. */
   targetTotal?: number;
   scenarios: BudgetScenario[];

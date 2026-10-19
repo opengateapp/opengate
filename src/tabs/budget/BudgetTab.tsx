@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import type { Draft } from 'immer';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Budget, BudgetAccount, BudgetGroup, BudgetLine, BudgetUnits, Project } from '../../model/types';
 import { newId } from '../../model/ids';
 import { GROUPS, TYPICAL_SPLIT, accountLabel } from '../../budget/accounts';
-import { money, scenarioLines, totals, lineTotal, round2 } from '../../budget/calc';
+import { money, scenarioLines, totals, lineTotal, round2, billedQty } from '../../budget/calc';
 import { breakdownFacts, importFromBreakdown, resolveLines, LINK_LABEL } from '../../budget/fromBreakdown';
 import { canWrite, useSync } from '../../sync/state';
 import { askConfirm, askText } from '../../components/dialogs';
@@ -43,6 +43,7 @@ const MODES: { id: BudgetMode; label: string; hint: string }[] = [
 const UNITS: { id: BudgetUnits; label: string }[] = [
   { id: 'days', label: 'Days' }, { id: 'weeks', label: 'Weeks' }, { id: 'hours', label: 'Hours' },
   { id: 'each', label: 'Each' }, { id: 'flat', label: 'Flat' }, { id: 'allow', label: 'Allow' },
+  { id: 'rentdays', label: 'Rental days' },
 ];
 const CURRENCIES = ['USD', 'CAD', 'EUR', 'GBP', 'AUD', 'NZD', 'JPY', 'INR', 'MXN', 'BRL', 'ZAR'];
 
@@ -111,6 +112,7 @@ function BudgetScreen() {
   const [settings, setSettings] = useState(false);
   const cur = b.currency;
   const $ = (n: number) => money(n, cur);
+  const pages = useDerived().pageCount;
   const pickMode = (m: BudgetMode) => { setMode(m); try { localStorage.setItem('opengate.budgetMode', m); } catch { /* ignore */ } };
 
   const ub = (fn: (bd: Draft<Budget>) => void, label: string | null = 'Edit budget') => update((dr) => fn(dr.budget), label);
@@ -226,7 +228,7 @@ function BudgetScreen() {
                             }}
                             title="Double-click to rename · right-click to delete · drop a line here to move it">
                             <td><span className="code">{a.code}</span> {a.name}</td>
-                            {mode === 'build' && <td className="num">{est ? $(est) : '—'}</td>}
+                            {mode === 'build' && <td className="num">{est ? <>{$(est)} <span className="pct">{Math.round((est / (view.t.subtotal || 1)) * 100)}%</span></> : '—'}</td>}
                             {mode === 'target' && <>
                               <td className="num" onClick={(e) => e.stopPropagation()}>
                                 <NumIn className="cell-num" disabled={ro} value={a.target ?? 0} onChange={(n) => ub((bd) => { const x = bd.accounts.find((y) => y.id === a.id)!; if (n) x.target = n; else delete x.target; }, null)} />
@@ -249,8 +251,18 @@ function BudgetScreen() {
               <tfoot>
                 <tr><td>Fringes (included above)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.fringes)}</td></tr>
                 <tr><td>Subtotal</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.subtotal)}</td></tr>
-                <tr><td>Contingency ({b.contingencyPct}%)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.contingency)}</td></tr>
+                <tr><td>Contingency ({b.contingencyPct}%{b.contingencyAppliesTo && b.contingencyAppliesTo.length < GROUPS.length ? ` of ${b.contingencyAppliesTo.map((g) => GROUPS.find((x) => x.id === g)?.short).join(' + ')}` : ''})</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.contingency)}</td></tr>
+                {view.t.applied.map((a) => (
+                  <tr key={a.id} className={a.credit ? 'credit' : ''}><td>{a.name} ({a.credit ? '−' : ''}{a.pct}%)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(a.amount)}</td></tr>
+                ))}
                 <tr className="grand"><td>Total</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.total)}{mode === 'actual' ? ` · spent ${$(view.t.actual)}` : ''}</td></tr>
+                {view.t.total > 0 && (
+                  <tr className="stats"><td colSpan={mode === 'build' ? 2 : 4}>
+                    {view.facts.shootDays > 0 && <span>{$(view.t.total / (scenario?.shootDays ?? view.facts.shootDays))} per shoot day</span>}
+                    {pages > 0 && <span>{$(view.t.total / pages)} per script page</span>}
+                    <span>Above the line {Math.round((view.t.byGroup.atl / (view.t.subtotal || 1)) * 100)}%</span>
+                  </td></tr>
+                )}
               </tfoot>
             </table>
             <label className="check small"><input type="checkbox" checked={showEmpty} onChange={(e) => setShowEmpty(e.target.checked)} /> Show empty accounts</label>
@@ -358,6 +370,8 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
   const b = p.budget;
   const $ = (n: number) => money(n, b.currency);
   const lines = view.lines.filter((l) => l.accountId === account.id);
+  const [openDetails, setOpenDetails] = useState<Set<string>>(new Set());
+  const toggleDetails = (id: string) => setOpenDetails((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const sc = b.scenarios.find((s) => s.id === scenarioId);
   const isAdded = (id: string) => !!sc?.added.some((l) => l.id === id);
   const expenses = b.expenses.filter((e) => e.accountId === account.id);
@@ -424,8 +438,15 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
               const linked = l.link;
               const orphan = view.orphaned.has(l.id);
               const overridden = sc?.overrides[l.id];
+              const details = openDetails.has(l.id);
+              const extras = [
+                l.prepDays ? `+${l.prepDays} prep` : '', l.wrapDays ? `+${l.wrapDays} wrap` : '',
+                l.otHours ? `${l.otHours}h OT` : '', l.sixthDays ? `${l.sixthDays}× 6th` : '', l.seventhDays ? `${l.seventhDays}× 7th` : '',
+                l.units === 'rentdays' ? `billed ${billedQty(l, b)} d` : '', l.notes ? 'note' : '',
+              ].filter(Boolean);
               return (
-                <LongPress as="tr" key={l.id} title={l.description || 'Budget line'} actions={() => ro ? [] : [
+                <Fragment key={l.id}>
+                <LongPress as="tr" title={l.description || 'Budget line'} actions={() => ro ? [] : [
                   { label: 'Move to account…', items: b.accounts.map((acc) => ({ label: accountLabel(acc), current: acc.id === l.accountId, run: () => update((dr) => {
                     const x = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((sc2) => sc2.added).find((y) => y.id === l.id);
                     if (x) x.accountId = acc.id;
@@ -446,6 +467,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                       )}
                       <input disabled={ro} value={l.description} placeholder="Description" onChange={(e) => set(l, { description: e.target.value })} />
                     </div>
+                    {extras.length > 0 && <div className="line-extras">{extras.map((x) => <span key={x}>{x}</span>)}</div>}
                   </td>
                   <td className="num"><NumIn className="cell-num" disabled={ro} value={l.qty} onChange={(n) => set(l, { qty: n })} title={linked?.auto ? LINK_LABEL[linked.kind] : undefined} /></td>
                   <td>
@@ -466,8 +488,31 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                     </td>
                   )}
                   <td className="num"><b>{$(lineTotal(b, l))}</b></td>
-                  <td className="actions">{!ro && <button className="icon-btn" title={sc && !isAdded(l.id) ? `Remove from ${sc.name}` : 'Delete line'} onClick={() => removeLine(l)}>×</button>}</td>
+                  <td className="actions">
+                    <button className={`icon-btn ${details ? 'on' : ''}`} title="Details: prep / wrap days, overtime, notes" aria-expanded={details} onClick={() => toggleDetails(l.id)}>{details ? '▾' : '▸'}</button>
+                    {!ro && <button className="icon-btn" title={sc && !isAdded(l.id) ? `Remove from ${sc.name}` : 'Delete line'} onClick={() => removeLine(l)}>×</button>}
+                  </td>
                 </LongPress>
+                {details && (
+                  <tr className="line-details">
+                    <td colSpan={b.fringes.length > 0 ? 9 : 8}>
+                      <div className="line-details-grid">
+                        {linked?.auto && (linked.kind === 'crew' || linked.kind === 'location' || linked.kind === 'cast' || linked.kind === 'shootDays') && <>
+                          <label className="field"><span>Prep days</span><NumIn disabled={ro} value={l.prepDays ?? 0} title="Paid days before the shoot (added to the linked days)" onChange={(n) => set(l, { prepDays: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>Wrap days</span><NumIn disabled={ro} value={l.wrapDays ?? 0} title="Paid days after the shoot (strike, returns)" onChange={(n) => set(l, { wrapDays: n > 0 ? n : undefined })} /></label>
+                        </>}
+                        {l.units === 'days' && <>
+                          <label className="field"><span>Overtime hours (total)</span><NumIn disabled={ro} value={l.otHours ?? 0} title={`Paid at ${b.otMult ?? 1.5}× the hourly rate (day rate ÷ ${b.dayHours ?? 10} h)`} onChange={(n) => set(l, { otHours: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>6th days</span><NumIn disabled={ro} value={l.sixthDays ?? 0} title={`Days paid at ${b.sixthMult ?? 1.5}×`} onChange={(n) => set(l, { sixthDays: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>7th days</span><NumIn disabled={ro} value={l.seventhDays ?? 0} title={`Days paid at ${b.seventhMult ?? 2}×`} onChange={(n) => set(l, { seventhDays: n > 0 ? n : undefined })} /></label>
+                        </>}
+                        {l.units === 'rentdays' && <p className="muted small">Rental week: every 7 days are billed as {b.rentalWeekDays ?? 3} days ({l.qty} days → {billedQty(l, b)} billed). Change it in budget Settings.</p>}
+                        <label className="field wide"><span>Notes</span><textarea disabled={ro} rows={2} value={l.notes ?? ''} placeholder="Quote reference, what's included, assumptions…" onChange={(e) => set(l, { notes: e.target.value || undefined })} /></label>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -494,6 +539,31 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
   );
 }
 
+const APPLIED_PRESETS: { name: string; pct: number; appliesTo: BudgetGroup[]; credit?: boolean }[] = [
+  { name: 'Insurance', pct: 3, appliesTo: ['atl', 'btl', 'post', 'other'] },
+  { name: 'Completion bond', pct: 2, appliesTo: ['atl', 'btl', 'post', 'other'] },
+  { name: 'Production fee', pct: 5, appliesTo: ['btl', 'post'] },
+  { name: 'Tax credit', pct: 25, appliesTo: ['btl', 'post'], credit: true },
+];
+
+/** Which top-sheet groups a percentage applies to (undefined = all). */
+function GroupPicks({ value, onChange, ro }: { value?: BudgetGroup[]; onChange: (v: BudgetGroup[] | undefined) => void; ro: boolean }) {
+  const on = value ?? GROUPS.map((g) => g.id);
+  return (
+    <span className="group-picks">
+      {GROUPS.map((g) => (
+        <label key={g.id} className={`fringe-chip ${on.includes(g.id) ? 'on' : ''}`} title={g.label}>
+          <input type="checkbox" disabled={ro} checked={on.includes(g.id)} onChange={(e) => {
+            const next = e.target.checked ? [...on, g.id] : on.filter((x) => x !== g.id);
+            onChange(next.length === GROUPS.length ? undefined : next);
+          }} />
+          {g.short}
+        </label>
+      ))}
+    </span>
+  );
+}
+
 function BudgetSettings({ ro }: { ro: boolean }) {
   const p = useProject();
   const update = useStore((s) => s.update);
@@ -505,9 +575,46 @@ function BudgetSettings({ ro }: { ro: boolean }) {
           {[...new Set([b.currency, ...CURRENCIES])].map((c) => <option key={c}>{c}</option>)}
         </select>
       </label>
-      <label className="field"><span>Contingency %</span>
-        <NumIn disabled={ro} value={b.contingencyPct} onChange={(n) => update((dr) => { dr.budget.contingencyPct = Math.max(0, n); }, null)} />
-      </label>
+      <div className="field"><span>Contingency</span>
+        <div className="row">
+          <NumIn className="cell-num" disabled={ro} value={b.contingencyPct} onChange={(n) => update((dr) => { dr.budget.contingencyPct = Math.max(0, n); }, null)} /> % of
+          <GroupPicks ro={ro} value={b.contingencyAppliesTo} onChange={(v) => update((dr) => { dr.budget.contingencyAppliesTo = v; }, 'Contingency applies to')} />
+        </div>
+        <p className="muted small">Usually charged on below-the-line and post only.</p>
+      </div>
+      <div className="field"><span>Added percentages &amp; credits</span>
+        <div className="fringes">
+          {(b.applied ?? []).map((a) => (
+            <div key={a.id} className="row applied-row">
+              <input disabled={ro} value={a.name} onChange={(e) => update((dr) => { const x = dr.budget.applied!.find((y) => y.id === a.id)!; x.name = e.target.value; }, null)} />
+              <NumIn disabled={ro} className="cell-num small" value={a.pct} onChange={(n) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.pct = n; }, null)} /> %
+              <label className="check small" title="Comes off the total (a rebate or tax credit)"><input type="checkbox" disabled={ro} checked={!!a.credit} onChange={(e) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.credit = e.target.checked; }, 'Edit budget')} /> Credit</label>
+              <span className="muted small">of</span>
+              <GroupPicks ro={ro} value={a.appliesTo} onChange={(v) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.appliesTo = v ?? GROUPS.map((g) => g.id); }, 'Edit budget')} />
+              {!ro && <button className="icon-btn" title="Remove" onClick={() => update((dr) => { dr.budget.applied = dr.budget.applied!.filter((y) => y.id !== a.id); }, 'Remove percentage')}>×</button>}
+            </div>
+          ))}
+          {!ro && (
+            <div className="row">
+              {APPLIED_PRESETS.map((pr) => (
+                <button key={pr.name} className="small" disabled={(b.applied ?? []).some((a) => a.name === pr.name)} onClick={() => update((dr) => { dr.budget.applied = [...(dr.budget.applied ?? []), { id: newId(), ...pr, appliesTo: [...pr.appliesTo] }]; }, `Add ${pr.name}`)}>＋ {pr.name}</button>
+              ))}
+            </div>
+          )}
+          <p className="muted small">Insurance, completion bond and fees are added on top; a tax credit or rebate comes off. Check your incentive's real rate and what spend qualifies.</p>
+        </div>
+      </div>
+      <div className="field"><span>Rental week</span>
+        <div className="row"><NumIn className="cell-num small" disabled={ro} value={b.rentalWeekDays ?? 3} onChange={(n) => update((dr) => { dr.budget.rentalWeekDays = Math.min(7, Math.max(1, n)); }, null)} /> billed days per 7 (for lines in Rental days)</div>
+      </div>
+      <div className="field"><span>Overtime</span>
+        <div className="row">
+          <NumIn className="cell-num small" disabled={ro} value={b.dayHours ?? 10} onChange={(n) => update((dr) => { dr.budget.dayHours = Math.max(1, n); }, null)} /> h day ·
+          OT <NumIn className="cell-num small" disabled={ro} value={b.otMult ?? 1.5} onChange={(n) => update((dr) => { dr.budget.otMult = n; }, null)} />× ·
+          6th <NumIn className="cell-num small" disabled={ro} value={b.sixthMult ?? 1.5} onChange={(n) => update((dr) => { dr.budget.sixthMult = n; }, null)} />× ·
+          7th <NumIn className="cell-num small" disabled={ro} value={b.seventhMult ?? 2} onChange={(n) => update((dr) => { dr.budget.seventhMult = n; }, null)} />×
+        </div>
+      </div>
       <div className="field"><span>Fringes</span>
         <div className="fringes">
           {b.fringes.map((f) => (
