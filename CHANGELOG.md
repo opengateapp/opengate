@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.2.1 — 2026-10-19
+
+Polish from the first round of notes on v0.2.0.
+
+- **More room to work:**
+  - **Hide the side panel** on any tab with the ⇤ button or ⌘\ (Ctrl+\), remembered per tab.
+  - **The top bar fits at every width:** Share, theme, Edit and Settings stay visible down to iPad size, and the section names shorten as it gets tight.
+  - **Phone menu:** Write, Breakdown, Budget and the other sections are dropdowns, so the list isn't crowded.
+- **Boards:** one "＋ New board" menu (mood board, whiteboard, story map) that fits the sidebar.
+- **Storyboards:** put the Shot Designer's top-down plan in a panel's **set plan** box, with that shot's camera highlighted (at the start, a move point or the end for moving cameras). "Fill set plans from Shot Designer" does every panel at once, and the plans print in the storyboard PDF.
+- **Character builder:** your species packs live in the same grid as the built-in ones. Click "Create your own pack" (or drop an `.ogspecies` file on it), and use the ⋯ menu to edit, export, delete or import.
+- **Reference:**
+  - **Hover menu:** hover "Reference" in the top bar for every topic and page.
+  - **Sidebar:** categories collapse.
+  - **Crew & departments:** new pages on roles and responsibilities, from producer and 1st AD to 2nd AC, best boy, gaffer and colourist.
+  - **Smartphone cinematography:** a new page on sensors, codecs, Apple Log and ProRes, storage and rigging, with a phone recording calculator.
+  - **Lens pages:** "f-stops & T-stops" and "Lens mounts & adapters" are now separate pages.
+  - **Library:** added DCP-o-matic (free DCP creation) and the Blackmagic Camera app (iOS and Android).
+  - **Story structures:** they show where each beat falls on short scripts too, and which scene it currently lands on.
+
 ## v0.2.0 — 2026-10-19
 
 A big one: new tools for writing, planning the shoot and sharing, and everything works on phones and iPads.
