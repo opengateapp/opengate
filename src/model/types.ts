@@ -480,6 +480,8 @@ export interface ProductionInfo {
   contactPhone: string;
   defaultCall: string;
   defaultLunch: string;
+  /** Shooting time per eighth of a page, for scene estimates (default 15 min = 2 h per page). */
+  minutesPerEighth?: number;
 }
 
 /** An invite link the owner created (kept locally so it can be copied again; the relay only stores its hash). */

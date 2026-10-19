@@ -1,3 +1,4 @@
+import { usePrefs } from './prefs';
 import { useCallback, useEffect, useState } from 'react';
 import { useStore, flushSave } from './store/project';
 import { loadProject } from './store/db';
@@ -91,7 +92,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'reports', label: 'Reports', hint: 'Every export in one place' },
   ] },
   { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data and production — explainers, calculators and a library' }] },
-  { id: 'settings', label: 'Settings', tabs: [{ id: 'setup', label: 'Project settings', hint: 'Production info, categories, colors' }] },
+  { id: 'settings', label: 'Settings', tabs: [{ id: 'setup', label: 'Settings', hint: 'This project (shared) and this device (yours)' }] },
 ];
 
 const ALL_TABS = SECTIONS.flatMap((s) => s.tabs.map((t) => t.id));
@@ -102,6 +103,7 @@ const LEGACY: Record<string, TabId> = { write: 'screenplay', schedule: 'stripboa
 
 export function App() {
   const project = useStore((s) => s.project);
+  usePrefs(); // date / clock / week-start preferences re-render everything
   const saveState = useStore((s) => s.saveState);
   const phone = usePhone();
   const narrow = useNarrow();
@@ -223,7 +225,7 @@ export function App() {
             <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
               {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
             </span>
-            <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Project settings" onClick={() => setTab('setup')}>⚙</button>
+            <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Settings" onClick={() => setTab('setup')}>⚙</button>
           </div>
         </header>
       )}

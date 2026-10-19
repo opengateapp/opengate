@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useLongPress, usePhone } from '../ui/responsive';
+import { uiZoom } from '../prefs';
 
 // Action menus for items — the touch alternative to drag-and-drop. Long-press (or right-click)
 // an item and pick "Move to day…", "Move up", etc. On phones it's a bottom sheet; on desktop a
@@ -44,7 +45,8 @@ export function ActionSheetHost() {
     a.run?.();
   };
   const back = () => { const prev = s.stack[s.stack.length - 1]; useActions.setState({ ...s, title: prev.title, items: prev.items, stack: s.stack.slice(0, -1) }); };
-  const style = sheet ? undefined : { left: Math.min(s.pos!.x, window.innerWidth - 260), top: Math.min(s.pos!.y, window.innerHeight - 40 - s.items.length * 36) };
+  const z = uiZoom();
+  const style = sheet ? undefined : { left: Math.min(s.pos!.x / z, window.innerWidth / z - 260), top: Math.min(s.pos!.y / z, window.innerHeight / z - 40 - s.items.length * 36) };
   return (
     <>
       <div className={sheet ? 'sheet-scrim' : 'click-catcher'} onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />

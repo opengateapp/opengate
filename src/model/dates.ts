@@ -1,3 +1,4 @@
+import { dateLocale, prefs } from '../prefs';
 import type { ISODate } from './types';
 
 // Calendar dates are plain YYYY-MM-DD strings in local time, so schedules never
@@ -41,7 +42,8 @@ export function weekday(iso: ISODate): number {
 }
 
 export function formatDate(iso: ISODate, opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }): string {
-  return fromISO(iso).toLocaleDateString(undefined, opts);
+  if (prefs().dateStyle === 'iso' && opts.month && opts.day) return `${opts.weekday ? `${fromISO(iso).toLocaleDateString(undefined, { weekday: opts.weekday })} ` : ''}${iso}`;
+  return fromISO(iso).toLocaleDateString(dateLocale(), opts);
 }
 
 export function inRange(iso: ISODate, r: { start: ISODate; end: ISODate }): boolean {
@@ -67,8 +69,10 @@ export function toClock(minutes: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
+/** A time of day for display: 12-hour (7:00 AM) or 24-hour (07:00), per App preferences. */
 export function formatClock12(minutes: number): string {
   const m = ((Math.round(minutes) % 1440) + 1440) % 1440;
+  if (prefs().clock === '24') return toClock(m);
   const h = Math.floor(m / 60);
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;

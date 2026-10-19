@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SENSORS } from '../visualize/plan';
+import { setPrefs, usePrefs } from '../prefs';
 import {
   GELS, MM_PER_FT, amps, angleOfView, audioMbPerMin, circuitCapacityW, cocFor, cropFactor, dbToRatio, depthOfField, falloff, fmtDistance,
   frameWidthAt, gbPerHour, kelvinAfterShift, minutesOnCard, ndStops, ndTransmission, runtimeHours, shutterAngle, shutterSpeed,
@@ -25,8 +26,8 @@ const sensor = (id: string) => SENSORS.find((s) => s.id === id) ?? SENSORS[1];
 const F_STOPS = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
 
 function useUnits(): ['ft' | 'm', (u: 'ft' | 'm') => void] {
-  const [u, setU] = useState<'ft' | 'm'>(() => { try { return (localStorage.getItem('opengate.units') as 'ft' | 'm') || 'ft'; } catch { return 'ft'; } });
-  return [u, (x) => { setU(x); try { localStorage.setItem('opengate.units', x); } catch { /* ignore */ } }];
+  const u = usePrefs((s) => s.units);
+  return [u, (x) => setPrefs({ units: x })];
 }
 function UnitsSeg({ u, set }: { u: 'ft' | 'm'; set: (u: 'ft' | 'm') => void }) {
   return <div className="seg small">{(['ft', 'm'] as const).map((x) => <button key={x} className={u === x ? 'active' : ''} onClick={() => set(x)}>{x === 'ft' ? 'Feet' : 'Metres'}</button>)}</div>;

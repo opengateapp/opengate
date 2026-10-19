@@ -9,13 +9,24 @@ import { Field } from '../components/common';
 import { AppearanceSettings } from '../components/AppearanceSettings';
 import { PhoneLayoutSettings } from '../ui/PhoneLayoutSettings';
 import { CharacterSettings } from '../components/CharacterSettings';
+import { AccessibilityPrefs, DataPrefs, FormatPrefs, ProfilePrefs, ShortcutsPrefs } from '../components/AppPreferences';
+
+type Section = 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
+const GROUPS: { label: string; hint: string; items: Section[] }[] = [
+  { label: 'This project', hint: 'Saved in the project and shared with collaborators', items: ['production', 'cast', 'locations', 'crew', 'categories', 'colors', 'characters'] },
+  { label: 'This device', hint: 'Only on this device, for you', items: ['appearance', 'formats', 'profile', 'access', 'phone', 'data', 'shortcuts'] },
+];
+const LABELS: Record<Section, string> = {
+  production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder',
+  appearance: 'Appearance', formats: 'Dates & units', profile: 'You & sharing', access: 'Accessibility', phone: 'Phone layout', data: 'Data & backups', shortcuts: 'Keyboard shortcuts',
+};
 
 /** Production Setup (after CineSched's ProductionSetupSheet): company, cast roster, locations, crew, colors, categories. */
 export function SetupTab() {
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
-  const [section, setSection] = useState<'appearance' | 'phone' | 'characters' | 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors'>('appearance');
+  const [section, setSection] = useState<Section>('production');
   // The phone drawer's "Customize tabs…" opens the Phone layout panel.
   useEffect(() => {
     const go = () => setSection('phone');
@@ -31,16 +42,24 @@ export function SetupTab() {
   return (
     <div className="setup-tab with-side">
       <aside className="side">
-        {(['appearance', 'phone', 'characters', 'production', 'cast', 'locations', 'crew', 'categories', 'colors'] as const).map((s) => (
-          <button key={s} className={`side-link ${section === s ? 'active' : ''}`} onClick={(e) => { setSection(s); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}>
-            {{ appearance: 'Appearance', phone: 'Phone layout', characters: 'Character builder', production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors' }[s]}
-          </button>
-        ))}
+        {GROUPS.map((g) => [
+          <span key={g.label} className="settings-group" title={g.hint}>{g.label}</span>,
+          ...g.items.map((s) => (
+            <button key={s} className={`side-link ${section === s ? 'active' : ''}`} onClick={(e) => { setSection(s); e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }}>
+              {LABELS[s]}
+            </button>
+          )),
+        ])}
       </aside>
       <section className="main pad scroll">
         {section === 'appearance' && <AppearanceSettings />}
         {section === 'phone' && <PhoneLayoutSettings />}
         {section === 'characters' && <CharacterSettings />}
+        {section === 'formats' && <FormatPrefs />}
+        {section === 'profile' && <ProfilePrefs />}
+        {section === 'access' && <AccessibilityPrefs />}
+        {section === 'data' && <DataPrefs />}
+        {section === 'shortcuts' && <ShortcutsPrefs />}
         {section === 'production' && (
           <div className="form-grid">
             {(['company', 'director', 'producer', 'ad', 'contactPhone'] as const).map((k) => (
@@ -50,6 +69,10 @@ export function SetupTab() {
             ))}
             <Field label="Default crew call"><input type="time" value={p.production.defaultCall} onChange={(e) => update((dr) => { dr.production.defaultCall = e.target.value; }, null)} /></Field>
             <Field label="Default lunch"><input type="time" value={p.production.defaultLunch} onChange={(e) => update((dr) => { dr.production.defaultLunch = e.target.value; }, null)} /></Field>
+            <Field label="Shooting time per ⅛ page (minutes)"><input type="number" min={1} max={120} value={p.production.minutesPerEighth ?? 15} onChange={(e) => update((dr) => { dr.production.minutesPerEighth = Math.max(1, Number(e.target.value) || 15); }, 'Minutes per eighth')} /></Field>
+            <Field label="Currency"><select value={p.budget.currency} onChange={(e) => update((dr) => { dr.budget.currency = e.target.value; }, 'Currency')}>{['USD', 'CAD', 'GBP', 'EUR', 'AUD', 'NZD', 'JPY', 'INR', 'MXN', 'BRL', 'ZAR', 'SEK', 'NOK', 'DKK', 'CHF'].map((c) => <option key={c}>{c}</option>)}</select></Field>
+            <Field label="Contingency (%)"><input type="number" min={0} max={50} value={p.budget.contingencyPct} onChange={(e) => update((dr) => { dr.budget.contingencyPct = Math.max(0, Number(e.target.value) || 0); }, 'Contingency')} /></Field>
+            <p className="muted small wide">Shared with everyone on this project. Scene time estimates use the minutes per eighth ({(p.production.minutesPerEighth ?? 15) * 8 / 60} h per page) unless a scene has its own estimate.</p>
           </div>
         )}
 

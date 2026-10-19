@@ -1,3 +1,4 @@
+import { usePrefs } from '../prefs';
 import { useMemo, useState } from 'react';
 import { useDerived, useProject, useStore, getDerived } from '../store/project';
 import { boneyard, dayNumbers, dayTotals, moveScenes, scanConflicts, swapDays, unschedule } from '../schedule/engine';
@@ -27,9 +28,10 @@ export function CalendarTab() {
   const bone = boneyard(p, d);
   const byDate = new Map(p.schedule.days.map((x) => [x.date, x]));
 
-  // Sunday-first weeks covering the whole range.
-  const gridStart = addDays(p.schedule.startDate, -weekday(p.schedule.startDate));
-  const gridEnd = addDays(p.schedule.endDate, 6 - weekday(p.schedule.endDate));
+  // Weeks covering the whole range, starting on Sunday or Monday (App preferences).
+  const ws = usePrefs((s) => s.weekStart);
+  const gridStart = addDays(p.schedule.startDate, -((weekday(p.schedule.startDate) - ws + 7) % 7));
+  const gridEnd = addDays(p.schedule.endDate, 6 - ((weekday(p.schedule.endDate) - ws + 7) % 7));
   const cells = dateRange(gridStart, gridEnd);
   const weeks: string[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
@@ -128,7 +130,7 @@ export function CalendarTab() {
         {mode === 'month' ? (
           <section className="cal-grid-wrap">
             <div className="cal-grid">
-              {WEEKDAYS.map((w, i) => <button key={w} className="cal-wd" title={`Toggle every ${w} as a day off`} onClick={() => toggleWeekday(i)}>{w}</button>)}
+              {[0, 1, 2, 3, 4, 5, 6].map((k) => (k + ws) % 7).map((i) => <button key={WEEKDAYS[i]} className="cal-wd" title={`Toggle every ${WEEKDAYS[i]} as a day off`} onClick={() => toggleWeekday(i)}>{WEEKDAYS[i]}</button>)}
               {weeks.flat().map(renderDay)}
             </div>
             <p className="muted small pad">{touch

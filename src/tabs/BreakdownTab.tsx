@@ -1,3 +1,4 @@
+import { uiZoom } from '../prefs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EditorState } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
@@ -50,7 +51,8 @@ export function BreakdownTab() {
       try {
         const end = v.coordsAtPos(s.selection.to);
         const r = box.getBoundingClientRect();
-        setPopup({ top: end.bottom - r.top + box.scrollTop + 6, left: Math.min(end.left - r.left + box.scrollLeft, box.clientWidth - 250) });
+        const z = uiZoom();
+        setPopup({ top: (end.bottom - r.top) / z + box.scrollTop + 6, left: Math.min((end.left - r.left) / z + box.scrollLeft, box.clientWidth - 250) });
       } catch { setPopup(null); }
     } else { setPopup(null); setPopupOff(false); }
     setSel((o) => (o.text === text && o.sceneId === sid && o.empty === s.selection.empty ? o : { text, sceneId: sid, empty: s.selection.empty }));

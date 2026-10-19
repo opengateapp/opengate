@@ -8,6 +8,7 @@ import { startFileAutosave } from './io/fileSave';
 import { startOffline } from './offline';
 import { startCardTables } from './ui/cardTables';
 import { startKeyboardInset } from './ui/responsive';
+import { applyPrefs } from './prefs';
 import './styles.css';
 
 startAutosave();
@@ -17,6 +18,7 @@ startFileAutosave();
 startOffline();
 startCardTables();
 startKeyboardInset();
+applyPrefs();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

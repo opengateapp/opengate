@@ -1,3 +1,4 @@
+import { prefs } from '../prefs';
 import * as Y from 'yjs';
 import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
 import { prosemirrorJSONToYXmlFragment } from 'y-prosemirror';
@@ -88,7 +89,7 @@ export class ProjectSync {
     }
     this.fragment = this.docs.script.getXmlFragment('script');
     this.awareness = new Awareness(this.docs.script);
-    this.me = { name: displayName(), color: COLORS[Math.abs(hash(this.projectId + this.docs.script.clientID)) % COLORS.length] };
+    this.me = { name: displayName(), color: prefs().color || COLORS[Math.abs(hash(this.projectId + this.docs.script.clientID)) % COLORS.length] };
     this.awareness.setLocalStateField('user', this.me);
     this.transport = transport ?? new WebSocketTransport(share.relay, share.room, share.token);
   }

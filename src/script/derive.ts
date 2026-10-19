@@ -156,7 +156,7 @@ export function sceneEighths(p: Project, s: DerivedScene): number {
 }
 
 export function sceneMinutes(p: Project, s: DerivedScene): number {
-  return p.sceneMeta[s.id]?.estimatedMinutes ?? Math.max(1, sceneEighths(p, s) * 15);
+  return p.sceneMeta[s.id]?.estimatedMinutes ?? Math.max(1, sceneEighths(p, s) * (p.production.minutesPerEighth ?? 15));
 }
 
 export function sceneTime(p: Project, s: DerivedScene): TimeOfDay {

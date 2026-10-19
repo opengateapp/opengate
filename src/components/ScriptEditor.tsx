@@ -1,3 +1,4 @@
+import { uiZoom } from '../prefs';
 import { useEffect, useRef, useState } from 'react';
 import { EditorView } from 'prosemirror-view';
 import type { EditorState } from 'prosemirror-state';
@@ -60,7 +61,7 @@ function computeSuggest(state: EditorState, view: EditorView): Suggest | null {
   const coords = view.coordsAtPos($from.pos);
   const host = (view.dom.closest('.script-editor') as HTMLElement) ?? view.dom;
   const box = host.getBoundingClientRect();
-  const zoom = Number((view.dom.closest('.script-page') as HTMLElement | null)?.style.zoom || 1);
+  const zoom = Number((view.dom.closest('.script-page') as HTMLElement | null)?.style.zoom || 1) * uiZoom();
   return { items: items.slice(0, 8), index: 0, from, to: $from.pos, top: (coords.bottom - box.top) / zoom + 4, left: (coords.left - box.left) / zoom };
 }
 

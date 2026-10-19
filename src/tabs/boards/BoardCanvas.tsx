@@ -1,3 +1,4 @@
+import { uiZoom } from '../../prefs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Board, BoardItem, BoardItemType } from '../../model/types';
 import { useMediaUrl } from '../../store/media';
@@ -64,7 +65,8 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
   const toWorld = useCallback((cx: number, cy: number) => {
     const r = host.current!.getBoundingClientRect();
     const v = viewRef.current;
-    return { x: (cx - r.left - v.x) / v.s, y: (cy - r.top - v.y) / v.s };
+    const z = uiZoom();
+    return { x: ((cx - r.left) / z - v.x) / v.s, y: ((cy - r.top) / z - v.y) / v.s };
   }, []);
   const center = () => {
     const r = host.current!.getBoundingClientRect();
@@ -75,8 +77,8 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     const r = host.current!.getBoundingClientRect();
     setView((v) => {
       const s = Math.min(4, Math.max(0.1, v.s * factor));
-      const px = cx - r.left;
-      const py = cy - r.top;
+      const px = (cx - r.left) / uiZoom();
+      const py = (cy - r.top) / uiZoom();
       return { s, x: px - ((px - v.x) / v.s) * s, y: py - ((py - v.y) / v.s) * s };
     });
   };
@@ -85,8 +87,9 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     const b = bounds(board.items);
     const r = host.current?.getBoundingClientRect();
     if (!b || !r) { setView({ x: 80, y: 60, s: 1 }); return; }
-    const s = Math.min(2, Math.max(0.1, Math.min((r.width - 80) / b.w, (r.height - 80) / b.h)));
-    setView({ s, x: (r.width - b.w * s) / 2 - b.x * s, y: (r.height - b.h * s) / 2 - b.y * s });
+    const z = uiZoom(), W = r.width / z, H = r.height / z;
+    const s = Math.min(2, Math.max(0.1, Math.min((W - 80) / b.w, (H - 80) / b.h)));
+    setView({ s, x: (W - b.w * s) / 2 - b.x * s, y: (H - b.h * s) / 2 - b.y * s });
   }, [board.items]);
 
   // Wheel: pinch / ⌘-wheel zooms, plain wheel pans. Needs a non-passive listener.
@@ -271,7 +274,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
         const r = host.current!.getBoundingClientRect();
         const p = pinch.current;
         const s = Math.min(4, Math.max(0.1, p.s0 * (d / p.d0)));
-        setView({ s, x: mx - r.left - p.wx * s, y: my - r.top - p.wy * s });
+        setView({ s, x: (mx - r.left) / uiZoom() - p.wx * s, y: (my - r.top) / uiZoom() - p.wy * s });
         return;
       }
     }
@@ -279,7 +282,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     const w = toWorld(e.clientX, e.clientY);
     switch (drag.kind) {
       case 'pan':
-        setView((v) => ({ ...v, x: drag.vx + e.clientX - drag.sx, y: drag.vy + e.clientY - drag.sy }));
+        setView((v) => ({ ...v, x: drag.vx + (e.clientX - drag.sx) / uiZoom(), y: drag.vy + (e.clientY - drag.sy) / uiZoom() }));
         break;
       case 'move': {
         setDrag({ ...drag, dx: w.x - drag.sx, dy: w.y - drag.sy, moved: true });
@@ -373,7 +376,7 @@ export function BoardCanvas({ board, selected, onSelect, onLinkDrop, tool, setTo
     }
     const r = host.current!.getBoundingClientRect();
     const w = toWorld(e.clientX, e.clientY);
-    setQuick({ sx: e.clientX - r.left, sy: e.clientY - r.top, wx: w.x, wy: w.y });
+    setQuick({ sx: (e.clientX - r.left) / uiZoom(), sy: (e.clientY - r.top) / uiZoom(), wx: w.x, wy: w.y });
   };
 
   const quickAdd = async (q: (typeof QUICK)[number]) => {
