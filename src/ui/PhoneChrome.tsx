@@ -77,6 +77,9 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
   const update = useStore((s) => s.update);
   const status = useSync((s) => s.status);
   const list = showAll ? allSections : sections;
+  // Sections are dropdowns: the one you're in starts open.
+  const [open, setOpen] = useState<string[]>(() => list.filter((s) => s.tabs.some((t) => t.id === tab)).map((s) => s.id));
+  const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -96,9 +99,13 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
         {status !== 'off' && <div className={`drawer-sync s-${status}`}>{status === 'live' ? '● Connected' : status === 'offline' ? '○ Offline — saved here, will sync later' : status === 'connecting' ? '◌ Connecting…' : '⚠ Not syncing'}</div>}
         <div className="drawer-sections">
           {list.filter((s) => s.id !== 'settings').map((s) => (
-            <div key={s.id} className="drawer-section">
-              <h4>{s.label}</h4>
-              {s.tabs.map((t) => (
+            <div key={s.id} className={`drawer-section ${open.includes(s.id) ? 'open' : ''}`}>
+              <button className="drawer-section-head" aria-expanded={open.includes(s.id)} onClick={() => toggle(s.id)}>
+                <span>{s.label}</span>
+                <span className="muted small">{s.tabs.some((t) => t.id === tab) && !open.includes(s.id) ? '● ' : ''}{s.tabs.length}</span>
+                <span className="chev" aria-hidden>{open.includes(s.id) ? '▾' : '▸'}</span>
+              </button>
+              {open.includes(s.id) && s.tabs.map((t) => (
                 <button key={t.id} className={t.id === tab ? 'active' : ''} onClick={() => onPick(t.id)}>
                   <b>{t.label}</b><span>{t.hint}</span>
                 </button>

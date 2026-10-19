@@ -13,6 +13,7 @@ import { usePinterestInbox } from './pinterest';
 import { deletedToast } from '../../components/deleted';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
+import { openActions } from '../../components/ActionSheet';
 import { useMediaUrl } from '../../store/media';
 
 const TOOLS: { id: Tool; label: string; key: string; icon: string }[] = [
@@ -89,10 +90,12 @@ export function BoardsTab() {
     <div className="boards-tab">
       <aside className="side boards-side" data-panel="Boards" data-panel-pick onDoubleClick={(e) => { if (e.target === e.currentTarget) create('mood'); }}>
         <div className="side-head"><b>Boards</b></div>
-        <div className="row pad-x">
-          <button className="small" onClick={() => create('mood')}>+ Mood board</button>
-          <button className="small" onClick={() => create('whiteboard')}>+ Whiteboard</button>
-          <button className="small" onClick={() => setPicking(true)}>+ Story map</button>
+        <div className="row pad-x new-board-row">
+          <button className="small primary" onClick={(e) => openActions('New board', [
+            { label: '🖼 Mood board — images, colours, references', run: () => create('mood') },
+            { label: '✎ Whiteboard — sketch and plan', run: () => create('whiteboard') },
+            { label: '🗺 Story map — connected cards, beats, timelines', run: () => setPicking(true) },
+          ], { x: e.clientX, y: e.clientY })}>＋ New board</button>
         </div>
         <ul className="board-list">
           {p.boards.map((b) => (

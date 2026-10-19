@@ -1596,3 +1596,38 @@ p.warn { color: #b45309; margin: 0; }
 .ref-cat:hover { color: var(--text); background: var(--panel-2); }
 .ref-nav-tools { gap: 10px; padding: 0 8px; }
 td.nowrap { white-space: nowrap; }
+
+/* Phone drawer: sections as dropdowns */
+.drawer-section-head { display: flex; align-items: center; gap: 8px; width: 100%; border: none; background: none; padding: 12px 10px; border-radius: 8px; text-align: left; font-weight: 700; font-size: 15px; min-height: 48px; }
+.drawer-section-head span:first-child { flex: 1; }
+.drawer-section-head .chev { color: var(--muted); width: 14px; text-align: center; }
+.drawer-section.open .drawer-section-head { color: var(--accent); }
+.drawer-section > button:not(.drawer-section-head) { padding-left: 22px; }
+.drawer-section + .drawer-section { border-top: 1px solid var(--border); }
+.link-targets .side-tabs { flex-wrap: wrap; }
+
+/* Top bar: squeeze in stages so Share, theme, Edit and Settings always fit (≥901px; below that the slim phone bar takes over). */
+.topbar { flex-wrap: nowrap; overflow: visible; }
+.topbar-right { flex-shrink: 0; }
+.topbar .project-menu { flex: 0 1 auto; min-width: 0; }
+.topbar .project-title { width: clamp(70px, 14vw, 220px); min-width: 0; text-overflow: ellipsis; }
+.tab .tab-short { display: none; }
+.theme-toggle .theme-cycle { display: none; }
+@media (max-width: 1440px) { .topbar { gap: 8px; } .topbar .tab { padding: 7px 9px; } }
+@media (max-width: 1280px) {
+  .topbar .og-logo.topbar-logo { width: 36px; }
+  .topbar .tab { padding: 6px 7px; font-size: 13.5px; }
+  .topbar-right { gap: 6px; }
+}
+@media (max-width: 1120px) {
+  .topbar .tab { padding: 6px 5px; font-size: 13px; }
+  .theme-toggle > button:not(.theme-cycle) { display: none; }
+  .theme-toggle .theme-cycle { display: inline-block; }
+  .topbar .review-btn { padding: 3px 6px; }
+}
+@media (max-width: 1000px) {
+  .tab .tab-full { display: none; }
+  .tab .tab-short { display: inline; }
+  .topbar { gap: 6px; padding: 6px 8px; }
+  .topbar .og-logo.topbar-logo { width: 30px; }
+}

@@ -99,6 +99,9 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'settings', label: 'Settings', tabs: [{ id: 'setup', label: 'Settings', hint: 'This project (shared) and this device (yours)' }] },
 ];
 
+/** Section names when the top bar is tight. */
+const SHORT_LABELS: Partial<Record<SectionId, string>> = { breakdown: 'Brkdwn', visualize: 'Visual', reference: 'Ref' };
+
 const ALL_TABS = SECTIONS.flatMap((s) => s.tabs.map((t) => t.id));
 registerSections(SECTIONS);
 const sectionOf = (t: TabId) => SECTIONS.find((s) => s.tabs.some((x) => x.id === t))!.id;
@@ -216,8 +219,8 @@ export function App() {
           <nav className="tabs sections" aria-label="Sections">
             {allowed.filter((x) => x.id !== 'settings').map((x) => (
               <div key={x.id} className="section-wrap">
-                <button className={section === x.id ? 'tab active' : 'tab'} onClick={(e) => { setTab(lastInSection[x.id] ?? x.tabs[0].id); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
-                  {x.label}
+                <button className={section === x.id ? 'tab active' : 'tab'} title={x.label} onClick={(e) => { setTab(lastInSection[x.id] ?? x.tabs[0].id); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
+                  <span className="tab-full">{x.label}</span><span className="tab-short" aria-hidden>{SHORT_LABELS[x.id] ?? x.label}</span>
                 </button>
                 {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
                 {x.id === 'reference' ? (
