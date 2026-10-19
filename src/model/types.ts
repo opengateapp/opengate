@@ -935,6 +935,31 @@ export interface StoryBible {
   boardIds: Id[];
 }
 
+// ---------- End credits ----------
+
+export type CreditStyle = 'card' | 'columns' | 'centered' | 'names';
+
+/** How the end credits are arranged. The names come live from the project; these are the choices. */
+export interface CreditsSettings {
+  /** Block ids in order (automatic blocks and your own). */
+  order: string[];
+  headings: Record<string, string>;
+  styles: Record<string, CreditStyle>;
+  hiddenBlocks: string[];
+  /** `${blockId}|${lineKey}` of single names left out. */
+  hiddenLines: string[];
+  custom: { id: Id; heading: string; style: CreditStyle; lines: { role?: string; name: string }[] }[];
+  /** Special thanks, one per line. */
+  thanks: string;
+  copyright?: string;
+  legal: { animals?: boolean; fiction?: boolean; openGate?: boolean };
+  castOrder: 'number' | 'appearance' | 'alpha';
+  /** Scroll speed: seconds for one screen height. */
+  secondsPerScreen: number;
+  /** Fixed runtime in seconds (otherwise worked out from the length). */
+  runtime?: number;
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -980,6 +1005,7 @@ export interface Project {
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
   bible?: StoryBible;
+  credits?: CreditsSettings;
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;
