@@ -24,6 +24,7 @@ import { TasksTab } from './tabs/TasksTab';
 import { BoardsTab } from './tabs/boards/BoardsTab';
 import { LocationsTab } from './tabs/LocationsTab';
 import { CharactersTab } from './tabs/CharactersTab';
+import { StoryBibleTab } from './tabs/StoryBibleTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
 import { ReferenceTab } from './tabs/ReferenceTab';
@@ -48,7 +49,7 @@ import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
 export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'reference' | 'settings';
 export type TabId =
-  | 'screenplay' | 'av' | 'docs' | 'characters'
+  | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
   | 'budget' | 'expenses' | 'gear'
   | 'contacts' | 'calendar' | 'tasks'
@@ -60,9 +61,10 @@ export type TabId =
 export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label: string; hint: string }[] }[] = [
   { id: 'write', label: 'Write', tabs: [
     { id: 'screenplay', label: 'Screenplay', hint: 'Write or import a screenplay' },
-    { id: 'av', label: 'A/V Scripts', hint: 'Two-column video / audio scripts' },
-    { id: 'docs', label: 'Docs', hint: 'Treatments, notes and other documents' },
     { id: 'characters', label: 'Characters', hint: 'Character builder: traits, alignment, profile and continuity photos' },
+    { id: 'bible', label: 'Story Bible', hint: 'The world of the story: overview, story days, places, groups, glossary, rules' },
+    { id: 'docs', label: 'Docs', hint: 'Treatments, notes and other documents' },
+    { id: 'av', label: 'A/V Scripts', hint: 'Two-column video / audio scripts' },
   ] },
   { id: 'breakdown', label: 'Breakdown', tabs: [
     { id: 'breakdown', label: 'Script Breakdown', hint: 'Tag elements in the script' },
@@ -260,6 +262,7 @@ export function App() {
         {tab === 'callsheets' && <CallSheetsView />}
         {tab === 'locations' && <LocationsTab />}
         {tab === 'characters' && <CharactersTab />}
+        {tab === 'bible' && <StoryBibleTab />}
         {tab === 'reports' && <ShootTab />}
         {tab === 'setup' && <SetupTab />}
         {tab === 'reference' && <ReferenceTab />}

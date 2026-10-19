@@ -210,6 +210,9 @@ function BreakdownSheet({ scene, focusEl, onFocus }: { scene: DerivedScene; focu
         <label className="field"><span>Est. minutes</span>
           <input type="number" min={0} value={sceneMinutes(p, scene)} onChange={(e) => setMeta((m) => { m.estimatedMinutes = Number(e.target.value) || undefined; })} />
         </label>
+        <label className="field"><span>Story day</span>
+          <input type="number" min={1} value={meta.storyDay ?? ''} placeholder="–" title="Which day of the story (Write → Story Bible → Story days)" onChange={(e) => setMeta((m) => { m.storyDay = e.target.value ? Math.max(1, Number(e.target.value)) : undefined; }, 'Story day')} />
+        </label>
         <label className="field wide"><span>Synopsis</span>
           <input value={meta.synopsis ?? ''} placeholder={scene.firstAction} onChange={(e) => setMeta((m) => { m.synopsis = e.target.value; })} />
         </label>

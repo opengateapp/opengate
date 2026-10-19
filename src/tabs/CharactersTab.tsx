@@ -366,6 +366,8 @@ function ContinuityCard({ ph, looks, scenes, sceneNum, onOpen, onEdit, onRemove,
   onOpen: () => void; onEdit: (fn: (x: ContinuityPhoto) => void, label?: string | null) => void; onRemove: () => void; onDrop: (e: React.DragEvent) => void;
 }) {
   const url = useMediaUrl(ph.imageId);
+  const meta = useProject().sceneMeta;
+  const storyDay = (id: string) => meta[id]?.storyDay;
   const free = scenes.filter((s) => !ph.sceneIds.includes(s.id));
   return (
     <div className="continuity-photo card" draggable onDragStart={(e) => { e.dataTransfer.setData(DRAG, ph.id); e.dataTransfer.effectAllowed = 'move'; }}
@@ -380,7 +382,7 @@ function ContinuityCard({ ph, looks, scenes, sceneNum, onOpen, onEdit, onRemove,
       <LookInput value={ph.look ?? ''} onCommit={(v) => onEdit((x) => { if (v) x.look = v; else delete x.look; }, 'Set look')} />
       <datalist id="char-looks">{looks.map((l) => <option key={l} value={l} />)}</datalist>
       <div className="chips">
-        {ph.sceneIds.map((id) => <span key={id} className="chip">Sc {sceneNum(id)}<button className="icon-btn" title="Remove scene" onClick={() => onEdit((x) => { x.sceneIds = x.sceneIds.filter((y) => y !== id); }, 'Untie scene')}>×</button></span>)}
+        {ph.sceneIds.map((id) => <span key={id} className="chip" title={storyDay(id) ? `Story day ${storyDay(id)}` : undefined}>Sc {sceneNum(id)}{storyDay(id) ? ` · D${storyDay(id)}` : ''}<button className="icon-btn" title="Remove scene" onClick={() => onEdit((x) => { x.sceneIds = x.sceneIds.filter((y) => y !== id); }, 'Untie scene')}>×</button></span>)}
         {free.length > 0 && (
           <select value="" onChange={(e) => { const v = e.target.value; if (v === '*') onEdit((x) => { x.sceneIds = scenes.map((s) => s.id); }, 'Tie all scenes'); else if (v) onEdit((x) => { x.sceneIds.push(v); }, 'Tie scene'); }}>
             <option value="">+ Scene</option>

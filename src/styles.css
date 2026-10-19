@@ -1507,3 +1507,27 @@ button.link.left { text-align: left; }
 .storage-meter div { height: 100%; background: var(--accent); }
 kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2); }
 @media (max-width: 760px) { .setup-tab > .side .settings-group { padding: 8px 6px; align-self: center; white-space: nowrap; } }
+
+/* ---------- Story Bible ---------- */
+.bible-main { min-width: 0; }
+.bible-page { display: flex; flex-direction: column; gap: 10px; max-width: 980px; min-height: 60%; }
+.bible-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.bible-card { position: relative; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--panel); }
+.bible-card textarea, .bible-card input, .bible-card select { width: 100%; }
+.bible-title { font-weight: 700; font-size: 15px; }
+.bible-x { position: absolute; top: 6px; right: 6px; }
+.day-board { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.day-col { flex: 0 0 260px; border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--panel); display: flex; flex-direction: column; gap: 4px; }
+.day-col h4 { margin: 0 0 4px; }
+.day-col.add { border-style: dashed; min-height: 80px; align-items: center; justify-content: center; }
+.day-scene { display: flex; gap: 6px; align-items: center; font-size: 12px; padding: 4px 6px; border-radius: 6px; background: var(--panel-2); cursor: grab; }
+.day-scene .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.day-scene .cell-num { width: 48px; flex: 0 0 48px; }
+.bible-boards { display: flex; flex-direction: column; gap: 4px; }
+.seg.wrap { flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .day-board { flex-direction: column; overflow-x: visible; }
+  .day-col { flex: 1 1 auto; width: 100%; }
+  .day-scene { padding: 8px; }
+  .day-scene .cell-num { width: 56px; flex-basis: 56px; font-size: 16px; }
+}

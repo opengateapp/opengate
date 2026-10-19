@@ -72,6 +72,8 @@ export interface SceneMeta {
   extraCast?: string[];
   timeOverride?: TimeOfDay;
   notes?: string;
+  /** Story day this scene happens on (Story Bible), for continuity. */
+  storyDay?: number;
 }
 
 export interface Category {
@@ -465,7 +467,8 @@ export interface BoardItem {
 export interface Board {
   id: Id;
   title: string;
-  kind: 'mood' | 'whiteboard';
+  /** story: a story map (connected cards, beats, timelines) — same canvas as mood boards. */
+  kind: 'mood' | 'whiteboard' | 'story';
   items: BoardItem[];
   /** Live collaboration room id when shared. */
   roomId?: string;
@@ -844,6 +847,32 @@ export interface SceneVariant {
   createdAt: string;
 }
 
+// ---------- Story Bible ----------
+
+export type BibleGenre = 'contemporary' | 'fantasy' | 'scifi' | 'horror' | 'period';
+
+export interface StoryPlace { id: Id; name: string; description: string; locationId?: Id; imageId?: Id }
+export interface StoryGroup { id: Id; name: string; description: string; members: string[] }
+export interface GlossaryEntry { id: Id; term: string; meaning: string }
+export interface WorldRule { id: Id; title: string; text: string }
+/** Something that happens in the story's timeline that isn't a scene (backstory, off-screen events). */
+export interface StoryEvent { id: Id; day: number; title: string; text?: string }
+
+export interface StoryBible {
+  genre: BibleGenre;
+  logline: string;
+  synopsis: string;
+  tone: string;
+  themes: string[];
+  places: StoryPlace[];
+  groups: StoryGroup[];
+  glossary: GlossaryEntry[];
+  rules: WorldRule[];
+  events: StoryEvent[];
+  /** Mood boards linked to the bible. */
+  boardIds: Id[];
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -888,6 +917,7 @@ export interface Project {
   autoDrafts?: boolean;
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
+  bible?: StoryBible;
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;
