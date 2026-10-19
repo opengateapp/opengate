@@ -99,6 +99,9 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'settings', label: 'Settings', tabs: [{ id: 'setup', label: 'Settings', hint: 'This project (shared) and this device (yours)' }] },
 ];
 
+/** Tabs with a side panel that can be hidden. */
+const SIDE_TABS = new Set<string>(['screenplay', 'av', 'docs', 'characters', 'bible', 'breakdown', 'stripboard', 'calendar', 'boards', 'designer', 'callsheets', 'locations', 'reference', 'setup']);
+
 /** Section names when the top bar is tight. */
 const SHORT_LABELS: Partial<Record<SectionId, string>> = { breakdown: 'Brkdwn', visualize: 'Visual', reference: 'Ref' };
 
@@ -132,6 +135,16 @@ export function App() {
   };
   const section = sectionOf(tab);
   const openBoards = useCallback(() => setTab('boards'), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Hide the side panel to give the work more room (remembered per tab on this device).
+  const [hiddenSides, setHiddenSides] = useState<string[]>(() => { try { return JSON.parse(localStorageGet('sideHidden') ?? '[]'); } catch { return []; } });
+  const sideHidden = hiddenSides.includes(tab);
+  const toggleSide = () => setHiddenSides((h) => { const next = h.includes(tab) ? h.filter((x) => x !== tab) : [...h, tab]; localStorageSet('sideHidden', JSON.stringify(next)); return next; });
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === '\\' && SIDE_TABS.has(tab)) { e.preventDefault(); toggleSide(); } };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A tab hidden by this person's link: go to the first one they can see.
   useEffect(() => {
     if (!tabHidden(tab)) return;
@@ -259,16 +272,20 @@ export function App() {
           </div>
         </header>
       )}
-      {sec.tabs.length > 1 && (
+      {(sec.tabs.length > 1 || (!phone && SIDE_TABS.has(tab))) && (
         <nav className="subtabs" aria-label={`${sec.label} tabs`}>
-          {sec.tabs.map((t) => (
+          {!phone && SIDE_TABS.has(tab) && (
+            <button className={`subtab side-toggle ${sideHidden ? 'on' : ''}`} title={`${sideHidden ? 'Show' : 'Hide'} the side panel (${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+'}\\)`} aria-pressed={sideHidden} onClick={toggleSide}>{sideHidden ? '⇥' : '⇤'}</button>
+          )}
+          {sec.tabs.length === 1 && <span className="subtab-title">{sec.tabs[0].label}</span>}
+          {sec.tabs.length > 1 && sec.tabs.map((t) => (
             <button key={t.id} className={tab === t.id ? 'subtab active' : 'subtab'} title={t.hint} onClick={() => setTab(t.id)}>{t.label}</button>
           ))}
         </nav>
       )}
       <AccessBanner />
       {phone && <PhonePanels tab={tab} />}
-      <main className="tab-body">
+      <main className={`tab-body ${sideHidden && !phone ? 'side-hidden' : ''}`}>
         <TabBoundary tab={tab}>
         {tab === 'screenplay' && <WriteTab />}
         {tab === 'av' && <AVScriptTab />}

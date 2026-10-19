@@ -1631,3 +1631,14 @@ td.nowrap { white-space: nowrap; }
   .topbar { gap: 6px; padding: 6px 8px; }
   .topbar .og-logo.topbar-logo { width: 30px; }
 }
+
+/* Hide the side panel (desktop and iPad; phones use the panel sheets) */
+.subtabs .side-toggle { font-size: 15px; padding: 2px 9px; margin-right: 6px; border-right: 1px solid var(--border); border-radius: 6px 0 0 6px; color: var(--muted); }
+.subtabs .side-toggle.on { color: var(--accent); }
+.subtab-title { font-size: 13px; font-weight: 600; color: var(--muted); padding: 4px 6px; }
+@media (min-width: 761px) {
+  .tab-body.side-hidden aside.side, .tab-body.side-hidden aside.boneyard { display: none !important; }
+  .tab-body.side-hidden .with-side, .tab-body.side-hidden .boards-tab, .tab-body.side-hidden .schedule-body, .tab-body.side-hidden .calendar-body { grid-template-columns: 1fr !important; }
+  .tab-body.side-hidden .breakdown-tab.with-side { grid-template-columns: 1fr 340px !important; }
+  .tab-body.side-hidden .designer.with-side { grid-template-columns: 1fr !important; }
+}
