@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Alignment, CharacterProfile, DerivedScene, Project } from '../model/types';
+import type { Alignment, CharacterOptions, CharacterProfile, DerivedScene, Project } from '../model/types';
 import type { Derived } from './derive';
 import { sceneCast } from './derive';
 import { newId } from '../model/ids';
@@ -13,6 +13,18 @@ export const ALIGNMENTS: { id: Alignment; label: string }[] = [
   { id: 'LE', label: 'Lawful Evil' }, { id: 'NE', label: 'Neutral Evil' }, { id: 'CE', label: 'Chaotic Evil' },
 ];
 export const alignmentLabel = (a?: Alignment) => ALIGNMENTS.find((x) => x.id === a)?.label ?? '';
+
+export const SPECIES_PACKS: { id: string; label: string; items: string[] }[] = [
+  { id: 'contemporary', label: 'Contemporary / real world', items: ['Human'] },
+  { id: 'fantasy', label: 'Fantasy', items: ['Elf', 'Dwarf', 'Halfling', 'Orc', 'Goblin', 'Giant', 'Fairy', 'Dragon'] },
+  { id: 'scifi', label: 'Science fiction', items: ['Android', 'Robot', 'Cyborg', 'AI', 'Clone', 'Alien', 'Mutant'] },
+  { id: 'horror', label: 'Horror / supernatural', items: ['Vampire', 'Werewolf', 'Ghost', 'Spirit', 'Zombie', 'Demon', 'Witch'] },
+  { id: 'creature', label: 'Animals & creatures', items: ['Animal', 'Talking animal', 'Creature', 'Puppet'] },
+];
+
+export const ARCHETYPES = ['Innocent', 'Everyman', 'Hero', 'Caregiver', 'Explorer', 'Rebel', 'Lover', 'Creator', 'Jester', 'Sage', 'Magician', 'Ruler'];
+
+export const ARCS = ['Positive change', 'Flat / steadfast', 'Disillusionment', 'Fall', 'Corruption', 'Redemption', 'Moral ascent', 'Moral descent', 'Testing'];
 
 export const ROLES = ['Protagonist', 'Antagonist', 'Deuteragonist', 'Supporting', 'Mentor', 'Love interest', 'Foil', 'Comic relief', 'Sidekick', 'Minor', 'Extra'];
 export const RACES = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Orc', 'Android', 'Alien', 'Creature', 'Spirit', 'Vampire', 'Werewolf', 'Robot'];
@@ -49,6 +61,31 @@ export const TRAIT_LISTS = [
   { k: 'faults', label: 'Faults / flaws', hint: 'e.g. Reckless, jealous' },
   { k: 'actions', label: 'Actions', hint: 'Signature moves and habits' },
 ] as const;
+
+export function defaultCharacterOptions(): CharacterOptions {
+  return {
+    roles: [...ROLES], genders: [...GENDERS], speciesPacks: ['contemporary'], customSpecies: [], speciesLabel: 'Species',
+    compass: 'alignment', archetypes: [...ARCHETYPES], hiddenFields: [], customFields: [],
+  };
+}
+
+/** The project's Character Builder choices, with defaults for anything not set. */
+export function characterOptions(p: Pick<Project, 'characterOptions'>): CharacterOptions & { species: string[] } {
+  const o = { ...defaultCharacterOptions(), ...p.characterOptions };
+  const species = [...new Set([...SPECIES_PACKS.filter((x) => o.speciesPacks.includes(x.id)).flatMap((x) => x.items), ...o.customSpecies])];
+  return { ...o, species };
+}
+
+/** Profile sections with hidden fields removed and the project's own fields added. */
+export function profileSections(o: CharacterOptions): { id: string; title: string; fields: ProfileField[] }[] {
+  return PROFILE_SECTIONS.map((sec) => ({
+    ...sec,
+    fields: [
+      ...sec.fields.filter((f) => !o.hiddenFields.includes(f.k)),
+      ...o.customFields.filter((f) => f.section === sec.id).map((f) => ({ k: `custom:${f.id}`, label: f.label, long: f.long })),
+    ],
+  })).filter((sec) => sec.fields.length);
+}
 
 export const normName = (s: string) => s.trim().replace(/\s+/g, ' ').toUpperCase();
 

@@ -1220,3 +1220,25 @@ hr.el-pageBreak { border: none; border-top: 2px dashed #bbb; margin: 18pt 0 6pt;
 .rel-edge.sel line:not(.hit) { filter: drop-shadow(0 0 4px var(--accent)); }
 .rel-edge-label { font-size: 22px; fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 5px; }
 .rel-edit { margin: 0 12px 12px; padding: 10px 12px; }
+
+/* ---------- Settings → Character builder ---------- */
+.char-settings { max-width: 760px; }
+.char-settings h4 { margin: 18px 0 6px; }
+.char-settings .field.narrow { max-width: 260px; }
+.pack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 8px 0; }
+.pack { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+.pack.on { border-color: var(--accent); background: var(--accent-soft); }
+.pack span { display: flex; flex-direction: column; gap: 2px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+.list-editor h5 { margin: 10px 0 4px; font-size: 13px; }
+.list-editor ul { list-style: none; padding: 0; margin: 0 0 6px; display: flex; flex-direction: column; gap: 3px; }
+.list-editor li { display: flex; gap: 2px; align-items: center; }
+.list-editor li input { flex: 1; }
+.field-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.field-sections fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px 10px; margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.field-sections legend { font-weight: 600; font-size: 12px; padding: 0 4px; }
+.custom-field { display: flex; gap: 4px; align-items: center; }
+.custom-field > input { flex: 1; }
+.align-grid.archetypes { grid-template-columns: repeat(3, 1fr); }
+.align-grid.archetypes button { font-size: 11px; }

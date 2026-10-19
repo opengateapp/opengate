@@ -623,7 +623,30 @@ export interface CharacterProfile {
   info: Record<string, string>;
   /** 0 = introvert, 100 = extrovert. */
   introExtro?: number;
+  /** Character archetype (when the project uses archetypes instead of the alignment grid). */
+  archetype?: string;
+  /** Character arc (reference: flat, positive change, fall…). */
+  arc?: string;
   continuity: ContinuityPhoto[];
+}
+
+/** Per-project choices for the Character Builder's lists and fields (Settings → Character builder). */
+export interface CharacterOptions {
+  roles: string[];
+  genders: string[];
+  /** Species packs switched on (SPECIES_PACKS ids). */
+  speciesPacks: string[];
+  /** The project's own species / kinds. */
+  customSpecies: string[];
+  /** Name of the species field ("Species", "Race", "Kind"…). */
+  speciesLabel: string;
+  /** What the 3×3 panel shows. */
+  compass: 'alignment' | 'archetype' | 'none';
+  archetypes: string[];
+  /** Built-in profile fields to hide (by field key). */
+  hiddenFields: string[];
+  /** Extra fields, per profile section. */
+  customFields: { id: string; section: string; label: string; long?: boolean }[];
 }
 
 /** How two characters are connected (by name, so script characters without a profile count too). */
@@ -675,6 +698,7 @@ export interface Project {
   /** Character profiles (Write → Characters), matched to the script by name. */
   characters: CharacterProfile[];
   relationships: CharacterRelationship[];
+  characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;
   notes: string;

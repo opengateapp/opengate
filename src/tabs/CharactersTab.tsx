@@ -15,7 +15,7 @@ import { RelationshipList, RelationshipMap } from './characters/Relationships';
 import { renameInRelationships } from '../script/relationships';
 import { Hint } from '../components/Hint';
 import {
-  ALIGNMENTS, GENDERS, PROFILE_SECTIONS, RACES, ROLES, TRAIT_LISTS, alignmentLabel, characterEntries, newProfile, normName, scenesFor, useCharacterFocus,
+  ALIGNMENTS, ARCS, TRAIT_LISTS, alignmentLabel, characterEntries, characterOptions, newProfile, normName, profileSections, scenesFor, useCharacterFocus,
 } from '../script/characters';
 
 // Character builder: a stripped-down D&D-style sheet per character — race, gender, role,
@@ -55,6 +55,7 @@ export function CharactersTab() {
   const [sel, setSel] = useState<string | null>(focus);
   useEffect(() => { if (focus) { setSel(focus); useCharacterFocus.setState({ name: null }); } }, [focus]);
   const entries = characterEntries(p, d);
+  const opts = characterOptions(p);
   const current = entries.find((e) => e.name === sel) ?? entries[0];
   const [view, setView] = useState<'sheet' | 'map'>('sheet');
   const mapEntries = entries.map((e) => ({ name: e.name, portraitId: e.profile?.portraitId }));
@@ -90,7 +91,8 @@ export function CharactersTab() {
                 <b>{e.name}</b><br />
                 <span className="muted small">{[e.profile?.role, e.actor, `${e.scenes} sc`].filter(Boolean).join(' · ')}</span>
               </span>
-              {e.profile?.alignment && <span className="align-chip" title={alignmentLabel(e.profile.alignment)}>{e.profile.alignment}</span>}
+              {opts.compass === 'alignment' && e.profile?.alignment && <span className="align-chip" title={alignmentLabel(e.profile.alignment)}>{e.profile.alignment}</span>}
+              {opts.compass === 'archetype' && e.profile?.archetype && <span className="align-chip" title={e.profile.archetype}>{e.profile.archetype.slice(0, 3)}</span>}
             </li>
           ))}
         </ul>
@@ -128,6 +130,7 @@ function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterP
   const scenes = scenesFor(p, d, prof.name);
   const lines = d.characters.find((c) => c.name === prof.name)?.lines ?? 0;
   const cast = p.cast.find((c) => normName(c.characterName) === prof.name);
+  const opts = characterOptions(p);
 
   const rename = () => {
     const n = normName(name);
@@ -174,18 +177,31 @@ function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterP
             <span>{cast ? <>Played by <b>{cast.actorName || '—'}</b>{cast.castNumber ? ` (#${cast.castNumber})` : ''}</> : <span className="muted">Not in cast list</span>}</span>
           </div>
           <div className="form-grid tight">
-            <label className="field"><span>Race / species</span><input list="char-races" value={prof.race} onChange={(e) => set((c) => { c.race = e.target.value; })} /></label>
+            <label className="field"><span>{opts.speciesLabel}</span><input list="char-races" value={prof.race} onChange={(e) => set((c) => { c.race = e.target.value; })} /></label>
             <label className="field"><span>Gender</span><input list="char-genders" value={prof.gender} onChange={(e) => set((c) => { c.gender = e.target.value; })} /></label>
             <label className="field"><span>Role</span><input list="char-roles" value={prof.role} placeholder="Protagonist, mentor…" onChange={(e) => set((c) => { c.role = e.target.value; })} /></label>
+            <label className="field"><span>Arc</span><input list="char-arcs" value={prof.arc ?? ''} placeholder="Positive change, fall…" onChange={(e) => set((c) => { c.arc = e.target.value || undefined; })} /></label>
             <label className="field"><span>Introvert ↔ Extrovert</span>
               <input type="range" min={0} max={100} value={prof.introExtro ?? 50} onChange={(e) => set((c) => { c.introExtro = Number(e.target.value); })} />
             </label>
           </div>
-          <datalist id="char-races">{RACES.map((r) => <option key={r} value={r} />)}</datalist>
-          <datalist id="char-genders">{GENDERS.map((r) => <option key={r} value={r} />)}</datalist>
-          <datalist id="char-roles">{ROLES.map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="char-races">{opts.species.map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="char-genders">{opts.genders.map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="char-roles">{opts.roles.map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="char-arcs">{ARCS.map((r) => <option key={r} value={r} />)}</datalist>
         </div>
-        <div className="char-align card">
+        {opts.compass === 'archetype' && (
+          <div className="char-align card">
+            <span className="small"><b>Archetype</b> <span className="muted">{prof.archetype ?? ''}</span></span>
+            <div className="align-grid archetypes" role="radiogroup" aria-label="Archetype">
+              {opts.archetypes.map((a) => (
+                <button key={a} role="radio" aria-checked={prof.archetype === a} className={prof.archetype === a ? 'on' : ''}
+                  onClick={() => set((c) => { c.archetype = c.archetype === a ? undefined : a; }, 'Set archetype')}>{a}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {opts.compass === 'alignment' && <div className="char-align card">
           <span className="small"><b>Alignment</b> <span className="muted">{alignmentLabel(prof.alignment)}</span></span>
           <div className="align-grid" role="radiogroup" aria-label="Alignment">
             {ALIGNMENTS.map((a) => (
@@ -195,7 +211,7 @@ function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterP
               </button>
             ))}
           </div>
-        </div>
+        </div>}
       </div>
 
       <div className="char-traits">
@@ -204,7 +220,7 @@ function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterP
 
       <RelationshipList name={prof.name} entries={entries} onOpen={onOpen} />
 
-      {PROFILE_SECTIONS.map((sec) => (
+      {profileSections(opts).map((sec) => (
         <details key={sec.id} className="char-section" open>
           <summary><h4>{sec.title}</h4></summary>
           <div className="form-grid">

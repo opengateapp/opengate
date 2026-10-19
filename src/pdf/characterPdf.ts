@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import type { CharacterProfile, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { blobToImage, getMedia } from '../store/media';
-import { PROFILE_SECTIONS, TRAIT_LISTS, alignmentLabel, normName, scenesFor } from '../script/characters';
+import { TRAIT_LISTS, alignmentLabel, characterOptions, normName, profileSections, scenesFor } from '../script/characters';
 import { kindOf, relationshipsOf, toneLabel } from '../script/relationships';
 
 // Character profile sheets, laid out like a printed character profile template: section
@@ -99,7 +99,8 @@ export function characterPdf(p: Project, d: Derived, profiles: CharacterProfile[
     const scenes = scenesFor(p, d, c.name);
     const cast = p.cast.find((x) => normName(x.characterName) === c.name);
     const core: [string, string][] = [
-      ['Race / species', c.race], ['Gender', c.gender], ['Role', c.role], ['Alignment', alignmentLabel(c.alignment)],
+      [characterOptions(p).speciesLabel, c.race], ['Gender', c.gender], ['Role', c.role], ['Arc', c.arc ?? ''],
+      ...(characterOptions(p).compass === 'alignment' ? [['Alignment', alignmentLabel(c.alignment)]] : characterOptions(p).compass === 'archetype' ? [['Archetype', c.archetype ?? '']] : []) as [string, string][],
       ['Intro / extrovert', c.introExtro == null ? '' : c.introExtro < 40 ? 'Introvert' : c.introExtro > 60 ? 'Extrovert' : 'Ambivert'],
       ['Played by', cast ? `${cast.actorName || '—'}${cast.castNumber ? ` (#${cast.castNumber})` : ''}` : ''],
       ['Scenes', scenes.length ? `${scenes.length} — ${scenes.map((s) => s.number).join(', ')}` : ''],
@@ -132,7 +133,7 @@ export function characterPdf(p: Project, d: Derived, profiles: CharacterProfile[
     }
 
     const colW = (PW - 2 * M - 16) / 2;
-    for (const sec of PROFILE_SECTIONS) {
+    for (const sec of profileSections(characterOptions(p))) {
       section(sec.title);
       const short = sec.fields.filter((f) => !f.long);
       for (let i = 0; i < short.length; i += 2) {

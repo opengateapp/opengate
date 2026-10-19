@@ -8,13 +8,14 @@ import { formatDate } from '../model/dates';
 import { Field } from '../components/common';
 import { AppearanceSettings } from '../components/AppearanceSettings';
 import { PhoneLayoutSettings } from '../ui/PhoneLayoutSettings';
+import { CharacterSettings } from '../components/CharacterSettings';
 
 /** Production Setup (after CineSched's ProductionSetupSheet): company, cast roster, locations, crew, colors, categories. */
 export function SetupTab() {
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
-  const [section, setSection] = useState<'appearance' | 'phone' | 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors'>('appearance');
+  const [section, setSection] = useState<'appearance' | 'phone' | 'characters' | 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors'>('appearance');
   // The phone drawer's "Customize tabs…" opens the Phone layout panel.
   useEffect(() => {
     const go = () => setSection('phone');
@@ -30,15 +31,16 @@ export function SetupTab() {
   return (
     <div className="setup-tab with-side">
       <aside className="side">
-        {(['appearance', 'phone', 'production', 'cast', 'locations', 'crew', 'categories', 'colors'] as const).map((s) => (
+        {(['appearance', 'phone', 'characters', 'production', 'cast', 'locations', 'crew', 'categories', 'colors'] as const).map((s) => (
           <button key={s} className={`side-link ${section === s ? 'active' : ''}`} onClick={() => setSection(s)}>
-            {{ appearance: 'Appearance', phone: 'Phone layout', production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors' }[s]}
+            {{ appearance: 'Appearance', phone: 'Phone layout', characters: 'Character builder', production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors' }[s]}
           </button>
         ))}
       </aside>
       <section className="main pad scroll">
         {section === 'appearance' && <AppearanceSettings />}
         {section === 'phone' && <PhoneLayoutSettings />}
+        {section === 'characters' && <CharacterSettings />}
         {section === 'production' && (
           <div className="form-grid">
             {(['company', 'director', 'producer', 'ad', 'contactPhone'] as const).map((k) => (

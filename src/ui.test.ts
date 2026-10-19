@@ -56,3 +56,20 @@ describe('character relationships', () => {
     expect(Object.keys(mapLayout(p, ['MAYA', 'THEODORE', 'DALE'], true))).toHaveLength(3);
   });
 });
+
+describe('Character builder options', () => {
+  it('builds species from packs, hides fields and adds custom ones', async () => {
+    const { characterOptions, profileSections, defaultCharacterOptions } = await import('./script/characters');
+    expect(characterOptions({}).species).toEqual(['Human']);
+    const o = { ...defaultCharacterOptions(), speciesPacks: ['contemporary', 'scifi'], customSpecies: ['Replicant', 'Android'], hiddenFields: ['orientation', 'dob'], customFields: [{ id: 'f1', section: 'basic', label: 'Star sign' }] };
+    const full = characterOptions({ characterOptions: o });
+    expect(full.species).toContain('Cyborg');
+    expect(full.species.filter((s) => s === 'Android')).toHaveLength(1);
+    expect(full.species).toContain('Replicant');
+    expect(full.species).not.toContain('Elf');
+    const basic = profileSections(full).find((s) => s.id === 'basic')!.fields.map((f) => f.k);
+    expect(basic).not.toContain('orientation');
+    expect(basic).not.toContain('dob');
+    expect(basic[basic.length - 1]).toBe('custom:f1');
+  });
+});
