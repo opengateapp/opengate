@@ -21,7 +21,7 @@ export const RESOURCE_TYPES: { id: ResourceType; label: string }[] = [
 ];
 
 export const TOPIC_LABELS: Record<string, string> = {
-  story: 'Story', screenwriting: 'Screenwriting', directing: 'Directing', cinematography: 'Cinematography', camera: 'Camera', lenses: 'Lenses',
+  smartphone: 'Smartphone filmmaking', story: 'Story', screenwriting: 'Screenwriting', directing: 'Directing', cinematography: 'Cinematography', camera: 'Camera', lenses: 'Lenses',
   lighting: 'Lighting', audio: 'Sound', grip: 'Grip', production: 'Producing', post: 'Post', editing: 'Editing', data: 'Data', vfx: 'VFX',
 };
 
@@ -62,6 +62,10 @@ export const LIBRARY: Resource[] = [
   // Free tools
   { id: 'resolve', name: 'DaVinci Resolve', url: 'https://www.blackmagicdesign.com/products/davinciresolve', type: 'tool', topics: ['editing', 'post'], level: 'all', free: true, desc: 'Professional editing, colour, effects and audio — the free version is very capable.' },
   { id: 'kdenlive', name: 'Kdenlive', url: 'https://kdenlive.org/', type: 'tool', topics: ['editing'], level: 'beginner', free: true, desc: 'Open-source video editor for Windows, Mac and Linux.' },
+  { id: 'dcpomatic', name: 'DCP-o-matic', url: 'https://dcpomatic.com/', type: 'tool', topics: ['post'], level: 'intermediate', free: true, desc: 'Free, open-source app that makes Digital Cinema Packages (DCPs) from your master — for festival and cinema screenings.' },
+  { id: 'bm-camera', name: 'Blackmagic Camera', url: 'https://www.blackmagicdesign.com/products/blackmagiccamera', type: 'tool', topics: ['smartphone', 'camera'], level: 'all', free: true, desc: 'Free pro camera app for iPhone and Android: shutter angle, ISO, kelvin white balance, focus peaking, false colour, codecs and timecode.' },
+  { id: 'bm-camera-ios', name: 'Blackmagic Camera — App Store (iPhone, iPad)', url: 'https://apps.apple.com/app/blackmagic-camera/id6449580241', type: 'tool', topics: ['smartphone'], level: 'all', free: true, desc: 'Download Blackmagic Camera for iOS.' },
+  { id: 'bm-camera-android', name: 'Blackmagic Camera — Google Play (Android)', url: 'https://play.google.com/store/apps/details?id=com.blackmagicdesign.android.blackmagiccam', type: 'tool', topics: ['smartphone'], level: 'all', free: true, desc: 'Download Blackmagic Camera for Android (supported phones).' },
   { id: 'audacity', name: 'Audacity', url: 'https://www.audacityteam.org/', type: 'tool', topics: ['audio'], level: 'beginner', free: true, desc: 'Open-source audio editor for cleaning up and editing sound.' },
   // Books
   ...([

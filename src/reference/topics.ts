@@ -1,7 +1,9 @@
+import { CREW } from './crew';
+
 // Reference pages: short plain-language explainers written for Open Gate, a quick-reference
 // table where it helps, an interactive tool, and links to where it's used in the app.
 
-export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'post';
+export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'crew' | 'post';
 
 export const CATEGORIES: { id: RefCategory; label: string; icon: string }[] = [
   { id: 'story', label: 'Story', icon: '✎' },
@@ -12,10 +14,11 @@ export const CATEGORIES: { id: RefCategory; label: string; icon: string }[] = [
   { id: 'video', label: 'Video & Data', icon: '▤' },
   { id: 'grip', label: 'Grip & Support', icon: '⌖' },
   { id: 'production', label: 'Production', icon: '☰' },
+  { id: 'crew', label: 'Crew & departments', icon: '☺' },
   { id: 'post', label: 'Post', icon: '✂' },
 ];
 
-export type ToolId = 'dof' | 'fov' | 'crop' | 'exposure' | 'shutter' | 'kelvin' | 'falloff' | 'storage' | 'audio' | 'battery' | 'power' | 'frameworks' | 'arcs';
+export type ToolId = 'dof' | 'fov' | 'crop' | 'exposure' | 'shutter' | 'kelvin' | 'falloff' | 'storage' | 'audio' | 'battery' | 'power' | 'phone' | 'frameworks' | 'arcs';
 
 export interface RefPage {
   id: string;
@@ -93,6 +96,24 @@ export const PAGES: RefPage[] = [
     table: { head: ['Ratio', 'Where you see it'], rows: [['1.33:1 (4:3)', 'Classic TV, some art films'], ['1.66:1', 'European features'], ['1.78:1 (16:9)', 'HD TV, streaming'], ['1.85:1', 'US theatrical “flat”'], ['2.00:1', 'Streaming dramas'], ['2.39:1', 'Theatrical “scope”, anamorphic'], ['9:16', 'Phones, social video']] },
     topics: ['camera', 'cinematography'], keywords: 'widescreen scope anamorphic 16:9',
   },
+  {
+    id: 'smartphone', category: 'camera', title: 'Smartphone cinematography', lead: 'How far a phone can go as your A or B camera — and how to push it.',
+    sections: [
+      { p: 'Recent “Pro” iPhones and flagship Android phones shoot genuinely usable footage for shorts, music videos, B-roll and crash cams. The sensors are small, so the tricks are about control: lock everything, shoot a flat profile, keep the phone cool and the shutter at 180°.' },
+      { h: 'Sensors', p: 'Main cameras on current flagships use roughly 1/1.3″ sensors (about 9.6 × 7.2 mm — a crop factor near 3.6–3.9×), with 48 MP (iPhone Pro) to 200 MP (Galaxy Ultra) pixel counts binned down for video. Ultra-wide and telephoto cameras use smaller sensors and look noisier in low light — use the main camera when you can. Depth of field is deep; shallow focus comes from distance to the background, not the lens.' },
+      { h: 'Codecs & log', p: 'Phones record HEVC (H.265) or H.264 by default — small files, heavy compression. Pro iPhones (iPhone 13 Pro and later) can record Apple ProRes; iPhone 15 Pro and later add Apple Log, a flat log profile that grades much better, and can record ProRes straight to an external USB-C SSD (needed for the highest ProRes resolutions and frame rates). Recent Galaxy Ultra phones offer a Log profile and 8K; Pixel Pro phones offer 10-bit HDR and an 8K “Video Boost” mode processed in the cloud.' },
+      { h: 'Get control', p: 'Use a camera app with manual control — the free Blackmagic Camera app (iOS and Android) gives shutter angle, ISO, white balance in kelvin, focus peaking, false colour, codecs and timecode. Lock focus, exposure and white balance; set 24 or 25 fps with a 180° shutter (1/48 or 1/50) and use a variable ND filter clip to keep it there in daylight.' },
+      { h: 'Rig & workflow', p: 'A cage or gimbal, an external mic (or a separate recorder with timecode / a clap), a power bank, and an external SSD for ProRes. Phones throttle or stop when hot — shade them, take cases off, and keep spare storage. Offload with checksums like any other camera card, and label clips by day and camera.' },
+      { p: 'Figures here are approximate and change every year — check your exact model’s camera and video specs before you rely on them.' },
+    ],
+    table: { head: ['Recording (approx.)', 'GB per minute', 'Notes'], rows: [
+      ['HEVC 1080p30', '0.06', 'Default “high efficiency”'], ['HEVC 4K30', '0.19', ''], ['HEVC 4K60', '0.44', ''],
+      ['Apple ProRes 422 HQ 1080p30', '1.7', 'Pro iPhones'], ['Apple ProRes 422 HQ 4K30', '6', 'Pro iPhones; Apple Log on 15 Pro and later'], ['Apple ProRes 422 HQ 4K60', '12', 'External SSD on supported models'],
+      ['8K30 (Android flagships)', '0.6', 'Galaxy Ultra; very compressed'],
+    ] },
+    tool: 'phone', use: [{ tab: 'gear', label: 'Budget → Gear' }, { tab: 'designer', label: 'Shot Designer (sensor: Phone)' }], topics: ['camera', 'smartphone'],
+    keywords: 'iphone android phone mobile prores apple log hevc samsung galaxy pixel blackmagic camera app gimbal',
+  },
   // ---------- Lenses ----------
   {
     id: 'focal-length', category: 'lenses', title: 'Focal length & field of view', lead: 'Wide lenses show more and exaggerate depth; long lenses compress it.',
@@ -111,13 +132,23 @@ export const PAGES: RefPage[] = [
     tool: 'dof', use: [{ tab: 'designer', label: 'Shot Designer cameras' }], topics: ['lenses', 'cinematography'], keywords: 'focus hyperfocal circle of confusion bokeh shallow',
   },
   {
-    id: 'stops-mounts', category: 'lenses', title: 'f-stops, T-stops & mounts', lead: 'Cinema lenses are marked in T-stops; mounts decide what fits what.',
+    id: 'stops', category: 'lenses', title: 'f-stops & T-stops', lead: 'How wide the iris is open — and why cinema lenses are marked in T-stops.',
     sections: [
-      { p: 'An f-stop is a geometric ratio (focal length ÷ aperture). A T-stop is measured light actually passing through the glass, so a set of cine primes all at T2 gives matching exposure when you swap lenses.' },
-      { p: 'Mount and flange distance decide compatibility: a lens can be adapted to a camera with a shorter flange distance (e.g. EF to RF or E), not usually the other way round.' },
+      { p: 'An f-stop is a ratio: the focal length divided by the width of the opening. f/2 on a 50mm lens is a 25mm opening. Each full stop (f/2 → f/2.8 → f/4…) halves the light, because the area of the opening halves.' },
+      { p: 'A T-stop is the light that actually gets through the glass, measured. Lenses lose some light inside, and different lenses lose different amounts, so two lenses both set to f/2 can expose differently. A matched set of cine primes all at T2 gives the same exposure when you swap lenses — which is why cinema lenses are marked in T-stops.' },
+      { h: 'In practice', p: 'Wider (smaller number) means more light and shallower depth of field; narrower means more in focus. Most lenses are sharpest a couple of stops down from wide open.' },
+    ],
+    table: { head: ['Full stops', 'Light vs the stop before'], rows: [['f/1', '—'], ['f/1.4', '½'], ['f/2', '½'], ['f/2.8', '½'], ['f/4', '½'], ['f/5.6', '½'], ['f/8', '½'], ['f/11', '½'], ['f/16', '½'], ['f/22', '½']] },
+    tool: 'dof', topics: ['lenses'], keywords: 'aperture iris f-stop t-stop stop light',
+  },
+  {
+    id: 'mounts', category: 'lenses', title: 'Lens mounts & adapters', lead: 'The mount decides which lenses fit which cameras.',
+    sections: [
+      { p: 'Every mount has a flange distance: how far the mount sits from the sensor. A lens can be adapted to a camera with a shorter flange distance by putting a spacer adapter between them (EF lenses on RF, E or L cameras, for example). Going the other way — a short-flange lens on a long-flange camera — usually isn’t possible without optics that cost quality.' },
+      { p: 'Smart adapters pass power and data (autofocus, aperture, lens metadata); "dumb" ones don’t, which is fine for manual cine lenses. Speed boosters add glass to shrink the image onto a smaller sensor, gaining about a stop of light and widening the view.' },
     ],
     table: { head: ['Mount', 'Flange (mm)', 'Common on'], rows: [['PL', '52.0', 'Cinema cameras'], ['EF', '44.0', 'Canon DSLR, many cine'], ['F', '46.5', 'Nikon DSLR'], ['LPL', '44.0', 'ARRI large format'], ['RF', '20.0', 'Canon mirrorless'], ['E', '18.0', 'Sony mirrorless'], ['L', '20.0', 'Panasonic / Sigma / Leica'], ['MFT', '19.25', 'Micro Four Thirds']] },
-    topics: ['lenses'], keywords: 't-stop pl ef e-mount rf adapter flange',
+    topics: ['lenses'], keywords: 'pl ef e-mount rf l-mount lpl mft adapter flange speed booster',
   },
   // ---------- Lighting ----------
   {
@@ -237,6 +268,15 @@ export const PAGES: RefPage[] = [
     ],
     use: [{ tab: 'shots', label: 'Shot Lists' }, { tab: 'designer', label: 'Shot Designer' }], topics: ['cinematography', 'directing'], keywords: 'ews ws ms mcu cu ecu ots pov coverage line',
   },
+
+  // ---------- Crew & departments ----------
+  ...CREW.map((d): RefPage => ({
+    id: `crew-${d.id}`, category: 'crew', title: d.title, lead: d.lead,
+    sections: d.notes ? [{ p: d.notes }] : [],
+    table: { head: ['Role', 'Reports to', 'What they do'], rows: d.roles },
+    use: [{ tab: 'contacts', label: 'Plan → Contacts' }, { tab: 'setup', label: 'Settings → Crew' }, { tab: 'callsheets', label: 'Call Sheets' }],
+    topics: ['production'], keywords: d.roles.map((r) => r[0]).join(' ').toLowerCase(),
+  })),
   // ---------- Post ----------
   {
     id: 'editing', category: 'post', title: 'Cuts & transitions', lead: 'How shots join up.',
@@ -245,9 +285,10 @@ export const PAGES: RefPage[] = [
   },
   {
     id: 'deliverables', category: 'post', title: 'Deliverables', lead: 'What a finished film actually has to hand over.',
-    sections: [{ p: 'Usually: a picture master (often ProRes 422 HQ or 4444, or a DCP for cinemas), stereo and 5.1 mixes plus separate dialogue / music / effects stems, captions and subtitles, a music cue sheet, and paperwork such as clearances and E&O insurance. Distributors and festivals publish their own specs — read them early.' }],
+    sections: [{ p: 'Usually: a picture master (often ProRes 422 HQ or 4444, or a DCP for cinemas), stereo and 5.1 mixes plus separate dialogue / music / effects stems, captions and subtitles, a music cue sheet, and paperwork such as clearances and E&O insurance. Distributors and festivals publish their own specs — read them early.' }, { h: 'Making a DCP', p: 'A DCP (Digital Cinema Package) is the folder of files cinemas play. You don’t need a lab for festival screenings: DCP-o-matic is a free, open-source app that turns your master and audio into a DCP (see the library below).' }],
     topics: ['post'], keywords: 'dcp master stems m&e captions cue sheet',
   },
 ];
 
 export const pageById = (id: string) => PAGES.find((p) => p.id === id);
+

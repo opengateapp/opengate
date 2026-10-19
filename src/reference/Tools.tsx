@@ -251,7 +251,43 @@ function PowerTool() {
   );
 }
 
+/** Approximate GB per minute for common phone recording settings (they vary by model and scene). */
+export const PHONE_PRESETS: { id: string; label: string; gbPerMin: number }[] = [
+  { id: 'hevc1080', label: 'HEVC 1080p30', gbPerMin: 0.06 },
+  { id: 'hevc4k30', label: 'HEVC 4K30', gbPerMin: 0.19 },
+  { id: 'hevc4k60', label: 'HEVC 4K60', gbPerMin: 0.44 },
+  { id: 'hevc4k120', label: 'HEVC 4K120', gbPerMin: 0.9 },
+  { id: 'prores1080', label: 'ProRes 422 HQ 1080p30', gbPerMin: 1.7 },
+  { id: 'prores4k30', label: 'ProRes 422 HQ 4K30 (Log)', gbPerMin: 6 },
+  { id: 'prores4k60', label: 'ProRes 422 HQ 4K60 (external SSD)', gbPerMin: 12 },
+  { id: 'android8k', label: '8K30 (Android flagship)', gbPerMin: 0.6 },
+];
+
+function PhoneTool() {
+  const [preset, setPreset] = useState('prores4k30');
+  const [free, setFree] = useState(200);
+  const [hours, setHours] = useState(1);
+  const p = PHONE_PRESETS.find((x) => x.id === preset) ?? PHONE_PRESETS[0];
+  const mins = free / p.gbPerMin;
+  return (
+    <div className="tool">
+      <div className="tool-inputs">
+        <label className="field"><span>Recording</span><select value={preset} onChange={(e) => setPreset(e.target.value)}>{PHONE_PRESETS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+        <Num label="Free space" value={free} onChange={setFree} suffix="GB" />
+        <Num label="Footage per day" value={hours} onChange={setHours} step={0.25} suffix="hours" />
+      </div>
+      <div className="tool-outputs">
+        <Out label="Recording time" value={mins >= 120 ? `${(mins / 60).toFixed(1)} h` : `${Math.floor(mins)} min`} big />
+        <Out label="Per minute" value={`≈ ${p.gbPerMin} GB`} />
+        <Out label="A day needs" value={`${Math.round(p.gbPerMin * 60 * hours)} GB`} />
+        <Out label="Storage tiers" value={[128, 256, 512, 1000].map((g) => `${g >= 1000 ? '1 TB' : `${g}`}: ${Math.floor(g / p.gbPerMin)}m`).join(' · ')} />
+      </div>
+    </div>
+  );
+}
+
 export const TOOLS: Partial<Record<ToolId, () => JSX.Element>> = {
+  phone: PhoneTool,
   dof: DofTool, fov: FovTool, crop: CropTool, exposure: ExposureTool, shutter: ShutterTool, kelvin: KelvinTool,
   falloff: FalloffTool, storage: StorageTool, audio: AudioTool, battery: BatteryTool, power: PowerTool,
 };
