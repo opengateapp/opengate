@@ -7,6 +7,7 @@ import { download, safeName } from '../io/files';
 import { displayName } from '../sync/engine';
 import { Modal, toast } from './common';
 import { askConfirm } from './dialogs';
+import { openActions } from './ActionSheet';
 
 // Settings → Character builder → Your packs: make, edit, switch on, export and import custom
 // species packs. A pack switched on is stored in the project; every pack is also kept on this device.
@@ -42,56 +43,49 @@ export function SpeciesPacks({ o, set, ro }: { o: CharacterOptions; set: Set; ro
   };
   const importFiles = async (files: File[]) => { for (const f of files) importText(await f.text()); };
 
+  const packMenu = (pk: SpeciesPack, at: { x: number; y: number }) => openActions(pk.name, [
+    ...(ro ? [] : [{ label: 'Edit pack…', run: () => setEditing(pk) }]),
+    { label: `Export ${PACK_EXT} file`, run: () => download(`${safeName(pk.name)}${PACK_EXT}`, exportPack(pk), 'application/json') },
+    ...(ro ? [] : [{ label: 'Delete from this project…', danger: true, run: async () => {
+      if (await askConfirm(`Remove “${pk.name}” from this project?`, { message: 'Profiles keep their species. The pack stays in your library on this device.', confirmLabel: 'Remove' })) {
+        set((x) => { x.customPacks = (x.customPacks ?? []).filter((y) => y.id !== pk.id); x.speciesPacks = x.speciesPacks.filter((y) => y !== pk.id); }, 'Remove species pack');
+      }
+    } }]),
+  ], at);
+  const newMenu = (at: { x: number; y: number }) => openActions('Species packs', [
+    ...(ro ? [] : [{ label: '＋ Create a pack…', run: () => setEditing({ id: newId(), name: 'My pack', author: displayName() !== 'Guest' ? displayName() : undefined, entries: [] }) }]),
+    { label: `Import ${PACK_EXT} file…`, run: () => file.current?.click() },
+    ...(elsewhere.length && !ro ? [{ label: 'Add from your library', items: elsewhere.map((pk) => ({ label: `${pk.name} (${pk.entries.length})`, run: () => addToProject(pk) })) }] : []),
+    ...(elsewhere.length ? [{ label: 'Forget a library pack', items: elsewhere.map((pk) => ({ label: pk.name, danger: true, run: () => forgetPack(pk.id) })) }] : []),
+  ], at);
+  const at = (e: React.MouseEvent) => ({ x: e.clientX, y: e.clientY });
+
   return (
-    <div className={`species-packs ${over ? 'drop-hover' : ''}`}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setOver(true); } }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); void importFiles([...e.dataTransfer.files]); }}>
-      <h5>Your packs <span className="muted small">— build your own from any pack, then share it as a file</span></h5>
-      <div className="pack-grid">
-        {project.map((pk) => (
-          <div key={pk.id} className={`pack custom ${o.speciesPacks.includes(pk.id) ? 'on' : ''}`}>
-            <input type="checkbox" disabled={ro} aria-label={`Use ${pk.name}`} checked={o.speciesPacks.includes(pk.id)}
-              onChange={(e) => set((x) => { x.speciesPacks = e.target.checked ? [...x.speciesPacks, pk.id] : x.speciesPacks.filter((y) => y !== pk.id); })} />
-            <span className="grow" onClick={() => !ro && setEditing(pk)} role="button" tabIndex={0}>
-              <b>{pk.name}</b>
-              <small className="muted">{pk.entries.map((e) => e.name).join(', ') || 'Empty'}</small>
-              {pk.author && <small className="muted">by {pk.author}</small>}
-            </span>
-            <div className="pack-actions">
-              {!ro && <button className="small" onClick={() => setEditing(pk)}>Edit</button>}
-              <button className="small" onClick={() => download(`${safeName(pk.name)}${PACK_EXT}`, exportPack(pk), 'application/json')}>Export</button>
-              {!ro && <button className="small danger-text" onClick={async () => {
-                if (await askConfirm(`Remove “${pk.name}” from this project?`, { message: 'Profiles keep their species. The pack stays in your library on this device.', confirmLabel: 'Remove' })) {
-                  set((x) => { x.customPacks = (x.customPacks ?? []).filter((y) => y.id !== pk.id); x.speciesPacks = x.speciesPacks.filter((y) => y !== pk.id); }, 'Remove species pack');
-                }
-              }}>Remove</button>}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="row wrap">
-        {!ro && <button onClick={() => setEditing({ id: newId(), name: 'My pack', author: displayName() !== 'Guest' ? displayName() : undefined, entries: [] })}>＋ New pack</button>}
-        <button onClick={() => file.current?.click()}>Import pack…</button>
+    <>
+      {project.map((pk) => (
+        <div key={pk.id} className={`pack custom ${o.speciesPacks.includes(pk.id) ? 'on' : ''}`} onContextMenu={(e) => { e.preventDefault(); packMenu(pk, at(e)); }}>
+          <input type="checkbox" disabled={ro} aria-label={`Use ${pk.name}`} checked={o.speciesPacks.includes(pk.id)}
+            onChange={(e) => set((x) => { x.speciesPacks = e.target.checked ? [...x.speciesPacks, pk.id] : x.speciesPacks.filter((y) => y !== pk.id); })} />
+          <span className="grow" onClick={() => !ro && setEditing(pk)} role="button" tabIndex={0} title={ro ? undefined : 'Edit pack'}>
+            <b>{pk.name} <span className="pack-tag">yours</span></b>
+            <small className="muted">{pk.entries.map((e) => e.name).join(', ') || 'Empty'}</small>
+            {pk.author && <small className="muted">by {pk.author}</small>}
+          </span>
+          <button className="icon-btn pack-more" aria-label={`${pk.name} options`} onClick={(e) => { e.stopPropagation(); packMenu(pk, at(e)); }}>⋯</button>
+        </div>
+      ))}
+      <div className={`pack placeholder ${over ? 'drop-hover' : ''}`} role="button" tabIndex={0}
+        onClick={() => !ro && setEditing({ id: newId(), name: 'My pack', author: displayName() !== 'Guest' ? displayName() : undefined, entries: [] })}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !ro) setEditing({ id: newId(), name: 'My pack', entries: [] }); }}
+        onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setOver(true); } }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); void importFiles([...e.dataTransfer.files]); }}>
+        <span className="grow"><b>＋ Create your own pack</b><small className="muted">Pick from any pack or type your own · drop an {PACK_EXT} file here</small></span>
+        <button className="icon-btn pack-more" aria-label="Import or add a pack" onClick={(e) => { e.stopPropagation(); newMenu(at(e)); }}>⋯</button>
         <input ref={file} type="file" accept={`${PACK_EXT},application/json,.json`} multiple hidden onChange={(e) => { void importFiles([...(e.target.files ?? [])]); e.target.value = ''; }} />
-        <span className="muted small">or drop an {PACK_EXT} file here</span>
       </div>
-      {elsewhere.length > 0 && (
-        <details className="pack-library">
-          <summary className="small">From your library on this device ({elsewhere.length})</summary>
-          <ul className="plain-list">
-            {elsewhere.map((pk) => (
-              <li key={pk.id} className="row">
-                <span className="grow"><b>{pk.name}</b> <span className="muted small">{pk.entries.length} species</span></span>
-                {!ro && <button className="small" onClick={() => addToProject(pk)}>Add to project</button>}
-                <button className="small danger-text" onClick={() => forgetPack(pk.id)} title="Forget on this device">×</button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
       {editing && <PackEditor pack={editing} o={o} library={library} onClose={() => setEditing(null)} onSave={(p) => { save(p); setEditing(null); }} />}
-    </div>
+    </>
   );
 }
 

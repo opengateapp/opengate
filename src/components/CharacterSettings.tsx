@@ -40,8 +40,8 @@ export function CharacterSettings() {
             <span><b>{pk.label}</b><small className="muted">{pk.items.join(', ')}</small></span>
           </label>
         ))}
+        <SpeciesPacks o={o} set={set} ro={ro} />
       </div>
-      <SpeciesPacks o={o} set={set} ro={ro} />
       <ListEditor title="Your own species" items={o.customSpecies} ro={ro} placeholder="e.g. Merfolk, Replicant" onChange={(items) => set((x) => { x.customSpecies = items; })} />
 
       <div className="two-col">

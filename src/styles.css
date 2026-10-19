@@ -1642,3 +1642,9 @@ td.nowrap { white-space: nowrap; }
   .tab-body.side-hidden .breakdown-tab.with-side { grid-template-columns: 1fr 340px !important; }
   .tab-body.side-hidden .designer.with-side { grid-template-columns: 1fr !important; }
 }
+.pack.placeholder { border-style: dashed; cursor: pointer; align-items: center; }
+.pack.placeholder:hover { border-color: var(--accent); }
+.pack.placeholder.drop-hover { background: var(--accent-soft); border-color: var(--accent); outline: none; }
+.pack .pack-more { margin-left: auto; flex: 0 0 auto; }
+.pack-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-left: 4px; }
+.pack.custom { flex-wrap: nowrap; }
