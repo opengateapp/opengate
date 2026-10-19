@@ -70,10 +70,13 @@ export function defaultCharacterOptions(): CharacterOptions {
 }
 
 /** The project's Character Builder choices, with defaults for anything not set. */
-export function characterOptions(p: Pick<Project, 'characterOptions'>): CharacterOptions & { species: string[] } {
+export function characterOptions(p: Pick<Project, 'characterOptions'>): CharacterOptions & { species: string[]; speciesNotes: Record<string, string> } {
   const o = { ...defaultCharacterOptions(), ...p.characterOptions };
-  const species = [...new Set([...SPECIES_PACKS.filter((x) => o.speciesPacks.includes(x.id)).flatMap((x) => x.items), ...o.customSpecies])];
-  return { ...o, species };
+  const custom = (o.customPacks ?? []).filter((x) => o.speciesPacks.includes(x.id)).flatMap((x) => x.entries.map((e) => e.name));
+  const species = [...new Set([...SPECIES_PACKS.filter((x) => o.speciesPacks.includes(x.id)).flatMap((x) => x.items), ...custom, ...o.customSpecies])];
+  const speciesNotes: Record<string, string> = {};
+  for (const pk of (o.customPacks ?? []).filter((x) => o.speciesPacks.includes(x.id))) for (const e of pk.entries) if (e.note && !speciesNotes[e.name]) speciesNotes[e.name] = e.note;
+  return { ...o, species, speciesNotes };
 }
 
 /** Profile sections with hidden fields removed and the project's own fields added. */

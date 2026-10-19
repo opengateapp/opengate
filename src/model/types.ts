@@ -705,6 +705,16 @@ export interface CharacterOptions {
   hiddenFields: string[];
   /** Extra fields, per profile section. */
   customFields: { id: string; section: string; label: string; long?: boolean }[];
+  /** Species packs made by users (switched on like built-in packs, by id in speciesPacks). */
+  customPacks?: SpeciesPack[];
+}
+
+/** A user-made species pack: picked from other packs or typed, shareable as an .ogspecies file. */
+export interface SpeciesPack {
+  id: Id;
+  name: string;
+  author?: string;
+  entries: { name: string; note?: string }[];
 }
 
 /** How two characters are connected (by name, so script characters without a profile count too). */
@@ -721,6 +731,48 @@ export interface CharacterRelationship {
   /** −2 hostile … 0 neutral … +2 close. */
   tone?: number;
   notes?: string;
+}
+
+// ---------- Shot designer ----------
+
+export type PlanElementKind = 'actor' | 'camera' | 'light' | 'prop' | 'wall' | 'door' | 'window' | 'text';
+/** A point on a movement path (feet; rotation in degrees). */
+export interface PlanKey { x: number; y: number; rot?: number }
+
+/** Something on a scene's floor plan. Positions are in feet, 0° = facing right, clockwise. */
+export interface PlanElement {
+  id: Id;
+  kind: PlanElementKind;
+  x: number;
+  y: number;
+  rot: number;
+  label: string;
+  color?: string;
+  /** Size in feet (walls: length × thickness; props: footprint). */
+  w?: number;
+  h?: number;
+  /** Cameras: lens and sensor, and the shot this camera is. */
+  focal?: number;
+  sensor?: string;
+  shotId?: Id;
+  /** Cameras and actors: where they move during the shot. */
+  path?: PlanKey[];
+  /** Actors: the character they are. */
+  character?: string;
+  /** Lights: fixture type and colour temperature. */
+  lightType?: string;
+  kelvin?: number;
+}
+
+/** A scene's top-down plan. */
+export interface ScenePlan {
+  id: Id;
+  sceneId: Id;
+  elements: PlanElement[];
+  /** Set drawing or location photo underneath, `bgWidth` feet wide. */
+  backgroundId?: Id;
+  bgWidth?: number;
+  bgOpacity?: number;
 }
 
 // ---------- Gear ----------
@@ -743,8 +795,8 @@ export interface GearItem {
   /** Typed number of days, instead of counting shoot days with those scenes. */
   days?: number;
   notes?: string;
-  /** Put on the manifest by a shot designer plan (camera, light…); manual items have none. */
-  fromPlan?: { sceneId: Id; elementId: Id };
+  /** Put on the manifest by the shot designer ("cam:A", "light:LED panel"); manual items have none. */
+  fromPlan?: { key: string };
 }
 
 export interface Project {
@@ -781,6 +833,7 @@ export interface Project {
   characters: CharacterProfile[];
   relationships: CharacterRelationship[];
   gear?: GearItem[];
+  plans?: ScenePlan[];
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;

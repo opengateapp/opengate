@@ -5,6 +5,7 @@ import { newId } from '../model/ids';
 import { PROFILE_SECTIONS, SPECIES_PACKS, characterOptions, defaultCharacterOptions } from '../script/characters';
 import { canWrite, useSync } from '../sync/state';
 import { askConfirm } from './dialogs';
+import { SpeciesPacks } from './SpeciesPacks';
 
 // Settings → Character builder: the project's own lists (roles, genders, species), which
 // panel sits beside the profile (alignment, archetype or nothing) and which fields it has.
@@ -40,7 +41,8 @@ export function CharacterSettings() {
           </label>
         ))}
       </div>
-      <ListEditor title="Your own" items={o.customSpecies} ro={ro} placeholder="e.g. Merfolk, Replicant" onChange={(items) => set((x) => { x.customSpecies = items; })} />
+      <SpeciesPacks o={o} set={set} ro={ro} />
+      <ListEditor title="Your own species" items={o.customSpecies} ro={ro} placeholder="e.g. Merfolk, Replicant" onChange={(items) => set((x) => { x.customSpecies = items; })} />
 
       <div className="two-col">
         <ListEditor title="Roles" items={o.roles} ro={ro} placeholder="e.g. Narrator" onChange={(items) => set((x) => { x.roles = items; })} />

@@ -1315,3 +1315,24 @@ input.bad { outline: 2px solid #dc2626; }
 .budget-start { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; background: var(--accent-soft); border-bottom: 1px solid var(--border); }
 .budget-start .muted { flex: 1 1 260px; }
 .budget-lines input.is-formula { min-width: 120px; }
+
+/* Custom species packs */
+.species-packs { border-radius: var(--radius); padding: 4px 0; }
+.species-packs.drop-hover { background: var(--accent-soft); }
+.pack.custom { cursor: default; flex-wrap: wrap; }
+.pack.custom .grow { cursor: pointer; flex: 1 1 140px; min-width: 0; }
+.pack-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.pack-library { margin: 6px 0; }
+.pack-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+.pack-entries { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 4px; }
+.pack-entries li { display: grid; grid-template-columns: 1fr 1.3fr auto auto auto; gap: 4px; align-items: center; }
+.pick-source { margin-bottom: 10px; }
+.chip.pick { cursor: pointer; padding: 4px 10px; min-height: 30px; }
+.chip.pick.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.row.wrap { flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .pack-editor { grid-template-columns: 1fr; }
+  .pack-entries li { grid-template-columns: 1fr auto auto auto; }
+  .pack-entries li input:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .chip.pick { min-height: 40px; }
+}

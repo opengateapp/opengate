@@ -65,3 +65,33 @@ describe('character profiles', () => {
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('custom species packs', () => {
+  it('round-trips through an .ogspecies file and cleans junk', async () => {
+    const { exportPack, parsePackFile } = await import('./script/speciesPacks');
+    const pack = { id: 'p1', name: 'Space opera', author: 'Dirk', entries: [{ name: 'Wookiee', note: 'Tall, furry' }, { name: 'Droid' }] };
+    const [back] = parsePackFile(exportPack(pack));
+    expect(back).toMatchObject({ name: 'Space opera', author: 'Dirk', entries: pack.entries });
+    expect(parsePackFile(JSON.stringify({ name: 'x', entries: ['A', 'a', '', { name: 'B', note: 42 }] }))[0].entries).toEqual([{ name: 'A' }, { name: 'B' }]);
+    expect(() => parsePackFile('not json')).toThrow();
+    expect(() => parsePackFile('{"hello":1}')).toThrow();
+  });
+  it('skips exact duplicates and numbers clashing names', async () => {
+    const { mergePacks } = await import('./script/speciesPacks');
+    const a = { id: 'a', name: 'Fae', entries: [{ name: 'Pixie' }, { name: 'Sprite' }] };
+    const same = { id: 'b', name: 'Fae', entries: [{ name: 'sprite' }, { name: 'pixie' }] };
+    const other = { id: 'c', name: 'Fae', entries: [{ name: 'Kelpie' }] };
+    const r = mergePacks([a], [same, other]);
+    expect(r.added.map((x) => x.name)).toEqual(['Fae 2']);
+    expect(r.packs).toHaveLength(2);
+  });
+  it('switched-on packs feed the species list with notes', async () => {
+    const { characterOptions, defaultCharacterOptions } = await import('./script/characters');
+    const pk = { id: 'mine', name: 'Mine', entries: [{ name: 'Replicant', note: 'Nexus-6' }] };
+    const o = characterOptions({ characterOptions: { ...defaultCharacterOptions(), customPacks: [pk], speciesPacks: ['contemporary', 'mine'] } });
+    expect(o.species).toEqual(['Human', 'Replicant']);
+    expect(o.speciesNotes).toEqual({ Replicant: 'Nexus-6' });
+    const off = characterOptions({ characterOptions: { ...defaultCharacterOptions(), customPacks: [pk] } });
+    expect(off.species).toEqual(['Human']);
+  });
+});

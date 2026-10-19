@@ -185,7 +185,7 @@ function CharacterSheet({ prof, onRenamed, entries, onOpen }: { prof: CharacterP
               <input type="range" min={0} max={100} value={prof.introExtro ?? 50} onChange={(e) => set((c) => { c.introExtro = Number(e.target.value); })} />
             </label>
           </div>
-          <datalist id="char-races">{opts.species.map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="char-races">{opts.species.map((r) => <option key={r} value={r}>{opts.speciesNotes[r] ?? ''}</option>)}</datalist>
           <datalist id="char-genders">{opts.genders.map((r) => <option key={r} value={r} />)}</datalist>
           <datalist id="char-roles">{opts.roles.map((r) => <option key={r} value={r} />)}</datalist>
           <datalist id="char-arcs">{ARCS.map((r) => <option key={r} value={r} />)}</datalist>
