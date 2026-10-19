@@ -542,7 +542,7 @@ export interface ShareInfo {
 export type BudgetGroup = 'atl' | 'btl' | 'post' | 'other';
 export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each' | 'rentdays';
 /** Where a linked line's quantity comes from. */
-export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear';
+export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear' | 'license';
 
 export interface BudgetAccount {
   id: Id;
@@ -632,6 +632,47 @@ export interface BudgetExpense {
   method?: string;
 }
 
+// ---------- Licenses & clearances ----------
+
+export type LicenseKind = 'music' | 'stock' | 'archival' | 'photo' | 'font' | 'software' | 'other';
+export type LicenseStatus = 'needed' | 'requested' | 'quoted' | 'licensed' | 'declined';
+
+/** A music, footage or other license: what it is, the terms, the cost and the credit it needs. */
+export interface License {
+  id: Id;
+  kind: LicenseKind;
+  title: string;
+  /** Artist / performer. */
+  performer?: string;
+  /** Writers / composers. */
+  writers?: string;
+  publisher?: string;
+  /** Label / master owner. */
+  label?: string;
+  /** Where it's licensed from: Artlist, Pond5, a label, the artist… */
+  source?: string;
+  licenseType?: string;
+  licenseNumber?: string;
+  media?: string;
+  territory?: string;
+  term?: string;
+  start?: ISODate;
+  expires?: ISODate;
+  fee: number;
+  status: LicenseStatus;
+  sceneIds: Id[];
+  tcIn?: string;
+  tcOut?: string;
+  /** Music: background, visual vocal, theme… */
+  useType?: string;
+  /** Typed credit line; empty = the suggested one. */
+  credit?: string;
+  inCredits: boolean;
+  /** The license document (media id). */
+  fileId?: Id;
+  notes?: string;
+}
+
 export interface BudgetApplied {
   id: Id;
   name: string;
@@ -670,6 +711,8 @@ export interface Budget {
   etc?: Record<Id, number>;
   scenarios: BudgetScenario[];
   expenses: BudgetExpense[];
+  /** Music, stock footage and other licenses (clearances). */
+  licenses: License[];
 }
 
 // ---------- Characters ----------
@@ -892,6 +935,31 @@ export interface StoryBible {
   boardIds: Id[];
 }
 
+// ---------- End credits ----------
+
+export type CreditStyle = 'card' | 'columns' | 'centered' | 'names';
+
+/** How the end credits are arranged. The names come live from the project; these are the choices. */
+export interface CreditsSettings {
+  /** Block ids in order (automatic blocks and your own). */
+  order: string[];
+  headings: Record<string, string>;
+  styles: Record<string, CreditStyle>;
+  hiddenBlocks: string[];
+  /** `${blockId}|${lineKey}` of single names left out. */
+  hiddenLines: string[];
+  custom: { id: Id; heading: string; style: CreditStyle; lines: { role?: string; name: string }[] }[];
+  /** Special thanks, one per line. */
+  thanks: string;
+  copyright?: string;
+  legal: { animals?: boolean; fiction?: boolean; openGate?: boolean };
+  castOrder: 'number' | 'appearance' | 'alpha';
+  /** Scroll speed: seconds for one screen height. */
+  secondsPerScreen: number;
+  /** Fixed runtime in seconds (otherwise worked out from the length). */
+  runtime?: number;
+}
+
 export interface Project {
   schemaVersion: number;
   id: Id;
@@ -937,6 +1005,7 @@ export interface Project {
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
   bible?: StoryBible;
+  credits?: CreditsSettings;
   characterOptions?: CharacterOptions;
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;

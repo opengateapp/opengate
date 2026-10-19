@@ -8,6 +8,7 @@ import { formatDate } from '../model/dates';
 import { toast } from '../components/common';
 import { CallSheetsView } from './reports/CallSheetsView';
 import { DoodView } from './reports/DoodView';
+import { CreditsView } from './reports/CreditsView';
 import { exportStoryboardPdf } from './storyboard/render';
 import { exportBudget } from './budget/BudgetTab';
 import { budgetVisible } from '../sync/state';
@@ -15,7 +16,7 @@ import { budgetVisible } from '../sync/state';
 /** Reports hub: schedules, call sheets, Day Out of Days, sides, breakdown sheets, storyboards. */
 export function ShootTab() {
   const p = useProject();
-  const [view, setView] = useState<'hub' | 'callsheets' | 'dood'>('hub');
+  const [view, setView] = useState<'hub' | 'callsheets' | 'dood' | 'credits'>('hub');
   const [sidesDay, setSidesDay] = useState('all');
   const [crossOut, setCrossOut] = useState(true);
   const name = safeName(p.title);
@@ -24,6 +25,7 @@ export function ShootTab() {
 
   if (view === 'callsheets') return <CallSheetsView onBack={() => setView('hub')} />;
   if (view === 'dood') return <DoodView onBack={() => setView('hub')} />;
+  if (view === 'credits') return <CreditsView onBack={() => setView('hub')} />;
 
   const run = (fn: () => Promise<void> | void) => async () => {
     try { await fn(); } catch (e) { console.error(e); toast((e as Error).message); }
@@ -49,6 +51,7 @@ export function ShootTab() {
 
   const reports: { title: string; desc: string; action: () => void; label?: string; extra?: JSX.Element; disabled?: boolean }[] = [
     { title: 'Call sheets', desc: 'One per shoot day, auto-filled from the day’s strips, cast, daily crew and locations. Edit, then export.', action: () => setView('callsheets'), label: 'Open', disabled: !days.length },
+    { title: 'End credits', desc: 'Cast, crew by department, music, footage, locations and thanks — arranged here and exported for any editor, After Effects or Final Cut.', action: () => setView('credits'), label: 'Open' },
     { title: 'Day Out of Days', desc: 'SW / W / WF / SWF / H / X per cast member across shoot days, with TOT / WRK / HLD.', action: () => setView('dood'), label: 'Open' },
     {
       title: 'Script sides', desc: 'The pages holding each day’s scenes, with other scenes crossed out.', action: run(sides), disabled: !days.length,

@@ -39,6 +39,7 @@ export function mediaIds(p: Project): string[] {
     ...Object.values(p.callSheets).map((c) => c.logoId),
     p.titlePage.logoId,
     ...(p.budget?.expenses ?? []).map((e) => e.receiptId),
+    ...(p.budget?.licenses ?? []).map((l) => l.fileId),
     ...(p.characters ?? []).flatMap((c) => [c.portraitId, ...c.continuity.map((x) => x.imageId)]),
     ...(p.plans ?? []).map((pl) => pl.backgroundId),
   ].filter((x): x is string => !!x))];
@@ -54,7 +55,7 @@ function remapMedia(p: Project, remap: Map<string, string>): Project {
     locations: p.locations.map((l) => ({ ...l, photoIds: l.photoIds?.map((x) => re(x)!) })),
     callSheets: Object.fromEntries(Object.entries(p.callSheets).map(([k, c]) => [k, { ...c, logoId: re(c.logoId) }])),
     titlePage: { ...p.titlePage, logoId: re(p.titlePage.logoId) },
-    budget: p.budget && { ...p.budget, expenses: p.budget.expenses.map((e) => ({ ...e, receiptId: re(e.receiptId) })) },
+    budget: p.budget && { ...p.budget, expenses: p.budget.expenses.map((e) => ({ ...e, receiptId: re(e.receiptId) })), licenses: (p.budget.licenses ?? []).map((l) => ({ ...l, fileId: re(l.fileId) })) },
     plans: p.plans?.map((pl) => ({ ...pl, backgroundId: re(pl.backgroundId) })),
     characters: (p.characters ?? []).map((c) => ({ ...c, portraitId: re(c.portraitId), continuity: c.continuity.map((x) => ({ ...x, imageId: re(x.imageId)! })) })),
   };

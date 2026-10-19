@@ -76,6 +76,7 @@ export function linkedQty(p: Project, f: BreakdownFacts, link: NonNullable<Budge
       const g = (p.gear ?? []).find((x) => x.id === link.id);
       return g ? gearLineQty(g, f.gearDays.get(g.id) ?? 0) : null;
     }
+    case 'license': return (p.budget.licenses ?? []).some((l) => l.id === link.id) ? 1 : null;
   }
 }
 
@@ -188,6 +189,7 @@ export const LINK_LABEL: Record<BudgetLinkKind, string> = {
   shootDays: 'Shoot days',
   headcount: 'People on set × shoot days (cast in each day’s scenes + daily crew)',
   gear: 'Days the gear is needed, from the shot designer',
+  license: 'A license from Budget → Licenses',
 };
 
 /** Days each gear item is needed; filled in by the gear manifest (shot designer plans). */

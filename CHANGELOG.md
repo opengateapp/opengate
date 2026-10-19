@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.3.0 — 2026-10-19
+
+End credits, and a home for music and footage licenses.
+
+- **End credits** (Shoot → Reports → End credits):
+  - **Built from your project as you go:** opening cards, cast, crew sorted into departments, music, stock footage, filming locations, vendors, special thanks, copyright and legal lines.
+  - **Arrange them your way:**
+    - reorder sections (drag them, or use ↑↓ on touch);
+    - rename headings;
+    - leave out a section or a single name;
+    - add your own sections;
+    - choose each section's style: title cards, two-column roll, centred, or names only.
+  - **Live preview:** watch the roll scroll at your chosen speed and runtime.
+  - **Export for any editor:**
+    - text, as two columns or centred, to paste into a scrolling title in Premiere, Resolve, Final Cut, Avid or Vegas;
+    - CSV;
+    - an **After Effects script** that builds the finished scrolling comp;
+    - **Final Cut XML**, which is new and not yet tested in Final Cut itself;
+    - a PDF for checking spelling with cast and crew.
+- **Licenses** (Budget → Licenses):
+  - **What it tracks:** music, stock and archival footage, photos, fonts, software and other clearances.
+  - **Details for each license:**
+    - terms, territory, media, dates and fee;
+    - status, from Needed to Licensed;
+    - the scenes it's used in and its timecodes;
+    - the license file itself.
+  - **Budget:** fees appear automatically as budget lines, in 4200 Music or the new 4600 Licensing & Clearances account.
+  - **Credits:** each license suggests its credit line ("Song" Written by… Performed by… Courtesy of…), which goes straight into the end credits.
+  - **Exports:** a music cue sheet and a clearance log (CSV).
+  - **Warnings:** music or footage that's in the credits but not yet cleared, and licenses about to expire.
+
 ## v0.2.1 — 2026-10-19
 
 Polish from the first round of notes on v0.2.0.

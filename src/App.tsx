@@ -28,6 +28,7 @@ import { CharactersTab } from './tabs/CharactersTab';
 import { StoryBibleTab } from './tabs/StoryBibleTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
+import { LicensesTab } from './tabs/budget/LicensesTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
 import { CategoryStyles } from './components/CategoryStyles';
@@ -53,7 +54,7 @@ export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' 
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
-  | 'budget' | 'expenses' | 'gear'
+  | 'budget' | 'expenses' | 'gear' | 'licenses'
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
@@ -78,6 +79,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
     { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
     { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
+    { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
   ] },
   { id: 'plan', label: 'Plan', tabs: [
     { id: 'contacts', label: 'Contacts', hint: 'Cast, crew, vendors and other contacts' },
@@ -297,6 +299,7 @@ export function App() {
         {tab === 'budget' && <BudgetTab />}
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}
+        {tab === 'licenses' && <LicensesTab />}
         {tab === 'contacts' && <ContactsTab />}
         {tab === 'calendar' && <CalendarTab />}
         {tab === 'tasks' && <TasksTab />}
