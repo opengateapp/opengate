@@ -12,6 +12,7 @@ import { addSceneToScript } from '../script/scenes';
 import { putMedia, useMediaUrl } from '../store/media';
 import { FrameEditor } from './storyboard/FrameEditor';
 import { exportStoryboardPdf } from './storyboard/render';
+import { planPng } from '../visualize/planImage';
 import { prepareImage } from './storyboard/images';
 import { More } from '../components/More';
 import { Hint } from '../components/Hint';
@@ -78,6 +79,31 @@ export function StoryboardTab() {
     return id;
   };
 
+  /** The Shot Designer plan for a panel's scene, and the camera that is this shot. */
+  const planFor = (panel: Panel) => {
+    const plan = (p.plans ?? []).find((x) => x.sceneId === panel.shot.sceneId && x.elements.length);
+    if (!plan) return null;
+    const cam = plan.elements.find((e) => e.kind === 'camera' && e.shotId === panel.shot.id);
+    // Moving camera: panel 1 = start, then each move point, last = end.
+    const pos = cam?.path?.length ? Math.min(panel.frameNo - 1, cam.path.length) : 0;
+    return { plan, cameraId: cam?.id, pos };
+  };
+  const applyPlan = async (panel: Panel, quiet = false) => {
+    const f = planFor(panel);
+    if (!f) return;
+    try {
+      await setImage(panel, await planPng(f.plan, f.cameraId, f.pos), 'ref');
+      if (!quiet) toast(f.cameraId ? 'Set plan added — this shot’s camera is highlighted' : 'Set plan added (no camera in the plan is this shot yet)');
+    } catch (e) { toast((e as Error).message); }
+  };
+  const fillPlans = async () => {
+    const todo = panels.filter((x) => planFor(x) && !x.frame?.refImageId);
+    if (!todo.length) { toast('Every panel with a Shot Designer plan already has a set plan.'); return; }
+    if (!settings.showReference || cols > 1) setSettings({ showReference: true, ...(cols > 1 ? { perPage: 2 } : {}) });
+    for (const x of todo) await applyPlan(x, true);
+    toast(`Set plans added to ${todo.length} panel${todo.length > 1 ? 's' : ''}`);
+  };
+
   const setImage = async (panel: Panel, file: Blob | undefined, layer: 'frame' | 'ref') => {
     if (!file) return;
     try {
@@ -113,6 +139,7 @@ export function StoryboardTab() {
           <input type="checkbox" checked={settings.showReference} disabled={cols > 1} onChange={(e) => setSettings({ showReference: e.target.checked })} /> Set plan / reference box
         </label>
         <span className="spacer" />
+        {(p.plans ?? []).some((x) => x.elements.length) && <button onClick={() => void fillPlans()} title="Put each scene's Shot Designer plan in its panels' set plan boxes, with the right camera highlighted">⌖ Fill set plans from Shot Designer</button>}
         <button onClick={async () => {
           const h = await askText('New scene', { placeholder: 'INT. LOCATION - DAY', confirmLabel: 'Add scene', message: 'Adds a scene heading to the end of the screenplay, so it shows up everywhere.' });
           if (h?.trim()) addSceneToScript(h);
@@ -156,6 +183,7 @@ export function StoryboardTab() {
                   <PanelView key={`${panel.shot.id}:${panel.frameNo}`} panel={panel} showRef={showRef} compact={cols > 1}
                     onOpen={(layer) => setEditing({ frameId: ensureFrame(panel), layer })}
                     onImage={(file, layer) => void setImage(panel, file, layer)}
+                    onPlan={planFor(panel) ? () => void applyPlan(panel) : undefined}
                     onMove={(dir) => {
                       const other = list[i + dir];
                       if (!other) return;
@@ -189,8 +217,10 @@ export function StoryboardTab() {
 }
 
 /** One storyboard panel (its own component so typing in it never remounts it). */
-function PanelView({ panel, showRef, compact, onOpen, onImage, onMove, canLeft, canRight, ensureFrame, shotPlaceholder }: {
+function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, canLeft, canRight, ensureFrame, shotPlaceholder }: {
   panel: Panel; showRef: boolean; compact: boolean; onOpen: (layer: 'frame' | 'ref') => void; onImage: (f: File | undefined, layer: 'frame' | 'ref') => void;
+  /** Put the Shot Designer plan for this shot's scene into the set plan box. */
+  onPlan?: () => void;
   onMove: (dir: -1 | 1) => void; canLeft: boolean; canRight: boolean; ensureFrame: (panel: Panel) => string; shotPlaceholder: string;
 }) {
   const p = useProject();
@@ -239,7 +269,9 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onMove, canLeft, 
         </div>
         {showRef && (
           <div className="sb-box sb-ref">
-            <div className="sb-head"><span className="sb-label">SET PLAN / REFERENCE</span></div>
+            <div className="sb-head"><span className="sb-label">SET PLAN / REFERENCE</span>
+              {onPlan && <button className="small sb-plan-btn" title="Use this scene's top-down plan from the Shot Designer, with this shot's camera highlighted" onClick={onPlan}>⌖ Shot Designer plan</button>}
+            </div>
             <DropBox className="sb-frame" imageId={frame?.refImageId} drawingId={frame?.refDrawingId} empty="Overhead plan or reference photo"
               onOpen={() => onOpen('ref')} onFile={(f) => onImage(f, 'ref')} />
           </div>

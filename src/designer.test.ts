@@ -81,3 +81,21 @@ describe('gear manifest', () => {
     expect(gearPdf(p, derive(p.scriptDoc), false).getNumberOfPages()).toBe(1);
   });
 });
+
+describe('plan as a set plan picture', () => {
+  it('draws the plan with this shot’s camera highlighted at its move position', async () => {
+    const { planSvg } = await import('./visualize/planImage');
+    const pl = newPlan('s1');
+    const a = newElement('camera', 0, 0, pl); pl.elements.push(a);
+    const b = newElement('camera', 10, 0, pl); pl.elements.push(b);
+    pl.elements.push(newElement('actor', 5, 5, pl), newElement('wall', 5, -5, pl));
+    a.path = [{ x: 3, y: 3 }, { x: 6, y: 1 }];
+    const start = planSvg(pl, a.id, 0).svg;
+    expect(start).toContain('#e8730c');
+    expect(start).toContain('A · 35mm');
+    expect(start.match(/#9ca3af/g)!.length).toBeGreaterThan(0); // the other camera is dimmed
+    const end = planSvg(pl, a.id, 2).svg;
+    expect(end).toContain('rotate(-90 6 1)'); // camera A drawn at its last move point
+    expect(planSvg(pl).svg).not.toContain('#9ca3af"/><polygon'); // no highlight: nothing dimmed
+  });
+});
