@@ -63,3 +63,22 @@ describe('reference content', () => {
     for (const r of LIBRARY) { expect(r.url.startsWith('https://')).toBe(true); expect(r.url).not.toMatch(/[?&](tag|ref|aff|utm_)/); }
   });
 });
+
+describe('beats on a real script', () => {
+  it('spreads beats through a short script and names the scene each lands on', async () => {
+    const { produce } = await import('immer');
+    const { newProject } = await import('./model/defaults');
+    const { parseFountain } = await import('./io/fountain');
+    const { applyImportedScript } = await import('./io/applyImport');
+    const { SAMPLE_FOUNTAIN } = await import('./model/sample');
+    const { derive } = await import('./script/derive');
+    const { placeBeats } = await import('./reference/story');
+    const p = produce(newProject('x'), (dr) => { applyImportedScript(dr, parseFountain(SAMPLE_FOUNTAIN)); });
+    const d = derive(p.scriptDoc);
+    const placed = placeBeats(FRAMEWORKS[0], d);
+    expect(new Set(placed.map((x) => x.label)).size).toBeGreaterThan(3);
+    expect(placed[0].sceneId).toBe(d.scenes[0].id);
+    expect(placed[placed.length - 1].sceneId).toBe(d.scenes[d.scenes.length - 1].id);
+    expect(placed.find((x) => x.beat.name === 'Midpoint')!.label).toMatch(/^p\. \d\.\d$/);
+  });
+});

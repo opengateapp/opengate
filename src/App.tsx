@@ -28,7 +28,8 @@ import { CharactersTab } from './tabs/CharactersTab';
 import { StoryBibleTab } from './tabs/StoryBibleTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
-import { ReferenceTab } from './tabs/ReferenceTab';
+import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
+import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
 import { CategoryStyles } from './components/CategoryStyles';
 import { ProjectMenu } from './components/ProjectMenu';
 import { SyncIssues } from './components/SyncIssues';
@@ -219,6 +220,19 @@ export function App() {
                   {x.label}
                 </button>
                 {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
+                {x.id === 'reference' ? (
+                  <div className="section-flyout ref-flyout" role="menu">
+                    {REF_CATEGORIES.map((c) => (
+                      <div key={c.id} className="ref-fly-col">
+                        <span className="ref-fly-cat">{c.icon} {c.label}</span>
+                        {REF_PAGES.filter((pg) => pg.category === c.id).map((pg) => (
+                          <button key={pg.id} role="menuitem" onClick={(e) => { useRefFocus.setState({ page: pg.id }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>{pg.title}</button>
+                        ))}
+                      </div>
+                    ))}
+                    <div className="ref-fly-col"><span className="ref-fly-cat">❖ More</span><button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library' }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>Learn-more library</button></div>
+                  </div>
+                ) : (
                 <div className="section-flyout" role="menu">
                   {x.tabs.map((t) => (
                     <button key={t.id} role="menuitem" className={tab === t.id ? 'active' : ''} onClick={(e) => { setTab(t.id); (e.currentTarget as HTMLElement).blur(); }}>
@@ -226,6 +240,7 @@ export function App() {
                     </button>
                   ))}
                 </div>
+                )}
               </div>
             ))}
           </nav>

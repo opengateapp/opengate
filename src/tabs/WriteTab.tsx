@@ -19,7 +19,7 @@ import { askText, askConfirm } from '../components/dialogs';
 import { canEdit } from '../sync/state';
 import { useLongPress } from '../ui/responsive';
 import type { DerivedScene } from '../model/types';
-import { FRAMEWORKS, beatPage } from '../reference/story';
+import { FRAMEWORKS, placeBeats } from '../reference/story';
 import { RefLink } from './ReferenceTab';
 
 const BAR: ElementType[] = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'centered', 'pageBreak'];
@@ -57,6 +57,10 @@ export function WriteTab() {
     ], at);
   };
   const [findOpen, setFindOpen] = useState(false);
+  // Story structure beats, placed before the scene each one lands in.
+  const fw = FRAMEWORKS.find((f) => f.id === p.structure?.frameworkId);
+  const beatsAt = new Map<string, ReturnType<typeof placeBeats>>();
+  if (fw) for (const pb of placeBeats(fw, d)) if (pb.sceneId) beatsAt.set(pb.sceneId, [...(beatsAt.get(pb.sceneId) ?? []), pb]);
 
   const onState = (s: EditorState) => {
     const $f = s.selection.$from;
@@ -98,12 +102,11 @@ export function WriteTab() {
         {side === 'title' && <TitleLogoControls />}
         {side === 'scenes' && (
           <ol className="scene-nav">
-            {d.scenes.map((s, i) => [
-              <BeatsBefore key={`b${s.id}`} frameworkId={p.structure?.frameworkId} pages={d.pageCount} from={i === 0 ? 0 : d.scenes[i - 1].startPage} to={s.startPage} first={i === 0} />,
+            {d.scenes.map((s) => [
+              ...(beatsAt.get(s.id) ?? []).map((pb) => <li key={`b${s.id}${pb.beat.name}`} className="beat-marker" title={pb.beat.what}><span>◆ {pb.beat.name}</span><span className="muted small">{pb.label}</span></li>),
               <SceneItem key={s.id} s={s} active={current.sceneId === s.id} variants={(p.sceneVariants ?? []).filter((v) => v.sceneId === s.id).length}
                 onGo={() => jumpTo(s.id)} onMenu={(at) => sceneMenu(s, at)} />,
             ])}
-            <BeatsBefore frameworkId={p.structure?.frameworkId} pages={d.pageCount} from={d.scenes[d.scenes.length - 1]?.startPage ?? 0} to={Infinity} first={!d.scenes.length} />
           </ol>
         )}
         {side === 'characters' && (
@@ -196,10 +199,3 @@ function SceneItem({ s, active, variants, onGo, onMenu }: { s: DerivedScene; act
   );
 }
 
-/** Beat markers (from the story structure in use) whose target page falls before this scene. */
-function BeatsBefore({ frameworkId, pages, from, to, first }: { frameworkId?: string; pages: number; from: number; to: number; first: boolean }) {
-  const fw = FRAMEWORKS.find((f) => f.id === frameworkId);
-  if (!fw || !pages) return null;
-  const beats = fw.beats.filter((b) => { const t = beatPage(b, pages); return (first ? t >= 0 : t > from) && t <= to; });
-  return <>{beats.map((b) => <li key={b.name} className="beat-marker" title={b.what}><span>◆ {b.name}</span><span className="muted small">p. {beatPage(b, pages)}</span></li>)}</>;
-}

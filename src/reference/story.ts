@@ -207,3 +207,31 @@ export const ARC_GUIDE: Arc[] = [
 
 /** Target page for a beat in a script of `pages` pages. */
 export const beatPage = (b: Beat, pages: number) => Math.max(1, Math.round(b.at * pages) || 1);
+
+/** Minimal script layout needed to place beats (see script/derive). */
+interface Layout {
+  scenes: { id: string; number: string; heading: string; index: number }[];
+  pagination: { pages: { lines: unknown[] }[]; blockStart: { page: number; row: number }[]; scenes: { blockIndex: number }[] };
+}
+
+const ROWS = 54;
+
+/**
+ * Where each beat should fall in this script, in pages from the start (fractional), and the scene
+ * that's actually there now. Works for short scripts too (a 2-page short still has a midpoint).
+ */
+export function placeBeats(fw: Framework, d: Layout): { beat: Beat; page: number; pct: number; sceneId?: string; label: string }[] {
+  const total = Math.max(1 / ROWS, d.pagination.pages.length ? (d.pagination.pages.length - 1) + (d.pagination.pages[d.pagination.pages.length - 1].lines.length / ROWS) : 0);
+  const starts = d.scenes.map((s) => {
+    const b = d.pagination.blockStart[d.pagination.scenes[s.index]?.blockIndex ?? 0] ?? { page: 0, row: 0 };
+    return { id: s.id, at: b.page + b.row / ROWS };
+  });
+  return fw.beats.map((beat) => {
+    const target = beat.at * total;
+    let sceneId: string | undefined;
+    for (const st of starts) { if (st.at <= target + 1e-6) sceneId = st.id; else break; }
+    const page = target + 1;
+    const label = total < 20 ? `p. ${page.toFixed(1)}` : `p. ${Math.round(page)}`;
+    return { beat, page, pct: Math.round(beat.at * 100), sceneId: sceneId ?? starts[0]?.id, label };
+  });
+}

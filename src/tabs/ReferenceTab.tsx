@@ -4,7 +4,7 @@ import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import { CATEGORIES, PAGES, pageById, type RefCategory, type RefPage } from '../reference/topics';
 import { TOOLS } from '../reference/Tools';
-import { ARC_GUIDE, FRAMEWORKS, beatPage, type Framework } from '../reference/story';
+import { ARC_GUIDE, FRAMEWORKS, placeBeats, type Framework } from '../reference/story';
 import { LIBRARY, RESOURCE_TYPES, TOPIC_LABELS, learnMore, type Resource, type ResourceType } from '../reference/library';
 import { templateDoc } from './DocsTab';
 import { canEdit, useSync } from '../sync/state';
@@ -30,6 +30,8 @@ export function RefLink({ page, label }: { page: string; label?: string }) {
 export function ReferenceTab() {
   const page = useRefFocus((s) => s.page);
   const [q, setQ] = useState('');
+  const [collapsed, setCollapsedState] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('opengate.refCollapsed') ?? '[]'); } catch { return []; } });
+  const setCollapsed = (c: string[]) => { setCollapsedState(c); try { localStorage.setItem('opengate.refCollapsed', JSON.stringify(c)); } catch { /* ignore */ } };
   const results = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t) return [];
@@ -47,13 +49,20 @@ export function ReferenceTab() {
             {!results.length && <li className="muted small">Nothing found.</li>}
           </ul>
         ) : (
-          <nav className="ref-nav">
-            {CATEGORIES.map((c) => (
-              <div key={c.id}>
-                <h5><span aria-hidden>{c.icon}</span> {c.label}</h5>
-                {PAGES.filter((p) => p.category === c.id).map((p) => <button key={p.id} className={`side-link ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>{p.title}</button>)}
-              </div>
-            ))}
+          <nav className="ref-nav keep-open">
+            <div className="row ref-nav-tools"><button className="link small" onClick={() => setCollapsed(CATEGORIES.map((c) => c.id))}>Collapse all</button><button className="link small" onClick={() => setCollapsed([])}>Expand all</button></div>
+            {CATEGORIES.map((c) => {
+              const here = pageById(page)?.category === c.id;
+              const open = here || !collapsed.includes(c.id);
+              return (
+                <div key={c.id}>
+                  <button className={`ref-cat ${open ? 'open' : ''}`} aria-expanded={open} onClick={() => setCollapsed(open ? [...collapsed, c.id] : collapsed.filter((x) => x !== c.id))}>
+                    <span aria-hidden>{open ? '▾' : '▸'}</span> <span aria-hidden>{c.icon}</span> {c.label} <span className="muted small">{PAGES.filter((p) => p.category === c.id).length}</span>
+                  </button>
+                  {open && PAGES.filter((p) => p.category === c.id).map((p) => <button key={p.id} className={`side-link ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>{p.title}</button>)}
+                </div>
+              );
+            })}
             <div><h5><span aria-hidden>❖</span> More</h5><button className={`side-link ${page === 'library' ? 'active' : ''}`} onClick={() => go('library')}>Learn-more library</button></div>
           </nav>
         )}
@@ -108,14 +117,14 @@ function Frameworks() {
   useSync((s) => s.write);
   const [id, setId] = useState(p.structure?.frameworkId ?? 'three-act');
   const fw = FRAMEWORKS.find((f) => f.id === id) ?? FRAMEWORKS[0];
-  const pages = Math.max(1, d.pageCount);
   const ro = !canEdit('structure');
   useEffect(() => { if (p.structure?.frameworkId) setId(p.structure.frameworkId); }, [p.structure?.frameworkId]);
 
   const use = (f: Framework) => {
     update((dr) => {
       dr.structure = { frameworkId: f.id };
-      dr.docs.push({ id: newId(), title: `Beat sheet — ${f.name}`, updatedAt: new Date().toISOString(), doc: templateDoc([`# ${f.name}`, `Credit: ${f.credit}`, '', ...f.beats.flatMap((b) => [`## ${b.name} (p. ${beatPage(b, pages)})`, b.what, ''])]) });
+      const placed = placeBeats(f, d);
+      dr.docs.push({ id: newId(), title: `Beat sheet — ${f.name}`, updatedAt: new Date().toISOString(), doc: templateDoc([`# ${f.name}`, `Credit: ${f.credit}`, '', ...placed.flatMap(({ beat: b, label, pct, sceneId }) => [`## ${b.name} (${d.scenes.length ? `${label}, ` : ''}${pct}%)`, b.what, ...(sceneId && d.sceneById.get(sceneId) ? [`Now: scene ${d.sceneById.get(sceneId)!.number} — ${d.sceneById.get(sceneId)!.heading}`] : []), ''])]) });
     }, `Use ${f.name}`);
     toast(`Beat sheet added to Docs; beats now show in Screenplay → Scenes`, { label: 'Open Docs', run: () => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'docs' })) });
   };
@@ -129,8 +138,11 @@ function Frameworks() {
         <p>{fw.short}</p>
         <div className="fw-meta"><div><b className="small">Good for</b><p>{fw.goodFor}</p></div><div><b className="small">Strengths</b><p>{fw.pros}</p></div><div><b className="small">Watch out</b><p>{fw.cons}</p></div></div>
         <div className="table-scroll"><table className="table compact">
-          <thead><tr><th>Beat</th><th>Target page{d.pageCount ? ` (of ${d.pageCount})` : ''}</th><th>What happens</th></tr></thead>
-          <tbody>{fw.beats.map((b, i) => <tr key={i}><td><b>{b.name}</b></td><td>{d.pageCount ? beatPage(b, pages) : `${Math.round(b.at * 100)}%`}</td><td>{b.what}</td></tr>)}</tbody>
+          <thead><tr><th>Beat</th><th>Where{d.scenes.length ? ` (of ${d.pageCount} page${d.pageCount === 1 ? '' : 's'})` : ''}</th>{d.scenes.length > 0 && <th>Lands on</th>}<th>What happens</th></tr></thead>
+          <tbody>{placeBeats(fw, d).map(({ beat: b, label, pct, sceneId }, i) => {
+            const s = sceneId ? d.sceneById.get(sceneId) : undefined;
+            return <tr key={i}><td><b>{b.name}</b></td><td className="nowrap">{d.scenes.length ? `${label} · ${pct}%` : `${pct}%`}</td>{d.scenes.length > 0 && <td className="small">{s ? `Sc ${s.number} — ${s.heading}` : '—'}</td>}<td>{b.what}</td></tr>;
+          })}</tbody>
         </table></div>
         {!ro && <div className="row wrap">
           <button className="primary" onClick={() => use(fw)}>Use this structure</button>

@@ -1585,3 +1585,14 @@ p.warn { color: #b45309; margin: 0; }
 .tab-access-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
 .tab-access-row .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .tab-access-row .seg button { padding: 8px 9px; font-size: 12px; } }
+
+/* Reference: hover menu and collapsible categories */
+.section-wrap:hover .section-flyout.ref-flyout, .section-wrap:focus-within .section-flyout.ref-flyout { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 4px 10px; min-width: 760px; max-width: min(900px, 96vw); padding: 14px 10px 10px; }
+.section-flyout.ref-flyout { left: auto; right: -120px; }
+.ref-fly-col { display: flex; flex-direction: column; }
+.ref-fly-cat { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 10px 2px; }
+.ref-flyout button { padding: 4px 10px !important; font-size: 12px; }
+.ref-cat { display: flex; gap: 4px; align-items: baseline; width: 100%; border: none; background: none; text-align: left; padding: 6px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-radius: 6px; min-height: 0; }
+.ref-cat:hover { color: var(--text); background: var(--panel-2); }
+.ref-nav-tools { gap: 10px; padding: 0 8px; }
+td.nowrap { white-space: nowrap; }
