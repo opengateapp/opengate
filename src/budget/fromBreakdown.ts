@@ -77,7 +77,24 @@ export function linkedQty(p: Project, f: BreakdownFacts, link: NonNullable<Budge
       return g ? gearLineQty(g, f.gearDays.get(g.id) ?? 0) : null;
     }
     case 'license': return (p.budget.licenses ?? []).some((l) => l.id === link.id) ? 1 : null;
+    case 'kit': {
+      const doc = (p.budget.paperwork ?? []).find((x) => x.id === link.id);
+      if (!doc?.deal?.kitFee) return null;
+      const per = doc.deal.kitPer ?? 'day';
+      if (per === 'flat') return 1;
+      const days = personWorkDays(p, f, doc.person);
+      return per === 'week' ? Math.ceil(days / 5) : days;
+    }
   }
+}
+
+/** Days a person works: cast work days from the Day Out of Days, crew shoot days. */
+export function personWorkDays(p: Project, f: BreakdownFacts, person: { kind: string; id: string }): number {
+  if (person.kind === 'cast') {
+    const m = p.cast.find((c) => c.id === person.id);
+    return f.castWork.get(person.id) ?? (m ? f.castWork.get(`char:${m.characterName.trim().toUpperCase()}`) ?? 0 : 0);
+  }
+  return f.shootDays;
 }
 
 /** Lines with linked quantities filled in, plus the ids of lines whose source was deleted. */
@@ -190,6 +207,7 @@ export const LINK_LABEL: Record<BudgetLinkKind, string> = {
   headcount: 'People on set × shoot days (cast in each day’s scenes + daily crew)',
   gear: 'Days the gear is needed, from the shot designer',
   license: 'A license from Budget → Licenses',
+  kit: 'Kit fee from a deal memo (Budget → Paperwork), for the days this person works',
 };
 
 /** Days each gear item is needed; filled in by the gear manifest (shot designer plans). */

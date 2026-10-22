@@ -87,7 +87,7 @@ export const TAB_ACCESS: TabAccess[] = [
   { id: 'settings', label: 'Project settings', section: 'Settings', channels: ['settings'] },
 ];
 /** App tabs that show another tab's data (they follow its access). */
-export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', reports: 'stripboard' };
+export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', reports: 'stripboard' };
 
 /** Tagging, shot marks and storyboards add highlights to the script, so these tabs may write marks to it. */
 export const MARKS_TABS = ['breakdown', 'shots', 'storyboard'];
@@ -142,7 +142,7 @@ export function accessWarnings(access: Record<string, Access>): string[] {
 export const LOCAL_ONLY = new Set(['schemaVersion', 'id', 'updatedAt', 'scriptDoc', 'share']);
 
 const KEY_CHANNEL: Record<string, Channel> = {
-  title: 'settings', createdAt: 'settings', production: 'settings',
+  title: 'settings', createdAt: 'settings', production: 'settings', unionOptions: 'settings',
   titlePage: 'write', notes: 'write', characters: 'write', drafts: 'write', revision: 'write', sceneVariants: 'write', sceneVariantActive: 'write', autoDrafts: 'write', structure: 'write', bible: 'write', credits: 'write', relationships: 'write', characterMap: 'write', characterOptions: 'write', docs: 'write', avScripts: 'write', sceneNumbersLocked: 'write',
   elements: 'breakdown', sceneMeta: 'breakdown', categories: 'breakdown', schedule: 'breakdown',
   contacts: 'plan', tasks: 'plan', events: 'plan', cast: 'plan', crew: 'plan',
@@ -152,7 +152,7 @@ const KEY_CHANNEL: Record<string, Channel> = {
 };
 
 const KEY_CHANNEL_V2: Record<string, Channel> = {
-  title: 'settings', createdAt: 'settings', production: 'settings',
+  title: 'settings', createdAt: 'settings', production: 'settings', unionOptions: 'settings',
   titlePage: 'screenplay', notes: 'screenplay', drafts: 'screenplay', revision: 'screenplay', sceneVariants: 'screenplay', sceneVariantActive: 'screenplay', autoDrafts: 'screenplay', structure: 'screenplay', sceneNumbersLocked: 'screenplay', credits: 'settings',
   characters: 'characters', relationships: 'characters', characterMap: 'characters', characterOptions: 'characters',
   bible: 'bible', docs: 'docs', avScripts: 'av',
@@ -170,7 +170,7 @@ export function channelOf(key: string, f: RoomFormat = format): Channel {
 
 const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
 const RECORDS = new Set(['sceneMeta', 'callSheets', 'characterMap']);
-const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses'];
+const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses', 'paperwork', 'clearances', 'timecards'];
 
 /** Which project field an entry key belongs to. */
 export function fieldOf(entryKey: string): string {
