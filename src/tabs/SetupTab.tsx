@@ -9,15 +9,18 @@ import { Field } from '../components/common';
 import { AppearanceSettings } from '../components/AppearanceSettings';
 import { PhoneLayoutSettings } from '../ui/PhoneLayoutSettings';
 import { CharacterSettings } from '../components/CharacterSettings';
+import { UnionSettings } from '../components/UnionSettings';
+import { UnionPicker } from '../components/UnionPicker';
+import { newCastMember } from '../paperwork/unions';
 import { AccessibilityPrefs, DataPrefs, FormatPrefs, ProfilePrefs, ShortcutsPrefs } from '../components/AppPreferences';
 
-type Section = 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
+type Section = 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'unions' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
 const GROUPS: { label: string; hint: string; items: Section[] }[] = [
-  { label: 'This project', hint: 'Saved in the project and shared with collaborators', items: ['production', 'cast', 'locations', 'crew', 'categories', 'colors', 'characters'] },
+  { label: 'This project', hint: 'Saved in the project and shared with collaborators', items: ['production', 'cast', 'locations', 'crew', 'categories', 'colors', 'characters', 'unions'] },
   { label: 'This device', hint: 'Only on this device, for you', items: ['appearance', 'formats', 'profile', 'access', 'phone', 'data', 'shortcuts'] },
 ];
 const LABELS: Record<Section, string> = {
-  production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder',
+  production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder', unions: 'Unions',
   appearance: 'Appearance', formats: 'Dates & units', profile: 'You & sharing', access: 'Accessibility', phone: 'Phone layout', data: 'Data & backups', shortcuts: 'Keyboard shortcuts',
 };
 
@@ -55,6 +58,7 @@ export function SetupTab() {
         {section === 'appearance' && <AppearanceSettings />}
         {section === 'phone' && <PhoneLayoutSettings />}
         {section === 'characters' && <CharacterSettings />}
+        {section === 'unions' && <UnionSettings />}
         {section === 'formats' && <FormatPrefs />}
         {section === 'profile' && <ProfilePrefs />}
         {section === 'access' && <AccessibilityPrefs />}
@@ -83,13 +87,13 @@ export function SetupTab() {
               <span className="spacer" />
               {missingCast.length > 0 && <button onClick={() => update((dr) => {
                 let n = Math.max(0, ...dr.cast.map((c) => c.castNumber));
-                for (const c of missingCast) dr.cast.push({ id: newId(), castNumber: ++n, characterName: c.name, actorName: '', unavailable: [] });
+                for (const c of missingCast) dr.cast.push(newCastMember(p, ++n, c.name));
               }, 'Add characters to roster')}>Add {missingCast.length} character{missingCast.length > 1 ? 's' : ''} from script</button>}
-              <button onClick={() => update((dr) => { dr.cast.push({ id: newId(), castNumber: Math.max(0, ...dr.cast.map((c) => c.castNumber)) + 1, characterName: 'NEW CHARACTER', actorName: '', unavailable: [] }); }, 'Add cast member')}>+ Cast member</button>
+              <button onClick={() => update((dr) => { dr.cast.push(newCastMember(p, Math.max(0, ...dr.cast.map((c) => c.castNumber)) + 1)); }, 'Add cast member')}>+ Cast member</button>
             </div>
             <p className="muted small">Cast numbers appear on strips, call sheets and Day Out of Days. Unavailable dates are flagged as conflicts on the stripboard and calendar.</p>
             <table className="table cards-on-phone">
-              <thead><tr><th>#</th><th>Character</th><th>Actor</th><th>Phone</th><th>Email</th><th>Scenes</th><th>Unavailable</th><th /></tr></thead>
+              <thead><tr><th>#</th><th>Character</th><th>Actor</th><th>Phone</th><th>Email</th><th>Union</th><th>Scenes</th><th>Unavailable</th><th /></tr></thead>
               <tbody>
                 {[...p.cast].sort((a, b) => a.castNumber - b.castNumber).map((c) => {
                   const set = (fn: (x: typeof c) => void, label: string | null = null) => update((dr) => { fn(dr.cast.find((x) => x.id === c.id)!); }, label);
@@ -101,6 +105,7 @@ export function SetupTab() {
                       <td><input value={c.actorName} onChange={(e) => set((x) => { x.actorName = e.target.value; })} /></td>
                       <td><input value={c.phone ?? ''} onChange={(e) => set((x) => { x.phone = e.target.value; })} /></td>
                       <td><input value={c.email ?? ''} onChange={(e) => set((x) => { x.email = e.target.value; })} /></td>
+                      <td><UnionPicker compact value={c} onChange={(patch) => set((x) => { Object.assign(x, patch); }, 'Union')} /></td>
                       <td className="muted small">{inScript ? inScript.sceneIds.length : <span className="warn">not in script</span>}</td>
                       <td>
                         {c.unavailable.map((r, i) => (
@@ -152,7 +157,7 @@ export function SetupTab() {
           <>
             <div className="toolbar"><h3>Crew</h3><span className="spacer" /><button onClick={() => update((dr) => { dr.crew.push({ id: newId(), name: '', role: '', dailyDefault: true }); }, 'Add crew')}>+ Crew member</button></div>
             <table className="table cards-on-phone">
-              <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>On every call sheet</th><th /></tr></thead>
+              <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Union</th><th>On every call sheet</th><th /></tr></thead>
               <tbody>
                 {p.crew.map((c) => {
                   const set = (fn: (x: typeof c) => void) => update((dr) => { fn(dr.crew.find((x) => x.id === c.id)!); }, null);
@@ -161,6 +166,7 @@ export function SetupTab() {
                       <td><input value={c.role} onChange={(e) => set((x) => { x.role = e.target.value; })} /></td>
                       <td><input value={c.name} onChange={(e) => set((x) => { x.name = e.target.value; })} /></td>
                       <td><input value={c.phone ?? ''} onChange={(e) => set((x) => { x.phone = e.target.value; })} /></td>
+                      <td><UnionPicker compact value={c} onChange={(patch) => set((x) => { Object.assign(x, patch); })} /></td>
                       <td><input type="checkbox" checked={!!c.dailyDefault} onChange={(e) => set((x) => { x.dailyDefault = e.target.checked; })} /></td>
                       <td><button className="icon-btn" onClick={() => update((dr) => { dr.crew = dr.crew.filter((x) => x.id !== c.id); }, 'Remove crew')}>×</button></td>
                     </tr>
