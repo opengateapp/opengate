@@ -15,6 +15,9 @@ import { putMedia, useMediaUrl } from '../../store/media';
 import { prepareImage } from '../storyboard/images';
 import { deletedToast } from '../../components/deleted';
 import { sceneCast, sceneEighths } from '../../script/derive';
+import { castBadge, crewBadge } from '../../paperwork/unions';
+import { unsignedOnDay } from '../../paperwork/paperwork';
+import { budgetVisible, useSync } from '../../sync/state';
 
 /** Call sheets as an editable page: header blocks, a big call time, and sections you can hide, reorder, add and remove. */
 export function CallSheetsView({ onBack }: { onBack?: () => void }) {
@@ -215,6 +218,7 @@ function CallSheetPage({ day, number, onGoToDay }: { day: ShootDay; number: numb
       </div>
       <p className="cs-autosave">Every change you make is saved automatically · {number ? `Day ${number} of ${r.totalDays}` : 'Not a shoot day'} — {formatDate(day.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
       {r.missingCast.length > 0 && <p className="warn small cs-note">In today's scenes but not on this sheet: {r.missingCast.join(', ')} — use … → Refresh from schedule.</p>}
+      <Readiness day={day} />
 
       <div className="cs-page">
         <div className="cs-row3">
@@ -466,6 +470,7 @@ function ScenesSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
 }
 
 function CastSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
+  const p = useProject();
   const cs = r.sheet;
   return (
     <>
@@ -478,7 +483,7 @@ function CastSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
             return (
               <tr key={c.id} className={c.inToday ? '' : 'cs-dim'} title={c.inToday ? '' : 'Not in any of today’s scenes'}>
                 <td className="center">{c.castNumber ?? i + 1}</td>
-                <td><input value={raw.actorName} placeholder="Actor" onChange={set('actorName')} /></td>
+                <td className="cs-person"><input value={raw.actorName} placeholder="Actor" onChange={set('actorName')} />{castBadge(p, raw.characterName) && <span className="union-badge">{castBadge(p, raw.characterName)}</span>}</td>
                 <td><input value={raw.characterName} onChange={set('characterName')} /></td>
                 <td><input className="center" value={raw.sceneNumbers} placeholder={c.sceneNumbers} onChange={set('sceneNumbers')} /></td>
                 <td><input className="center" value={raw.status} placeholder={c.status} onChange={set('status')} /></td>
@@ -497,6 +502,21 @@ function CastSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
   );
 }
 
+/** People on this day's sheet whose deal memo or release isn't signed (only for people who can see the budget). */
+function Readiness({ day }: { day: ShootDay }) {
+  const p = useProject();
+  const d = useDerived();
+  useSync((s) => s.write);
+  const missing = useMemo(() => (budgetVisible() ? unsignedOnDay(p, d, day) : []), [p, d, day]);
+  if (!missing.length) return null;
+  return (
+    <p className="warn small cs-note">
+      {missing.length === 1 ? '1 person' : `${missing.length} people`} on this call sheet {missing.length === 1 ? 'has' : 'have'} no signed release or crew agreement: {missing.map((x) => x.name).join(', ')}.{' '}
+      <button className="link small" onClick={() => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'paperwork' }))}>Open Paperwork</button>
+    </p>
+  );
+}
+
 function CrewSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
   const p = useProject();
   const cs = r.sheet;
@@ -512,7 +532,7 @@ function CrewSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
             return (
               <tr key={c.id}>
                 <td><input value={raw.role} onChange={set('role')} /></td>
-                <td><input value={raw.name} onChange={set('name')} /></td>
+                <td className="cs-person"><input value={raw.name} onChange={set('name')} />{crewBadge(p, raw.crewId, raw.name) && <span className="union-badge">{crewBadge(p, raw.crewId, raw.name)}</span>}</td>
                 <td><input value={raw.phone} onChange={set('phone')} /></td>
                 <td><input value={raw.email ?? ''} onChange={set('email')} /></td>
                 <td><input type="time" value={raw.call || c.call} onChange={set('call')} /></td>

@@ -29,6 +29,7 @@ import { StoryBibleTab } from './tabs/StoryBibleTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
 import { LicensesTab } from './tabs/budget/LicensesTab';
+import { PaperworkTab } from './tabs/budget/PaperworkTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
 import { CategoryStyles } from './components/CategoryStyles';
@@ -54,7 +55,7 @@ export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' 
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
-  | 'budget' | 'expenses' | 'gear' | 'licenses'
+  | 'budget' | 'expenses' | 'gear' | 'licenses' | 'paperwork'
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
@@ -80,6 +81,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
     { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
     { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
+    { id: 'paperwork', label: 'Paperwork', hint: 'Deal memos, releases signed on a phone or iPad, start forms, unions, clearances and time cards' },
   ] },
   { id: 'plan', label: 'Plan', tabs: [
     { id: 'contacts', label: 'Contacts', hint: 'Cast, crew, vendors and other contacts' },
@@ -300,6 +302,7 @@ export function App() {
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}
         {tab === 'licenses' && <LicensesTab />}
+        {tab === 'paperwork' && <PaperworkTab />}
         {tab === 'contacts' && <ContactsTab />}
         {tab === 'calendar' && <CalendarTab />}
         {tab === 'tasks' && <TasksTab />}

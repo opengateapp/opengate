@@ -6,6 +6,7 @@ import { resolveCallSheet, infoValue, advanceSchedule, callDayLabel, type Resolv
 import { buildDood } from '../schedule/dood';
 import { getMedia, blobToImage } from '../store/media';
 import { clip } from './schedulePdf';
+import { castBadge, crewBadge } from '../paperwork/unions';
 
 // Call sheet PDF with the same layout as the on-screen page: company + key contacts,
 // logo + production title, times / hospital; location, big call time, notes; then every
@@ -223,6 +224,8 @@ function drawCallSheet(s: Sheet, p: Project, d: Derived, day: ShootDay, r: Resol
   }
 }
 
+const withBadge = (name: string, badge: string) => (badge ? `${name} (${badge})` : name);
+
 function sectionTitle(s: Sheet, title: string) {
   s.room(40);
   s.font(8.5, 'bold');
@@ -285,12 +288,12 @@ function drawSection(s: Sheet, p: Project, d: Derived, day: ShootDay, r: Resolve
     }
     case 'cast':
       table(s, ['#', 'Cast', 'Character', 'Scenes', 'Status', 'Pick up', 'H/MU', 'Call', 'Special instructions'], [4, 15, 15, 9, 7, 8, 8, 8, 26],
-        r.cast.map((c, i) => [String(c.castNumber ?? i + 1), c.actorName, c.characterName, c.sceneNumbers, c.status, t12(c.pickup), t12(c.hmu), t12(c.onSet), c.notes ?? '']),
+        r.cast.map((c, i) => [String(c.castNumber ?? i + 1), withBadge(c.actorName, castBadge(p, c.characterName)), c.characterName, c.sceneNumbers, c.status, t12(c.pickup), t12(c.hmu), t12(c.onSet), c.notes ?? '']),
         { center: [0, 3, 4, 5, 6, 7] });
       break;
     case 'crew':
       table(s, ['Position', 'Name', 'Phone', 'Email', 'Call time'], [20, 22, 17, 27, 11],
-        r.crew.map((c) => [c.role, c.name, c.phone, c.email ?? '', t12(c.call)]), { center: [4] });
+        r.crew.map((c) => [c.role, withBadge(c.name, crewBadge(p, c.crewId, c.name)), c.phone, c.email ?? '', t12(c.call)]), { center: [4] });
       break;
     case 'locations':
       table(s, ['#', 'Location', 'Address'], [5, 35, 60], r.locations.map((l, i) => [String(i + 1), l.name, l.address]), { center: [0] });

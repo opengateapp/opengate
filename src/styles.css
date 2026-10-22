@@ -1705,3 +1705,77 @@ label.button-like { cursor: pointer; }
 .field.inline { flex-direction: row; align-items: center; gap: 6px; }
 @media (max-width: 1100px) { .credits-layout { grid-template-columns: 1fr; } .credits-preview-wrap { position: static; max-width: 520px; } }
 @media (max-width: 760px) { .credit-lines li, .credit-lines.auto li { grid-template-columns: 1fr; } .credit-lines.auto li { grid-template-columns: auto 1fr; } .credit-lines.auto li { row-gap: 0; padding: 3px 0; } .credit-lines.auto li > label { grid-row: span 2; } .credit-lines.auto li span:nth-child(2):empty { display: none; } .credit-lines.auto li span:nth-child(3) { grid-column: 2; font-weight: 600; } }
+
+/* ---------- Paperwork, unions ---------- */
+.union-picker { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.union-picker select { max-width: 150px; }
+.union-picker .union-local { width: 110px; }
+.union-badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: #e0e7ff; color: #3730a3; white-space: nowrap; margin-left: 4px; vertical-align: middle; }
+.cs-person .union-badge { display: block; width: fit-content; margin: 1px 0 2px 4px; font-size: 9.5px; }
+.pill.g-Contact { background: #64748b; } .pill.g-Location { background: #0d9488; }
+.paper-privacy { max-width: 900px; }
+.people-list { display: flex; flex-direction: column; gap: 6px; max-width: 1100px; }
+.person-card { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.person-card.drop-hover { outline: 2px dashed var(--accent); }
+.person-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.person-head .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-body { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.paper-chips { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.paper-chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+.paper-chip.done { background: #d3f9d8; color: #1b5e20; }
+.paper-chip.todo { background: #fff3bf; color: #6b4e00; }
+.paper-chip.missing { background: #ffe3e3; color: #8a1f1f; }
+.doc-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.doc-rows li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.doc-status { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+.doc-status.s-signed, .doc-status.s-received, .doc-status.s-cleared, .doc-status.s-licensed { background: #d3f9d8; color: #1b5e20; }
+.doc-status.s-sent, .doc-status.s-requested, .doc-status.s-quoted { background: #fff3bf; color: #6b4e00; }
+.doc-status.s-draft, .doc-status.s-needed, .doc-status.s-replace { background: #ffe3e3; color: #8a1f1f; }
+select.doc-status { padding: 2px 6px; border: 0; }
+.doc-text { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 1.5; }
+.deal-grid { background: var(--panel-2); padding: 10px; border-radius: 8px; }
+.union-counts { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.clearance-list { display: flex; flex-direction: column; gap: 4px; max-width: 1200px; min-height: 60px; }
+.clearance-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.clearance-row.st-cleared, .clearance-row.st-na { opacity: .7; }
+.clearance-row .grow { flex: 1 1 200px; min-width: 140px; }
+.clearance-notes { flex: 1 1 160px; min-width: 120px; }
+.timecards input[type=time] { width: 128px; }
+.timecards td.warn { color: #b45309; font-weight: 700; }
+.payroll-rules { margin-top: 14px; max-width: 900px; }
+.payroll-rules summary { cursor: pointer; font-weight: 600; }
+.union-settings .union-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.union-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.union-row b { min-width: 110px; }
+.union-row .grow { flex: 1 1 220px; }
+/* Signature pad */
+.sign-sheet { display: flex; flex-direction: column; gap: 10px; }
+.sign-text { white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.5; max-height: 34vh; overflow: auto; margin: 0; padding: 10px; background: var(--panel-2); border-radius: 8px; }
+.sign-box { position: relative; height: 180px; border: 2px dashed var(--border); border-radius: 10px; background: #fff; }
+.sign-canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; border-radius: 8px; }
+.sign-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; pointer-events: none; color: #888; }
+.sign-clear { position: absolute; right: 6px; top: 6px; }
+@media (max-width: 760px) {
+  .person-head { flex-wrap: wrap; }
+  .person-head .grow { flex: 1 1 100%; order: -1; white-space: normal; }
+  .clearance-row > * { flex: 1 1 45%; }
+  .clearance-row .grow, .clearance-notes { flex-basis: 100%; }
+  .sign-box { height: 30vh; min-height: 160px; }
+  .sign-text { max-height: 26vh; }
+  .union-picker select { max-width: 46vw; }
+}
+.sign-agree { white-space: normal; align-items: flex-start; gap: 8px; line-height: 1.35; }
+.sign-agree input { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+.paperwork-tab .toolbar .seg { flex-wrap: wrap; }
+@media (max-width: 760px) { .paperwork-tab .toolbar .seg { width: 100%; } .paperwork-tab .toolbar .seg button { flex: 1 1 auto; } }
+.clearance-row .chips { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.clearance-row .chips select { max-width: 110px; }
+@media (max-width: 760px) {
+  .clearance-row .chips { flex-basis: 100%; }
+  .clearance-row select, .clearance-row input { min-width: 0; max-width: 100%; }
+  .clearance-row .icon-btn, .clearance-row label.button-like { flex: 0 0 auto; }
+}
+@media (max-width: 760px) { .timecards input[type=time] { width: 100%; max-width: 190px; } }
+
+.timecards-wrap { overflow-x: auto; max-width: 100%; }
+@media (max-width: 760px) { .timecards-wrap { overflow-x: visible; } }
