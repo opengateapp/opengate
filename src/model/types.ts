@@ -111,6 +111,10 @@ export interface CastMember {
   unionStatus?: UnionStatus;
   /** e.g. "600" for IATSE Local 600. */
   unionLocal?: string;
+  /** Honorary societies (ids from the Societies list): letters after the name in credits. */
+  societies?: string[];
+  /** The PGA certified this person's producing credit on this production (the p.g.a. mark). */
+  pgaCertified?: boolean;
 }
 
 export interface Location {
@@ -144,6 +148,10 @@ export interface CrewMember {
   unionStatus?: UnionStatus;
   /** e.g. "600" for IATSE Local 600. */
   unionLocal?: string;
+  /** Honorary societies (ids from the Societies list): letters after the name in credits. */
+  societies?: string[];
+  /** The PGA certified this person's producing credit on this production (the p.g.a. mark). */
+  pgaCertified?: boolean;
 }
 
 export interface Shot {
@@ -399,6 +407,10 @@ export interface Contact {
   unionStatus?: UnionStatus;
   /** e.g. "600" for IATSE Local 600. */
   unionLocal?: string;
+  /** Honorary societies (ids from the Societies list): letters after the name in credits. */
+  societies?: string[];
+  /** The PGA certified this person's producing credit on this production (the p.g.a. mark). */
+  pgaCertified?: boolean;
 }
 
 export interface Task {
@@ -740,7 +752,12 @@ export interface Budget {
   payrollRules?: PayrollRules;
   /** This project's own wording for release and deal memo templates. */
   templates?: Partial<Record<PaperKind, string>>;
+  /** Union agreements you signed, attached from Reference → Guilds & Unions. */
+  agreements?: SignedAgreement[];
 }
+
+/** A copy of a union agreement the production signed (a PDF kept with the budget). */
+export interface SignedAgreement { id: Id; guildId: string; title: string; fileId: Id; added: string }
 
 // ---------- Paperwork, unions, clearances, time cards ----------
 
@@ -1070,6 +1087,8 @@ export interface CreditsSettings {
   secondsPerScreen: number;
   /** Fixed runtime in seconds (otherwise worked out from the length). */
   runtime?: number;
+  /** Leave society letters (ASC, ACE…) off names. */
+  noSocietyLetters?: boolean;
 }
 
 export interface Project {
@@ -1121,6 +1140,8 @@ export interface Project {
   characterOptions?: CharacterOptions;
   /** The union list (Settings → Unions); built-in list when unset. */
   unionOptions?: UnionOption[];
+  /** The honorary societies list (Settings → Unions & Societies); built-in list when unset. */
+  societyOptions?: SocietyOption[];
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;
   notes: string;
@@ -1130,3 +1151,6 @@ export interface Project {
 
 /** A union in the Settings list. */
 export interface UnionOption { id: string; name: string; group: string; locals?: string[]; custom?: boolean; hidden?: boolean }
+
+/** An honorary society in the Settings list, with how its letters are written. */
+export interface SocietyOption { id: string; abbr: string; name: string; craft: string; letters: string; custom?: boolean; hidden?: boolean }

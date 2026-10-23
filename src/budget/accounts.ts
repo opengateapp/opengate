@@ -60,6 +60,7 @@ export function newBudget(): Budget {
     paperwork: [],
     clearances: [],
     timecards: [],
+    agreements: [],
   };
 }
 

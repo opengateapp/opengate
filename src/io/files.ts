@@ -38,6 +38,7 @@ export function budgetMediaIds(p: Project): string[] {
     ...(b?.licenses ?? []).map((l) => l.fileId),
     ...(b?.paperwork ?? []).flatMap((x) => [x.fileId, x.signature?.mediaId]),
     ...(b?.clearances ?? []).map((c) => c.fileId),
+    ...(b?.agreements ?? []).map((a) => a.fileId),
   ].filter((x): x is string => !!x);
 }
 
@@ -70,6 +71,7 @@ function remapMedia(p: Project, remap: Map<string, string>): Project {
       ...p.budget, expenses: p.budget.expenses.map((e) => ({ ...e, receiptId: re(e.receiptId) })), licenses: (p.budget.licenses ?? []).map((l) => ({ ...l, fileId: re(l.fileId) })),
       paperwork: (p.budget.paperwork ?? []).map((x) => ({ ...x, fileId: re(x.fileId), signature: x.signature && { ...x.signature, mediaId: re(x.signature.mediaId) } })),
       clearances: (p.budget.clearances ?? []).map((c) => ({ ...c, fileId: re(c.fileId) })),
+      agreements: (p.budget.agreements ?? []).map((a) => ({ ...a, fileId: re(a.fileId)! })),
     },
     plans: p.plans?.map((pl) => ({ ...pl, backgroundId: re(pl.backgroundId) })),
     characters: (p.characters ?? []).map((c) => ({ ...c, portraitId: re(c.portraitId), continuity: c.continuity.map((x) => ({ ...x, imageId: re(x.imageId)! })) })),

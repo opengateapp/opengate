@@ -1,27 +1,33 @@
 import type { CastMember, Project, UnionOption, UnionStatus } from '../model/types';
 import { newId } from '../model/ids';
+import { societyLetters } from './societies';
 
 // Unions and guilds for cast and crew. We keep names (and a link to the union's own pages) only:
 // never rate sheets, and never member ID numbers.
 
 export const UNIONS: UnionOption[] = [
   { id: 'sag-aftra', name: 'SAG-AFTRA', group: 'US performers' },
-  { id: 'iatse', name: 'IATSE', group: 'US crew', locals: ['600 (camera)', '700 (editors)', '695 (sound)', '728 (electric)', '80 (grips)', '44 (props)', '706 (makeup & hair)', '705 (costume)', '800 (art directors)', '871 (script supervisors)'] },
-  { id: 'teamsters', name: 'Teamsters', group: 'US crew', locals: ['399 (drivers, casting, locations)'] },
+  { id: 'iatse', name: 'IATSE', group: 'US crew', locals: ['600 (camera)', '700 (editors)', '695 (sound)', '728 (electric)', '80 (grips)', '44 (props)', '706 (makeup & hair)', '705 (costume)', '800 (art directors)', '871 (script supervisors)', '52 (studio mechanics, New York)', '161 (script supervisors & coordinators, East Coast)', '476 (studio mechanics, Chicago)'] },
+  { id: 'teamsters', name: 'Teamsters', group: 'US crew', locals: ['399 (Hollywood: drivers, casting, locations)', '817 (New York: drivers, casting, locations)'] },
+  { id: 'tag', name: 'The Animation Guild', group: 'US crew', locals: ['839'] },
+  { id: 'cdg', name: 'Costume Designers Guild', group: 'US crew', locals: ['892'] },
   { id: 'dga', name: 'DGA', group: 'US above the line' },
   { id: 'wga', name: 'WGA', group: 'US above the line' },
   { id: 'afm', name: 'AFM', group: 'US above the line' },
   { id: 'actra', name: 'ACTRA', group: 'Canada' },
   { id: 'dgc', name: 'DGC', group: 'Canada' },
-  { id: 'iatse-ca', name: 'IATSE Canada', group: 'Canada' },
+  { id: 'iatse-ca', name: 'IATSE Canada', group: 'Canada', locals: ['667 (camera, Toronto)', '669 (camera, Western Canada)'] },
   { id: 'equity-uk', name: 'Equity (UK)', group: 'UK' },
   { id: 'bectu', name: 'BECTU', group: 'UK' },
+  { id: 'directors-uk', name: 'Directors UK', group: 'UK' },
+  { id: 'wggb', name: 'WGGB', group: 'UK' },
   { id: 'meaa', name: 'MEAA', group: 'Australia' },
   { id: 'equity-nz', name: 'Equity NZ', group: 'New Zealand' },
 ];
 
 /** SAG-AFTRA agreements an indie usually works under. Names only; check sagaftra.org for limits and rates. */
-export const SAG_TIERS = ['Student Film', 'Micro-Budget', 'Short Project', 'Ultra Low Budget', 'Moderate Low Budget', 'Low Budget (Theatrical)', 'Basic (Theatrical)', 'New Media'];
+/** Names as on SAG-AFTRA's low budget contracts one-sheet (checked October 2026). */
+export const SAG_TIERS = ['Micro-Budget Project', 'Student Film', 'Short Project (SPA)', 'Ultra Low Project (UPA)', 'Moderate Low (MPA)', 'Low Budget (LBA)', 'Vertical Agreement', 'New Media (Deferrable)', 'Special New Media A', 'Special New Media B', 'Special New Media C', 'Special New Media D', 'Theatrical Basic Agreement'];
 export const SAG_LINK = 'https://www.sagaftra.org/production-center';
 
 export const UNION_STATUSES: { id: UnionStatus; label: string; short: string }[] = [
@@ -69,9 +75,9 @@ export function newCastMember(p: Project, castNumber: number, characterName = 'N
 /** Union badge for a call-sheet cast row (matched by character) or crew row (by crew id, then name). */
 export function castBadge(p: Project, characterName: string): string {
   const m = p.cast.find((c) => c.characterName.trim().toUpperCase() === characterName.trim().toUpperCase());
-  return m ? unionBadge(m) : '';
+  return m ? [unionBadge(m), ...societyLetters(p, m)].filter(Boolean).join(' · ') : '';
 }
 export function crewBadge(p: Project, crewId: string | undefined, name: string): string {
   const m = (crewId && p.crew.find((c) => c.id === crewId)) || (name.trim() ? p.crew.find((c) => c.name === name) : undefined);
-  return m ? unionBadge(m) : '';
+  return m ? [unionBadge(m), ...societyLetters(p, m)].filter(Boolean).join(' · ') : '';
 }

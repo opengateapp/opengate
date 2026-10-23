@@ -1,6 +1,8 @@
 import { useProject } from '../store/project';
 import type { UnionStatus } from '../model/types';
 import { UNION_STATUSES, unionOptions, type Unioned } from '../paperwork/unions';
+import { guildForUnion } from '../reference/guilds';
+import { RefLink } from '../tabs/ReferenceTab';
 
 /** Union, status and local for one person. `compact` shows just the union dropdown until one is picked. */
 export function UnionPicker({ value, onChange, ro, compact }: { value: Unioned; onChange: (patch: Unioned) => void; ro?: boolean; compact?: boolean }) {
@@ -30,6 +32,7 @@ export function UnionPicker({ value, onChange, ro, compact }: { value: Unioned; 
           {current?.locals && <datalist id={`locals-${current.id}`}>{current.locals.map((l) => <option key={l} value={l} />)}</datalist>}
         </>
       )}
+      {value.union && <RefLink page={guildForUnion(value.union) ? `guild-${guildForUnion(value.union)!.id}` : 'guild-unions-vs-societies'} />}
     </span>
   );
 }

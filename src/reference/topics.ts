@@ -1,9 +1,10 @@
 import { CREW } from './crew';
+import { CHECKED, GUILDS, LEGAL_NOTE, type Guild } from './guilds';
 
 // Reference pages: short plain-language explainers written for Open Gate, a quick-reference
 // table where it helps, an interactive tool, and links to where it's used in the app.
 
-export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'crew' | 'post';
+export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'crew' | 'guilds' | 'post';
 
 export const CATEGORIES: { id: RefCategory; label: string; icon: string }[] = [
   { id: 'story', label: 'Story', icon: '✎' },
@@ -15,6 +16,7 @@ export const CATEGORIES: { id: RefCategory; label: string; icon: string }[] = [
   { id: 'grip', label: 'Grip & Support', icon: '⌖' },
   { id: 'production', label: 'Production', icon: '☰' },
   { id: 'crew', label: 'Crew & departments', icon: '☺' },
+  { id: 'guilds', label: 'Guilds & Unions', icon: '⚖' },
   { id: 'post', label: 'Post', icon: '✂' },
 ];
 
@@ -35,6 +37,14 @@ export interface RefPage {
   keywords?: string;
   /** Library topics for "Learn more". */
   topics: string[];
+  /** Where the facts come from, and when we last checked them (Guilds & Unions). */
+  sources?: { label: string; url: string }[];
+  checked?: string;
+  notice?: string;
+  /** A sub-group heading in the side list ("United States"). */
+  group?: string;
+  /** The Guild this page is about (attach your agreement, union pickers). */
+  guild?: string;
 }
 
 export const PAGES: RefPage[] = [
@@ -277,6 +287,8 @@ export const PAGES: RefPage[] = [
     use: [{ tab: 'contacts', label: 'Plan → Contacts' }, { tab: 'setup', label: 'Settings → Crew' }, { tab: 'callsheets', label: 'Call Sheets' }],
     topics: ['production'], keywords: d.roles.map((r) => r[0]).join(' ').toLowerCase(),
   })),
+  // ---------- Guilds & Unions ----------
+  ...GUILDS.map(guildPage),
   // ---------- Post ----------
   {
     id: 'editing', category: 'post', title: 'Cuts & transitions', lead: 'How shots join up.',
@@ -291,4 +303,26 @@ export const PAGES: RefPage[] = [
 ];
 
 export const pageById = (id: string) => PAGES.find((p) => p.id === id);
+
+function guildPage(g: Guild): RefPage {
+  const sections: RefPage['sections'] = [{ p: g.summary }];
+  if (g.kind !== 'overview') sections.push({ h: g.kind === 'union' ? 'A union' : 'An honorary society', p: g.kind === 'union' ? 'It bargains with producers for its members: minimum pay, hours, safety, benefits and credits. Its rules apply once your production signs its agreement.' : 'Membership is by invitation or application for the quality of someone’s work. It gives letters after a name and sets no pay or working rules.' });
+  if (g.why) sections.push({ h: g.kind === 'overview' ? 'Why it matters' : 'Why it matters to your production', p: g.why });
+  if (g.rules?.length) sections.push({ h: g.kind === 'society' ? 'Using the letters' : 'Key rules in plain language', p: g.rules.map((r) => `• ${r}`).join('\n') });
+  if (g.consequences?.length) sections.push({ h: 'If the rules aren’t met', p: g.consequences.map((r) => `• ${r}`).join('\n') });
+  if (g.letters) sections.push({ h: 'In the credits', p: `Written “${g.letters}” after the name: Jane Doe, ${g.letters}.` });
+  const use: RefPage['use'] = g.kind === 'overview'
+    ? [{ tab: 'paperwork', label: 'Plan → Paperwork' }, { tab: 'setup', label: 'Settings → Unions & Societies' }]
+    : g.kind === 'union'
+      ? [{ tab: 'contacts', label: 'Union field: Plan → Contacts' }, { tab: 'setup', label: 'Production agreement: Settings → Unions & Societies' }, { tab: 'budget', label: 'Union fringes: Budget' }, { tab: 'paperwork', label: 'Plan → Paperwork' }]
+      : [{ tab: 'contacts', label: 'Societies field: Plan → Contacts' }, { tab: 'reports', label: 'End credits: ⤓ Exports' }];
+  return {
+    id: `guild-${g.id}`, category: 'guilds', title: g.kind === 'overview' ? g.name : `${g.abbr}${g.abbr !== g.name ? ` — ${g.name}` : ''}`,
+    lead: g.kind === 'overview' ? g.summary.split('. ')[0] + '.' : g.kind === 'union' ? `Union · ${g.region}` : `Honorary society${g.letters ? ` · letters: ${g.letters}` : ''}`,
+    sections,
+    table: g.agreements?.length ? { head: ['Agreement / tier', 'Who it fits', 'Budget', ''], rows: g.agreements.map((a) => [a.name, a.fits, a.budget ?? '—', a.url ?? g.url]) } : undefined,
+    use, topics: ['production'], keywords: `${g.abbr} ${g.name} ${g.aka ?? ''}`.toLowerCase(),
+    sources: g.sources, checked: CHECKED, notice: LEGAL_NOTE, group: g.region, guild: g.kind === 'union' ? g.id : undefined,
+  };
+}
 

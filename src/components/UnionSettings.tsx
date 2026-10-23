@@ -3,6 +3,8 @@ import type { UnionOption } from '../model/types';
 import { SAG_LINK, SAG_TIERS, UNIONS, unionOptions } from '../paperwork/unions';
 import { askConfirm } from './dialogs';
 import { Hint } from './Hint';
+import { RefLink } from '../tabs/ReferenceTab';
+import { SocietySettings } from './SocietySettings';
 
 /** Settings → Unions: the production's agreement, and which unions appear in the pickers. */
 export function UnionSettings() {
@@ -24,7 +26,7 @@ export function UnionSettings() {
 
   return (
     <div className="union-settings">
-      <h3>Production agreement</h3>
+      <h3>Production agreement <RefLink page={sag ? 'guild-sag-aftra' : 'guild-going-union'} /></h3>
       <div className="form-grid">
         <label className="field"><span>Union agreement</span>
           <select value={ag.union ?? ''} onChange={(e) => setAg({ union: e.target.value || undefined })}>
@@ -34,7 +36,7 @@ export function UnionSettings() {
         </label>
         {ag.union && (
           <label className="field"><span>Agreement / tier</span>
-            <input list="sag-tiers" value={ag.tier ?? ''} placeholder={sag ? 'Ultra Low Budget…' : 'Agreement name'} onChange={(e) => setAg({ tier: e.target.value || undefined })} />
+            <input list="sag-tiers" value={ag.tier ?? ''} placeholder={sag ? 'Ultra Low Project (UPA)…' : 'Agreement name'} onChange={(e) => setAg({ tier: e.target.value || undefined })} />
             <datalist id="sag-tiers">{(sag ? SAG_TIERS : []).map((t) => <option key={t} value={t} />)}</datalist>
           </label>
         )}
@@ -69,6 +71,7 @@ export function UnionSettings() {
           })}
         </div>
       ))}
+      <SocietySettings />
     </div>
   );
 }
