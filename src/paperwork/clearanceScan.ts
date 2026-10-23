@@ -79,14 +79,15 @@ export function scanScript(p: Project, d: Derived): ScanHit[] {
   }
   // Every place the script shoots needs permission: one location item per script set (or per
   // real location, when one is set up in Plan → Locations).
-  const located = new Set<string>();
+  // A set counts as covered when a location takes all its scenes (e.g. the booth at the drive-in).
+  const covered = new Set<string>();
   for (const loc of p.locations) {
     const ids = locationSceneIds(p, d, loc);
     if (!ids.length && !loc.realName) continue;
-    located.add(loc.setName.toLowerCase());
+    for (const id of ids) covered.add(id);
     hits.set(`location:#${loc.id}`, { kind: 'location', item: locationItem(loc), sceneIds: ids, why: LOCATION_WHY, locationId: loc.id });
   }
-  for (const s of d.sets) if (!located.has(s.name.toLowerCase())) hits.set(`location:${s.name.toLowerCase()}`, { kind: 'location', item: s.name, sceneIds: [...s.sceneIds], why: LOCATION_WHY });
+  for (const s of d.sets) if (!s.sceneIds.every((id) => covered.has(id))) hits.set(`location:${s.name.toLowerCase()}`, { kind: 'location', item: s.name, sceneIds: s.sceneIds.filter((id) => !covered.has(id)), why: LOCATION_WHY });
   return [...hits.values()];
 }
 

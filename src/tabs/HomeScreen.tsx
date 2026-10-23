@@ -58,6 +58,18 @@ export function HomeScreen() {
     const parsed = parseFountain(SAMPLE_FOUNTAIN);
     open(produce(newProject('The Last Reel'), (d) => { applyImportedScript(d, parsed); }), true);
   };
+  // The full sample: every section filled in, with a few problems to fix. A fresh copy each time.
+  const [building, setBuilding] = useState(false);
+  const sampleProduction = async () => {
+    setBuilding(true);
+    try {
+      const { buildSampleProduction } = await import('../model/sampleProduction');
+      const { addSampleMedia } = await import('../model/sampleMedia');
+      open(await addSampleMedia(buildSampleProduction()), true);
+    } catch (e) {
+      toast(`Could not build the sample production: ${(e as Error).message}`);
+    } finally { setBuilding(false); }
+  };
 
   return (
     <div className="home">
@@ -69,7 +81,11 @@ export function HomeScreen() {
           <button className="primary" onClick={() => open(newProject(), true)}>New screenplay</button>
           <button onClick={() => setImporting(true)}>Import a screenplay…</button>
           <button onClick={openFile}>Open project file…</button>
-          <button onClick={sample}>Try the sample project</button>
+        </div>
+        <div className="home-samples">
+          <span className="muted small">Try a sample:</span>
+          <button onClick={sample} title="The short sample script, for writing">Sample script</button>
+          <button onClick={() => void sampleProduction()} disabled={building} title="A filled-in short film: every section, with a few problems to fix">{building ? 'Building…' : 'Sample production'}</button>
         </div>
         <h2>Recent projects</h2>
         {projects.length === 0 && <p className="muted">No projects yet. Projects are saved in this browser automatically.</p>}

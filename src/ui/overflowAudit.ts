@@ -17,7 +17,7 @@ export function overflowAudit(root: ParentNode = document): OverflowIssue[] {
     if (!host) continue;
     const hcs = getComputedStyle(host);
     // Scrolling containers and deliberate "…" truncation are fine.
-    if (hcs.overflowX === 'auto' || hcs.overflowX === 'scroll' || el.closest('.table-scroll')) continue;
+    if (hcs.overflowX === 'auto' || hcs.overflowX === 'scroll' || el.closest('.table-scroll') || insideScroller(host)) continue;
     if (cs.textOverflow === 'ellipsis' || hcs.textOverflow === 'ellipsis' || cs.webkitLineClamp !== 'none' && cs.webkitLineClamp) continue;
     const range = document.createRange();
     range.selectNodeContents(el);
@@ -50,4 +50,13 @@ export function installOverflowAudit() {
     console.table(issues.map(({ why, host, text }) => ({ why, host, text })));
     return issues;
   };
+}
+
+/** Inside something that scrolls sideways (a wide table on a phone): off to the side is fine there. */
+function insideScroller(el: Element): boolean {
+  for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+    const ox = getComputedStyle(e).overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && e.scrollWidth > e.clientWidth) return true;
+  }
+  return false;
 }

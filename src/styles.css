@@ -1974,3 +1974,11 @@ table.contacts .crew-role-picker select { width: 100%; }
   .fe-tools .opacity-control input[type=range] { width: 50px; }
   .fe-seg button, .fe-shapes button:not(.fe-caret) { min-width: 38px; }
 }
+
+/* Home: sample choices under the main actions. */
+.home-samples { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: -16px 0 32px; }
+.home-samples button { padding: 7px 14px; }
+/* Long warnings wrap instead of running off (Licenses). */
+.license-warnings button.link { white-space: normal; text-align: left; overflow-wrap: anywhere; }
+/* Day Out of Days on phones: date headers fit their narrow columns. */
+@media (max-width: 760px) { .dood th.day { padding: 3px 1px; font-size: 9px; } }
