@@ -60,6 +60,7 @@ export function PhoneTopbar({ sections, allSections, tab, setTab, saveState }: {
             ))}
           </div>
           <hr />
+          <button onClick={() => go('reports')}>⤓ Exports</button>
           <button onClick={() => go('setup')}>⚙ Settings</button>
           <div className="menu-note">{saveState === 'saved' ? 'All changes saved on this device' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes'}</div>
         </MoreMenu>
@@ -98,7 +99,7 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
         </div>
         {status !== 'off' && <div className={`drawer-sync s-${status}`}>{status === 'live' ? '● Connected' : status === 'offline' ? '○ Offline — saved here, will sync later' : status === 'connecting' ? '◌ Connecting…' : '⚠ Not syncing'}</div>}
         <div className="drawer-sections">
-          {list.filter((s) => s.id !== 'settings').map((s) => (
+          {list.filter((s) => s.id !== 'settings' && s.id !== 'exports').map((s) => (
             <div key={s.id} className={`drawer-section ${open.includes(s.id) ? 'open' : ''}`}>
               <button className="drawer-section-head" aria-expanded={open.includes(s.id)} onClick={() => toggle(s.id)}>
                 <span>{s.label}</span>
@@ -112,6 +113,9 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
               ))}
             </div>
           ))}
+        </div>
+        <div className="drawer-sections drawer-extra">
+          <button className={tab === 'reports' ? 'active' : ''} onClick={() => onPick('reports')}><b>⤓ Exports</b><span>Every PDF, spreadsheet, calendar and the end credits</span></button>
         </div>
         <div className="drawer-foot">
           {lite && sections !== allSections && (

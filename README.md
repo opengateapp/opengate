@@ -47,12 +47,14 @@ No accounts. Projects are shared through a small relay you deploy once for free 
 
 | Section | Tabs |
 |---|---|
-| **Write** | **Screenplay** (editor + import of Fountain, FDX, PDF, Word, Highland, Celtx, CineSched) · **A/V Scripts** (two-column video / audio with segments, timings, PDF/CSV) · **Docs** (treatments, director's notes; templates, Markdown/HTML export) |
-| **Breakdown** | **Script Breakdown** (tag into 21 categories, breakdown sheets, element manager) · **Stripboard** · **Day Out of Days** · **Script Sides** |
-| **Budget** | **Budget** (top sheet, accounts, lines linked to the breakdown, targets, actuals, versions; PDF / Excel) · **Expenses** (receipts, bank / card CSV import) |
-| **Plan** | **Contacts** (cast, crew and other contacts; vCard import/export) · **Calendar** (shoot days, events, tasks; `.ics` export) · **Tasks** (due dates, owners, departments; drag onto calendar days) |
-| **Visualize** | **Storyboards** · **Mood Boards** (mood boards and whiteboards, Pinterest import) · **Shot Lists** |
-| **Shoot** | **Call Sheets** (editable page: company + key contacts, logo, production title, times with live lunch / sunrise / sunset / weather, hospital, map, big call time, notes; sections you can hide, reorder, rename, remove or add — locations, advance schedule, notes boxes, walkie channels, background, vendors, transportation, equipment or blank tables; Download / Send PDF; duplicate to another day; copy layout to all days) · **Locations** (contacts, permits, logistics, scout photos, linked mood images, scenes and shoot days) · **Reports** (every export) |
+| **Write** | **Screenplay** (editor + import of Fountain, FDX, PDF, Word, Highland, Celtx, CineSched; drafts, variants, revisions) · **Characters** · **Story Bible** · **Docs** (treatments, director's notes; templates, Markdown/HTML export) · **A/V Scripts** (two-column video / audio with segments, timings, PDF/CSV) |
+| **Visualize** | **Mood Boards** (mood boards, whiteboards and story maps, Pinterest import) · **Shot Designer** (top-down plans with lens-accurate cameras) · **Storyboards** |
+| **Breakdown** | **Script Breakdown** (tag into 21 categories, breakdown sheets, element manager) · **Shot Lists** · **Stripboard** · **Day Out of Days** |
+| **Plan** | **Contacts** (cast, crew and other contacts with unions and societies; vCard import/export) · **Locations** (contacts, permits, logistics, scout photos, linked mood images) · **Paperwork** (deal memos, releases signed on a phone or iPad, start forms, clearances, time cards; private with the budget) · **Calendar** (shoot days, events, tasks; `.ics` export) · **Tasks** |
+| **Budget** | **Budget** (top sheet, accounts, lines linked to the breakdown, targets, actuals, versions; PDF / Excel) · **Gear** · **Expenses** (receipts, bank / card CSV import) · **Licenses** (music and footage clearances) |
+| **Shoot** | **Call Sheets** (editable page: company + key contacts, logo, times with live lunch / sunrise / sunset / weather, hospital, map, big call time; sections you can hide, reorder, rename or add; Download / Send PDF) · **Script Sides** |
+| **Reference** | A small film school: story, camera, lenses, lighting, audio, data, production, crew roles, **Guilds & Unions** (what each union and honorary society does, its agreements and rules, researched from official sources), and a library |
+| ⤓ | **Exports**: every PDF, spreadsheet, calendar and the end credits, in one place |
 | ⚙ | Project settings: production info, cast roster details, crew, categories, strip colors |
 
 Drag-and-drop and double-click-to-add work throughout: drop images onto boards, storyboards and locations; drop `.vcf` cards onto Contacts; drag strips, shots, A/V rows and tasks to reorder; drag tasks onto calendar days; double-click empty space on a board, stripboard day, shot list, A/V script, task list, contacts table or side list to add something there.

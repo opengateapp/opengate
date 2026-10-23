@@ -207,7 +207,7 @@ export const LINK_LABEL: Record<BudgetLinkKind, string> = {
   headcount: 'People on set × shoot days (cast in each day’s scenes + daily crew)',
   gear: 'Days the gear is needed, from the shot designer',
   license: 'A license from Budget → Licenses',
-  kit: 'Kit fee from a deal memo (Budget → Paperwork), for the days this person works',
+  kit: 'Kit fee from a deal memo (Plan → Paperwork), for the days this person works',
 };
 
 /** Days each gear item is needed; filled in by the gear manifest (shot designer plans). */

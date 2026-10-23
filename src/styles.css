@@ -1779,3 +1779,26 @@ select.doc-status { padding: 2px 6px; border: 0; }
 
 .timecards-wrap { overflow-x: auto; max-width: 100%; }
 @media (max-width: 760px) { .timecards-wrap { overflow-x: visible; } }
+
+/* ---------- Guilds & Unions reference ---------- */
+.ref-group { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 8px 12px 2px 22px; }
+.ref-page p.pre-line { white-space: pre-line; }
+.ref-sources { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ref-sources ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.ref-notice { background: var(--panel-2); border-left: 3px solid var(--accent); padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+.ref-agreement { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+
+.societies-picker { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 3px; }
+.society-chip { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; }
+.society-chip .icon-btn { padding: 0 2px; font-size: 12px; }
+.society-add { padding: 1px 8px; font-size: 12px; }
+.union-badge.society { background: #fef3c7; color: #92400e; }
+.drawer-extra { border-top: 1px solid var(--border); padding-top: 4px; }
+.drawer-extra > button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; border: none; background: none; padding: 10px; border-radius: 8px; text-align: left; min-height: 48px; }
+.drawer-extra > button b { font-size: 15px; }
+.drawer-extra > button span { font-size: 12px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer-extra > button.active { background: var(--accent-soft); }
+
+.ref-page { min-width: 0; max-width: 100%; }
+.ref-table.wrap td, .ref-table.wrap th { white-space: normal; }
+.ref-table.wrap td:first-child { min-width: 120px; font-weight: 600; }

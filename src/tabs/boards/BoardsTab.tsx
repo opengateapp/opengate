@@ -206,7 +206,7 @@ function LinkTargets({ onAddCard }: { onAddCard: (kind: BoardRefKind, id: string
         {open === 'shots' && p.shots.map((s) => row('shot', s.id, `shot:${s.id}`, <><b>{s.shotNumber}</b> {s.name}</>))}
         {open === 'places' && places.map((pl) => row('place', pl.id, null, pl.name))}
         {open === 'places' && !places.length && <li className="muted small">Add places in Write → Story Bible.</li>}
-        {open === 'locations' && !p.locations.length && <li className="muted small">Add locations in Shoot → Locations.</li>}
+        {open === 'locations' && !p.locations.length && <li className="muted small">Add locations in Plan → Locations.</li>}
         {open === 'shots' && !p.shots.length && <li className="muted small">No shots yet.</li>}
       </ul>
     </div>
