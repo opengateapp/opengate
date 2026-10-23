@@ -483,7 +483,7 @@ function CastSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
             return (
               <tr key={c.id} className={c.inToday ? '' : 'cs-dim'} title={c.inToday ? '' : 'Not in any of today’s scenes'}>
                 <td className="center">{c.castNumber ?? i + 1}</td>
-                <td className="cs-person"><input value={raw.actorName} placeholder="Actor" onChange={set('actorName')} />{castBadge(p, raw.characterName) && <span className="union-badge">{castBadge(p, raw.characterName)}</span>}</td>
+                <td className="cs-person"><input value={raw.actorName} placeholder="Actor" onChange={set('actorName')} />{castBadge(p, raw.characterName) && <span className="union-badge" title={castBadge(p, raw.characterName)}>{castBadge(p, raw.characterName)}</span>}</td>
                 <td><input value={raw.characterName} onChange={set('characterName')} /></td>
                 <td><input className="center" value={raw.sceneNumbers} placeholder={c.sceneNumbers} onChange={set('sceneNumbers')} /></td>
                 <td><input className="center" value={raw.status} placeholder={c.status} onChange={set('status')} /></td>
@@ -532,7 +532,7 @@ function CrewSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
             return (
               <tr key={c.id}>
                 <td><input value={raw.role} onChange={set('role')} /></td>
-                <td className="cs-person"><input value={raw.name} onChange={set('name')} />{crewBadge(p, raw.crewId, raw.name) && <span className="union-badge">{crewBadge(p, raw.crewId, raw.name)}</span>}</td>
+                <td className="cs-person"><input value={raw.name} onChange={set('name')} />{crewBadge(p, raw.crewId, raw.name) && <span className="union-badge" title={crewBadge(p, raw.crewId, raw.name)}>{crewBadge(p, raw.crewId, raw.name)}</span>}</td>
                 <td><input value={raw.phone} onChange={set('phone')} /></td>
                 <td><input value={raw.email ?? ''} onChange={set('email')} /></td>
                 <td><input type="time" value={raw.call || c.call} onChange={set('call')} /></td>

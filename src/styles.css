@@ -1800,3 +1800,41 @@ select.doc-status { padding: 2px 6px; border: 0; }
 .ref-page { min-width: 0; max-width: 100%; }
 .ref-table.wrap td, .ref-table.wrap th { white-space: normal; }
 .ref-table.wrap td:first-child { min-width: 120px; font-weight: 600; }
+
+/* ---------- Wrapping: buttons and labels that hold sentences ----------
+   Buttons and checkbox labels default to one line (short controls); anything that carries a title
+   plus a description, or a long item in a menu, wraps instead of running off. */
+.template-card, .template-pick,
+.section-flyout button,
+.menu > button, .more-menu > button, .action-sheet > button,
+.drawer-section > button, .drawer-extra > button {
+  white-space: normal; overflow-wrap: anywhere; text-align: left; min-width: 0;
+}
+.action-sheet > button > span:first-child, .more-menu > button > span:first-child { min-width: 0; }
+/* Hints under a title: up to two lines, then "…". */
+.section-flyout button span, .drawer-section > button span, .drawer-extra > button span {
+  white-space: normal; overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+/* Pop-ups never wider than the screen; flyout hints wrap rather than widening the menu. */
+.menu, .more-menu:not(.as-sheet) { max-width: min(420px, calc(100vw - 16px)); }
+.section-flyout { max-width: 340px; }
+.section-flyout.ref-flyout { max-width: 360px; }
+/* Checkbox labels wrap (box stays put); short ones in toolbars, segments and tables stay on one line. */
+.check { white-space: normal; align-items: flex-start; }
+.check > input { flex: none; margin-top: 2px; }
+.toolbar .check, .seg .check, td .check, .row .check, .chip .check { white-space: nowrap; align-items: center; }
+.toolbar .check > input, td .check > input { margin-top: 0; }
+/* Template picker: cards wrap, no sideways scroll. */
+.modal-body { min-width: 0; }
+.template-grid { min-width: 0; }
+.template-card > * { max-width: 100%; }
+@media (max-width: 760px) {
+  /* Phone cards: segmented controls (Gear's Own / Rent / Borrow / Buy) wrap onto two rows. */
+  table.cards-on-phone .seg { flex-wrap: wrap; max-width: 100%; }
+  table.cards-on-phone .seg button { flex: 1 1 auto; }
+  /* Call sheet badges fit their cell. */
+  .cs-person .union-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* Long menus scroll; their rows keep their height instead of being squeezed (rows overlapped once items wrapped). */
+.more-menu > *, .menu > * { flex-shrink: 0; }

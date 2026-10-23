@@ -19,6 +19,8 @@ startOffline();
 startCardTables();
 startKeyboardInset();
 applyPrefs();
+// Dev only: opengateAudit() in the console lists text running off its button, menu or the screen.
+if (import.meta.env.DEV) void import('./ui/overflowAudit').then((m) => m.installOverflowAudit());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
