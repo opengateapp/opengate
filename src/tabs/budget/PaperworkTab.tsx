@@ -24,10 +24,13 @@ import { toast } from '../../components/common';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
 import { UnionPicker } from '../../components/UnionPicker';
+import { SocietiesPicker } from '../../components/SocietiesPicker';
+import { RefLink } from '../ReferenceTab';
+import { societyLetters } from '../../paperwork/societies';
 import { SignaturePad } from '../../components/SignaturePad';
 import { BudgetHidden } from './BudgetTab';
 
-// Budget → Paperwork: deal memos (rates go into the budget), releases signed on a phone or iPad,
+// Plan → Paperwork: deal memos (rates go into the budget), releases signed on a phone or iPad,
 // start forms (tracked, never their contents), the clearances log and time cards. It travels with
 // the budget's private key, so only people who can see the budget see it.
 
@@ -142,7 +145,7 @@ function PeopleView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
       </div>
       {(th.length > 0 || warnings.length > 0) && (
         <ul className="license-warnings">
-          {th.map((x) => <li key={x.id}>⚠ {x.name} isn’t marked as SAG-AFTRA, and this is a SAG-AFTRA show: file a Taft-Hartley report for them, or set their union.</li>)}
+          {th.map((x) => <li key={x.id}>⚠ {x.name} isn’t marked as SAG-AFTRA, and this is a SAG-AFTRA show: file a Taft-Hartley report for them, or set their union. <RefLink page="guild-taft-hartley" /></li>)}
           {warnings.map((w) => <li key={w.docId}><button className="link small" onClick={() => onOpenDoc(w.docId)}>⚠ {w.text}</button></li>)}
         </ul>
       )}
@@ -163,7 +166,7 @@ function PeopleView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
               <div className="person-head" role="button" tabIndex={0} onClick={() => setOpen(isOpen ? null : x.key)} onKeyDown={(e) => { if (e.key === 'Enter') setOpen(isOpen ? null : x.key); }}>
                 <span className={`pill g-${x.group}`}>{x.group}</span>
                 <b className="grow">{x.name}<span className="muted"> {x.role}</span></b>
-                {unionBadge(x) && <span className="union-badge">{unionBadge(x)}</span>}
+                {unionBadge(x) && <span className="union-badge">{unionBadge(x)}</span>}{societyLetters(p, x).map((l) => <span key={l} className="union-badge society">{l}</span>)}
                 <span className="paper-chips">
                   {docs.filter((d) => !isForm(d.kind)).map((d) => <span key={d.id} className={`paper-chip ${isDone(d) ? 'done' : 'todo'}`} title={`${paperLabel(d.kind)}: ${d.status}`}>{isDone(d) ? '✓' : '○'} {shortKind(d.kind)}</span>)}
                   {missing.filter((k) => !docs.some((d) => d.kind === k)).map((k) => <span key={k} className="paper-chip missing" title={`No ${paperLabel(k).toLowerCase()} yet`}>✕ {shortKind(k)}</span>)}
@@ -173,6 +176,7 @@ function PeopleView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
               {isOpen && (
                 <div className="person-body">
                   {x.group !== 'Location' && <div className="field"><span>Union</span><UnionPicker ro={ro} value={x} onChange={(patch) => setUnion(x, patch)} /></div>}
+                  {x.group !== 'Location' && <div className="field"><span>Honorary societies (letters in the credits)</span><SocietiesPicker ro={ro} value={x} onChange={(patch) => setUnion(x, patch)} /></div>}
                   <ul className="doc-rows">
                     {docs.map((doc) => (
                       <li key={doc.id}>

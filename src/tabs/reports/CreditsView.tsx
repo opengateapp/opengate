@@ -10,7 +10,7 @@ import { toast } from '../../components/common';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
 
-// Reports → End credits: everything for the end roll, assembled live from the project, arranged
+// Exports → End credits: everything for the end roll, assembled live from the project, arranged
 // here and exported for whatever builds the roll (any NLE's scrolling title, After Effects,
 // Final Cut, a credits service) — plus a PDF for checking spelling.
 
@@ -108,6 +108,7 @@ export function CreditsView({ onBack }: { onBack?: () => void }) {
                 <label className="check"><input type="checkbox" disabled={ro} checked={!!c.legal.fiction} onChange={(e) => set((x) => { x.legal.fiction = e.target.checked; })} /> Fiction disclaimer</label>
                 <label className="check"><input type="checkbox" disabled={ro} checked={!!c.legal.animals} onChange={(e) => set((x) => { x.legal.animals = e.target.checked; })} /> No animals harmed</label>
                 <label className="check"><input type="checkbox" disabled={ro} checked={!!c.legal.openGate} onChange={(e) => set((x) => { x.legal.openGate = e.target.checked; })} /> “Made with Open Gate”</label>
+                <label className="check" title="ASC, ACE, CSA… for people ticked as members in Contacts; p.g.a. only when certified for this production"><input type="checkbox" disabled={ro} checked={!c.noSocietyLetters} onChange={(e) => set((x) => { if (e.target.checked) delete x.noSocietyLetters; else x.noSocietyLetters = true; })} /> Society letters after names</label>
               </div>
             </div>
           </div>
@@ -174,7 +175,7 @@ const AUTO_HELP: Record<string, string> = {
   music: 'From Budget → Licenses (music marked “in the end credits”).',
   footage: 'From Budget → Licenses (stock, archival and photos marked “in the end credits”).',
   licensed: 'From Budget → Licenses (fonts, software and other licenses marked “in the end credits”).',
-  locations: 'From Shoot → Locations.',
+  locations: 'From Plan → Locations.',
   vendors: 'From Plan → Contacts (vendors).',
   thanks: 'Type them in the Roll settings below.',
   legal: 'Copyright line and the options below.',

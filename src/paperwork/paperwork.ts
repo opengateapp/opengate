@@ -48,6 +48,8 @@ export interface Person {
   union?: string;
   unionStatus?: UnionStatus;
   unionLocal?: string;
+  societies?: string[];
+  pgaCertified?: boolean;
   email?: string;
 }
 
@@ -56,8 +58,8 @@ export const refKey = (r: PersonRef) => `${r.kind}:${r.id}`;
 /** Everyone paperwork can be for: cast, crew, then other contacts and locations. */
 export function people(p: Project, opts: { contacts?: boolean; locations?: boolean } = {}): Person[] {
   const out: Person[] = [
-    ...[...p.cast].sort((a, b) => a.castNumber - b.castNumber).map((c) => ({ ref: { kind: 'cast' as const, id: c.id }, name: c.actorName || `(${c.characterName})`, role: `#${c.castNumber} ${c.characterName}`, group: 'Cast' as const, union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, email: c.email })),
-    ...p.crew.map((c) => ({ ref: { kind: 'crew' as const, id: c.id }, name: c.name || '(unnamed)', role: c.role, group: 'Crew' as const, union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal })),
+    ...[...p.cast].sort((a, b) => a.castNumber - b.castNumber).map((c) => ({ ref: { kind: 'cast' as const, id: c.id }, name: c.actorName || `(${c.characterName})`, role: `#${c.castNumber} ${c.characterName}`, group: 'Cast' as const, union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, societies: c.societies, pgaCertified: c.pgaCertified, email: c.email })),
+    ...p.crew.map((c) => ({ ref: { kind: 'crew' as const, id: c.id }, name: c.name || '(unnamed)', role: c.role, group: 'Crew' as const, union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, societies: c.societies, pgaCertified: c.pgaCertified })),
   ].map((x) => ({ ...x, key: refKey(x.ref) }));
   if (opts.contacts) out.push(...p.contacts.map((c) => ({ ref: { kind: 'contact' as const, id: c.id }, key: `contact:${c.id}`, name: c.name || '(unnamed)', role: c.role || c.company, group: 'Contact' as const, union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, email: c.email })));
   if (opts.locations) out.push(...p.locations.map((l) => ({ ref: { kind: 'location' as const, id: l.id }, key: `location:${l.id}`, name: l.realName || l.setName, role: l.contactName ? `Owner: ${l.contactName}` : l.address, group: 'Location' as const })));
