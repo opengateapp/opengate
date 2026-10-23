@@ -119,9 +119,9 @@ function RefPageView({ page }: { page: RefPage }) {
         return Tool ? <div key={t} className="tool-card"><Tool /></div> : null;
       })}
       {page.table && (
-        <div className="table-scroll"><table className={`table compact ref-table ${page.category === 'guilds' ? 'wrap' : ''}`}>
+        <div className="table-scroll"><table className={`table compact ref-table ${['guilds', 'money', 'legal'].includes(page.category) ? 'wrap' : ''} ${['money', 'legal'].includes(page.category) && page.table.head.length >= 3 ? 'cards-on-phone' : ''}`}>
           <thead><tr>{page.table.head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-          <tbody>{page.table.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{/^https?:\/\//.test(c) ? <a href={c} target="_blank" rel="noreferrer noopener">Open ↗</a> : c}</td>)}</tr>)}</tbody>
+          <tbody>{page.table.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} data-label={j ? page.table!.head[j] : ''}>{/^https?:\/\//.test(c) ? <a href={c} target="_blank" rel="noreferrer noopener">Open ↗</a> : c}</td>)}</tr>)}</tbody>
         </table></div>
       )}
       {page.guild && <AgreementBox guildId={page.guild} title={page.title.split(' — ')[0]} />}
@@ -135,7 +135,7 @@ function RefPageView({ page }: { page: RefPage }) {
           {page.notice && <p className="ref-notice">⚖ {page.notice}</p>}
           <b className="small">Sources</b>
           <ul>{page.sources.map((s) => <li key={s.url}><a href={s.url} target="_blank" rel="noreferrer noopener">{s.label}</a></li>)}</ul>
-          {page.checked && <p className="muted small">Checked {new Date(page.checked + 'T12:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}; rules and tiers change, so always confirm with the union.</p>}
+          {page.checked && <p className="muted small">Checked {new Date(page.checked + 'T12:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}; {page.guild ? 'rules and tiers change, so always confirm with the union.' : 'fees, rates and rules change, so always confirm with the source.'}</p>}
         </div>
       ) : null}
       {more.length > 0 && page.category !== 'guilds' && (

@@ -22,6 +22,8 @@ import { newLicense, syncLicenseLines } from '../budget/licenses';
 import { budgetView } from '../budget/pipeline';
 import { totals } from '../budget/calc';
 import { syncGearLines, syncPlanGear } from '../budget/gear';
+import { missingMarketingLines } from '../budget/templates';
+import { addMarketingTasks } from '../plan/marketingTasks';
 
 // The sample production: "The Last Reel" filled in across every section, so each tab has something
 // real to show, with a few deliberate problems that make the warnings teach:
@@ -404,6 +406,20 @@ export function buildSampleProduction(): Project {
     task('Replace or clear the Coca-Cola sign', -4, { department: 'Art' });
     task('Book the medic for the stunt day', -8, { department: 'Production', done: true } as never);
     task('Minor work permit for Eli Park', -6, { department: 'Production', done: true } as never);
+    // The marketing & festival checklist, with the first two steps already done.
+    addMarketingTasks(dr);
+    for (const t of dr.tasks) if (/unit stills photographer|website \/ socials/i.test(t.title)) t.done = true;
+    dr.docs.push({ id: newId(), title: 'Funding plan (sample)', updatedAt: new Date().toISOString(), doc: textDoc([
+      '# Funding plan', 'A fictional plan for the sample production. Budget → Funding works out the numbers.',
+      '## Where the money comes from',
+      'Producer’s savings: $3,000 in the bank. In-kind: pies, coffee and Theo’s kitchen.',
+      'Ridgeview County Arts Council grant: $2,500 applied for.',
+      'Seed&Spark campaign: rewards kept mostly digital so fees and fulfilment stay low; it funds at 80% of the goal.',
+      '## Not counting on',
+      'Montana’s MEDIA tax credit: no credit available for productions filming after 2024 (checked October 2026).',
+      '## Marketing',
+      'Unit stills on the stunt day and the crowd night; key art; trailer cut in post; 12 festival submissions, early deadlines first.',
+    ]) });
   });
 
   // ---------------------------------------------------------------- Paperwork, budget, money
@@ -468,9 +484,9 @@ export function buildSampleProduction(): Project {
     rate('1978 pickup truck (picture car)', 0, 'Producer\'s own truck: fuel and a mechanic check under Transportation.');
     rate('Sheriff\'s cruiser', 60); rate('Background cars (12)', 0, 'Volunteers; gas cards under Extras.');
     rate('Biscuit the dog', 0, 'Paid through the animal trainer\'s deal.');
-    rate('Moviegoers (30 adults, families)', 0, 'Volunteers: fed and thanked in the credits.'); rate('Little girl (7) in pyjamas', 0);
+    rate('Moviegoers (30 adults, families)', 0, 'Volunteers: fed and thanked in the credits.'); rate('Little girl (7) in pyjamas', 0, 'A volunteer\'s daughter, with her parent on set.');
     rate('Ladder fall (Maya)', 0, 'Performer and coordinator are on their own lines; this is for rigging if needed.');
-    rate('Truck swerve and slide (Maya driving)', 0);
+    rate('Truck swerve and slide (Maya driving)', 0, 'Performer and coordinator are on their own lines; the road closure is under Security.');
     rate('Crash pads', 0, 'Included in the stunt coordinator\'s deal.');
     rate('Rain (rain towers / water truck)', 350, 'Volunteer fire department water truck: a donation.');
     rate('Steam off the asphalt', 20); rate('1962 period wardrobe (Walter, Young Theo)', 120); rate('Sheriff\'s uniform and reflective vest', 60);
@@ -480,8 +496,14 @@ export function buildSampleProduction(): Project {
     rate('Coca-Cola sign and FOR SALE board', 40); rate('"OPEN SATURDAYS" sign', 35); rate('Snack bar menu boards (1960s prices)', 40);
     rate('Traffic control and road closure', 75, 'Off-duty deputy for the road closure; vests for the lot.');
     const head = dr.budget.lines.find((l) => l.link?.kind === 'headcount'); if (head) head.rate = 14;
+    // Deliberate $0s say why, so "Quick estimate" leaves them alone; holds are paid under UPA.
+    const crewLine = (role: string) => dr.budget.lines.find((l) => l.link?.kind === 'crew' && l.link.id === ids[role]);
+    for (const role of ['Director', 'Producer']) { const l = crewLine(role); if (l) l.notes = 'Deferred: the director and producer aren’t paid on this short.'; }
+    const kitchen = dr.budget.lines.find((l) => l.link?.kind === 'location' && l.link.id === ids['loc:kitchen']); if (kitchen) kitchen.notes = 'Free: a thank-you credit.';
+    for (const l of dr.budget.lines) if (l.link?.kind === 'castHold' && !l.rate) { l.rate = UPA_DAY; l.notes = 'Hold days are paid at the day rate under UPA.'; }
     const add = (accountId: string, description: string, units: BudgetLine['units'], qty: number, r: number, notes?: string) => dr.budget.lines.push({ id: newId(), accountId, description, qty, units, x: 1, rate: r, fringeIds: [], ...(notes ? { notes } : {}) });
     add('acc-3400', 'Fuel, mechanic check (picture truck)', 'allow', 1, 120);
+    add('acc-5200', 'Legal & accounting', 'allow', 1, 400, 'Chain-of-title review, the LLC, bookkeeping.');
     add('acc-2100', 'Gas cards for background cars', 'each', 12, 10);
     add('acc-3300', 'Set medic (stunt day)', 'days', 1, 300, 'Ridgeview Ambulance standby.');
     add('acc-2900', 'Portable toilets (2) and generator fuel', 'allow', 1, 180);
@@ -523,6 +545,47 @@ export function buildSampleProduction(): Project {
       { id: newId(), date: addDays(start, -9), vendor: 'Ridgeview Hardware', description: 'Screen vinyl, staple gun, tarps', amount: 92.4, accountId: acc('2500'), paid: true, method: 'Card' },
       { id: newId(), date: addDays(start, -3), vendor: 'Big Sky Grip & Electric', description: 'Deposit: LED kits and generator', amount: 150, accountId: acc('2300'), paid: true, method: 'Card' },
     );
+
+    // Marketing & festivals (5100): budgeted from day one, some of it during the shoot.
+    const mk = missingMarketingLines(dr.budget.accounts as never, dr.budget.lines as never);
+    const mrate: Record<string, [number, string?]> = {
+      'Unit stills photographer': [200, 'Two days: the stunt day and the crowd night.'],
+      'Behind the scenes / EPK': [0, 'The PA shoots BTS on a phone gimbal.'],
+      'Key art / poster': [250],
+      'Trailer edit': [0, 'Cut by the editor as part of post.'],
+      'Website, domain & socials': [60],
+      'Paid social ads': [150, 'Boost the trailer around the premiere.'],
+      'Press kit': [0, 'Written by the producer.'],
+      'Festival submissions': [45, '12 festivals at about $45 each (FilmFreeway; early deadlines cheaper).'],
+      'DCP & screening copies': [150],
+      'Festival travel': [400],
+      'Publicist (optional)': [0, 'Not for this short.'],
+    };
+    for (const l of mk) { const r = mrate[l.description]; if (r) { l.rate = r[0]; if (r[1]) l.notes = r[1]; } if (l.description === 'Festival submissions') l.qty = 12; }
+    dr.budget.lines.push(...mk);
+
+    // Funding: what's in hand, what's promised, what's hoped for, and the crowdfunding plan.
+    dr.budget.fundingSources = [
+      { id: newId(), kind: 'cash', name: 'Producer’s savings (Jordan Lee)', amount: 3000, status: 'received' },
+      { id: newId(), kind: 'inkind', name: 'Pies and coffee from Rosie’s Diner; Theo’s kitchen', amount: 300, status: 'pledged', notes: 'Value of what’s given, so the budget still shows it.' },
+      { id: newId(), kind: 'grant', name: 'Ridgeview County Arts Council (fictional)', amount: 2500, status: 'applied', date: addDays(start, -20), notes: 'Decision expected three weeks before the shoot.' },
+      { id: newId(), kind: 'crowdfunding', name: 'Seed&Spark campaign (net, pledged so far)', amount: 4000, status: 'pledged', notes: 'Goal set with Budget → Funding: rewards are mostly digital.' },
+      { id: newId(), kind: 'incentive', name: 'Montana MEDIA tax credit', amount: 0, status: 'idea', notes: `Checked ${SAMPLE_RATES_CHECKED}: the state says no credit is available for productions filming after 2024. Listed so nobody counts on it.` },
+    ];
+    dr.budget.funding = {
+      pagesPerDay: 3, level: 'indie',
+      crowd: {
+        platform: 'seedandspark', feePct: 0, processingPct: 2.9, perPledge: 0.3, pledgeMgrPct: 0, taxReservePct: 5, noRewardPct: 15,
+        tiers: [
+          { id: newId(), name: 'Thank you + private stream link', price: 15, backers: 80, costEach: 0, shipEach: 0 },
+          { id: newId(), name: 'Digital script + production diary', price: 35, backers: 50, costEach: 0, shipEach: 0 },
+          { id: newId(), name: 'Signed poster', price: 75, backers: 25, costEach: 11, shipEach: 12 },
+          { id: newId(), name: 'Special thanks credit', price: 100, backers: 15, costEach: 0, shipEach: 0 },
+          { id: newId(), name: 'Your name on a drive-in speaker post', price: 250, backers: 6, costEach: 8, shipEach: 0 },
+          { id: newId(), name: 'Night-shoot visit + pie', price: 500, backers: 2, costEach: 25, shipEach: 0 },
+        ],
+      },
+    };
 
     // Two versions to compare: as budgeted (Ultra Low, UPA) and Micro-Budget.
     const castLines = dr.budget.lines.filter((l) => l.link?.kind === 'cast');

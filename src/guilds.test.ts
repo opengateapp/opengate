@@ -100,7 +100,7 @@ describe('agreements, migration and layout', () => {
       breakdown: 'breakdown', shots: 'shots', stripboard: 'schedule', contacts: 'contacts', locations: 'locations', calendar: 'calendar', tasks: 'tasks',
       budget: 'budget', gear: 'gear', callsheets: 'callsheets', settings: 'settings',
     });
-    expect(TAB_FOLLOWS).toEqual({ dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', reports: 'stripboard' });
+    expect(TAB_FOLLOWS).toEqual({ dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', funding: 'budget', reports: 'stripboard' });
     expect(channelOf('locations', 2)).toBe('locations');
     expect(channelOf('shots', 2)).toBe('shots');
     expect(RESTRICTED).toEqual(['budget']);

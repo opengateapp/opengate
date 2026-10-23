@@ -15,6 +15,7 @@ import { toast } from '../../components/common';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
 import { BudgetHidden } from './BudgetTab';
+import { RefLink } from '../ReferenceTab';
 
 // Expenses: what has actually been spent, logged against budget accounts (and optionally a
 // line). Drop receipt photos or PDFs to log them, or import a bank / card CSV export.
@@ -116,6 +117,7 @@ function ExpensesScreen() {
       }}>
       <div className="budget-bar">
         {!ro && <button className="primary" onClick={() => add()}>＋ Expense</button>}
+        <RefLink page="budget-tracking" label="Tracking spend" />
         <More label="Filter, receipts, import and export">
           <label className="budget-mode"><span className="muted small">Account</span>
             <select value={filter} onChange={(e) => setFilter(e.target.value)}>

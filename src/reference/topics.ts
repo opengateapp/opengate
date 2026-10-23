@@ -1,10 +1,12 @@
 import { CREW } from './crew';
 import { CHECKED, GUILDS, LEGAL_NOTE, type Guild } from './guilds';
+import { MONEY_PAGES } from './money';
+import { LEGAL_PAGES } from './legal';
 
 // Reference pages: short plain-language explainers written for Open Gate, a quick-reference
 // table where it helps, an interactive tool, and links to where it's used in the app.
 
-export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'crew' | 'guilds' | 'post';
+export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'money' | 'legal' | 'crew' | 'guilds' | 'post';
 
 export const CATEGORIES: { id: RefCategory; label: string; icon: string; hint: string }[] = [
   { id: 'story', label: 'Story', icon: '✎', hint: 'Structures, character arcs, script format' },
@@ -14,7 +16,9 @@ export const CATEGORIES: { id: RefCategory; label: string; icon: string; hint: s
   { id: 'audio', label: 'Audio', icon: '♪', hint: 'Levels, formats, microphones, on-set sound' },
   { id: 'video', label: 'Video & Data', icon: '▤', hint: 'Codecs, storage, backups' },
   { id: 'grip', label: 'Grip & Support', icon: '⌖', hint: 'Tripods, rigs, power' },
-  { id: 'production', label: 'Production', icon: '☰', hint: 'Scheduling, call sheets, budget terms, coverage' },
+  { id: 'production', label: 'Production', icon: '☰', hint: 'Scheduling, call sheets, crew lingo, coverage' },
+  { id: 'money', label: 'Budget & Funding', icon: '$', hint: 'How budgets work, paying for your film, incentives, marketing and festivals' },
+  { id: 'legal', label: 'Legal & Insurance', icon: '§', hint: 'Insurance, rights, releases, music, permits' },
   { id: 'crew', label: 'Crew & departments', icon: '☺', hint: 'Who does what on set' },
   { id: 'guilds', label: 'Guilds & Unions', icon: '⚖', hint: 'What each union and society does, and their agreements' },
   { id: 'post', label: 'Post', icon: '✂', hint: 'Editing, deliverables' },
@@ -264,13 +268,6 @@ export const PAGES: RefPage[] = [
     topics: ['production'], keywords: 'ad dp gaffer grip script supervisor martini abby singer',
   },
   {
-    id: 'budget-terms', category: 'production', title: 'Budget terms', lead: 'Above the line, below the line, fringes and contingency.',
-    sections: [
-      { p: 'Above-the-line (ATL) costs are the creative leads — writer, director, producers, principal cast — often negotiated up front. Below-the-line (BTL) is everything that makes the film: crew, equipment, locations, post. Fringes are payroll costs on top of wages (taxes, union pension and health). Contingency is a safety margin, usually 10%.' },
-    ],
-    use: [{ tab: 'budget', label: 'Budget' }, { tab: 'gear', label: 'Gear' }], topics: ['production'], keywords: 'atl btl fringe contingency top sheet',
-  },
-  {
     id: 'coverage', category: 'production', title: 'Shot sizes & the 180° rule', lead: 'The vocabulary of a shot list.',
     sections: [
       { p: 'Shot sizes run from extreme wide (EWS) through wide (WS), medium (MS), medium close-up (MCU), close-up (CU) to extreme close-up (ECU). Coverage is the set of angles shot for a scene so the editor has choices.' },
@@ -288,6 +285,8 @@ export const PAGES: RefPage[] = [
     topics: ['production'], keywords: d.roles.map((r) => r[0]).join(' ').toLowerCase(),
   })),
   // ---------- Guilds & Unions ----------
+  ...MONEY_PAGES,
+  ...LEGAL_PAGES,
   ...GUILDS.map(guildPage),
   // ---------- Post ----------
   {

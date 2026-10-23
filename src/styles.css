@@ -1982,3 +1982,44 @@ table.contacts .crew-role-picker select { width: 100%; }
 .license-warnings button.link { white-space: normal; text-align: left; overflow-wrap: anywhere; }
 /* Day Out of Days on phones: date headers fit their narrow columns. */
 @media (max-width: 760px) { .dood th.day { padding: 3px 1px; font-size: 9px; } }
+
+/* Budget → Funding: the path from breakdown to "how much to raise". */
+.funding-tab { max-width: 1000px; }
+.fund-steps { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 12px; }
+.fund-steps > li { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--panel); min-width: 0; }
+.fund-steps > li.done { border-left: 4px solid var(--ok, #16a34a); }
+.fund-steps > li p { margin: 6px 0; }
+.fund-step-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fund-step-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); display: inline-grid; place-items: center; font-size: 11px; flex: none; }
+.fund-step-dot.ok { background: var(--ok, #16a34a); border-color: var(--ok, #16a34a); color: #fff; }
+.fund-level { gap: 8px; align-items: center; margin: 6px 0; }
+.inline-num input { width: 64px; }
+.fund-checks { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.fund-checks li { display: flex; align-items: flex-start; gap: 8px; }
+.fund-checks li > span:nth-child(2) { flex: 1; min-width: 0; }
+.fund-checks li.ok > span:first-child { color: var(--ok, #16a34a); }
+.fund-sources { display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
+.fund-source { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fund-source .grow { flex: 1 1 160px; min-width: 0; }
+.fund-source .num { width: 100px; }
+.fund-source .fund-notes { flex: 1 1 140px; min-width: 0; }
+.fund-source.st-received { border-left: 3px solid var(--ok, #16a34a); padding-left: 6px; }
+.fund-source.st-pledged { border-left: 3px solid #2563eb; padding-left: 6px; }
+.fund-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 8px 0; }
+.fund-cards > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.fund-cards b { font-size: 20px; }
+.fund-cards .fund-raise { border-color: var(--accent); background: var(--accent-soft); }
+.fund-warn { color: #b91c1c; font-weight: 500; }
+.fund-crowd-top, .fund-crowd-fees { gap: 10px; align-items: center; }
+.fund-crowd-fees input.num, .fund-crowd-top input.num { width: 80px; }
+.fund-tiers { margin: 8px 0; }
+.fund-tiers td input:not(.num) { width: 100%; min-width: 120px; }
+.fund-tiers td input.num { width: 76px; }
+.warn-text { color: #b91c1c; }
+@media (max-width: 760px) { .fund-cards b { font-size: 18px; } .fund-tiers td input:not(.num) { min-width: 0; } }
+/* Reference tables as cards on phones (Budget & Funding, Legal): one row per card, every field full width. */
+@media (max-width: 760px) {
+  .ref-table.cards-on-phone tbody tr { grid-template-columns: 1fr; }
+  .ref-table.cards-on-phone tbody tr td:first-child { font-weight: 600; }
+  .ref-table.cards-on-phone td { white-space: normal; }
+}

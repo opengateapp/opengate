@@ -1,7 +1,7 @@
 import type { BudgetLine, BudgetLinkKind, BudgetUnits, Project } from '../model/types';
 import { newId } from '../model/ids';
 import type { Derived } from '../script/derive';
-import { sceneCast, sceneElements } from '../script/derive';
+import { sceneCast, sceneElements, sceneEighths } from '../script/derive';
 import { buildDood, shootDays } from '../schedule/dood';
 import { gearLineQty } from './gear';
 import { sceneLocation } from '../schedule/callsheet';
@@ -23,6 +23,8 @@ export interface BreakdownFacts {
   personDays: number;
   /** Days each piece of gear is needed (from the shot designer's plans). */
   gearDays: Map<string, number>;
+  /** Worked out from page counts because nothing is scheduled yet (Budget → Funding). */
+  estimated?: boolean;
 }
 
 export function breakdownFacts(p: Project, d: Derived): BreakdownFacts {
@@ -60,6 +62,68 @@ export function breakdownFacts(p: Project, d: Derived): BreakdownFacts {
     for (const id of els) elementDays.set(id, (elementDays.get(id) ?? 0) + 1);
   }
   return { shootDays: days.length, castWork, castHold, locationDays, elementDays, cast, personDays, gearDays: gearDaysOf(p, d) };
+}
+
+/**
+ * Facts estimated from the script when nothing is scheduled yet: each location's scenes are packed
+ * into days at `pagesPerDay`, then cast, location and element days are counted as if those were the
+ * shoot days. An estimate to budget with until there's a real stripboard.
+ */
+export function estimatedFacts(p: Project, d: Derived, pagesPerDay = 3): BreakdownFacts {
+  const cap = Math.max(1, pagesPerDay * 8);
+  const groups = new Map<string, typeof d.scenes>();
+  for (const sc of d.scenes) {
+    const key = sceneLocation(p, sc)?.id ?? `set:${sc.set}`;
+    groups.set(key, [...(groups.get(key) ?? []), sc]);
+  }
+  const days: typeof d.scenes[] = [];
+  for (const scenes of groups.values()) {
+    let cur: typeof d.scenes = [];
+    let load = 0;
+    for (const sc of scenes) {
+      const e = Math.max(1, sceneEighths(p, sc));
+      if (cur.length && load + e > cap) { days.push(cur); cur = []; load = 0; }
+      cur.push(sc); load += e;
+    }
+    if (cur.length) days.push(cur);
+  }
+  const castWork = new Map<string, number>();
+  const locationDays = new Map<string, number>();
+  const elementDays = new Map<string, number>();
+  const dailyCrew = p.crew.filter((c) => c.dailyDefault !== false).length;
+  const workByName = new Map<string, number>();
+  let personDays = 0;
+  for (const day of days) {
+    const locs = new Set<string>(); const els = new Set<string>(); const castToday = new Set<string>();
+    for (const sc of day) {
+      const loc = sceneLocation(p, sc);
+      if (loc) locs.add(loc.id);
+      for (const e of sceneElements(p, sc)) els.add(e.id);
+      for (const n of sceneCast(p, sc)) castToday.add(n.toUpperCase());
+    }
+    personDays += castToday.size + dailyCrew;
+    for (const id of locs) locationDays.set(id, (locationDays.get(id) ?? 0) + 1);
+    for (const id of els) elementDays.set(id, (elementDays.get(id) ?? 0) + 1);
+    for (const n of castToday) workByName.set(n, (workByName.get(n) ?? 0) + 1);
+  }
+  const cast: BreakdownFacts['cast'] = [];
+  for (const [name, work] of workByName) {
+    const m = p.cast.find((c) => c.characterName.trim().toUpperCase() === name);
+    const key = m ? m.id : `char:${name}`;
+    castWork.set(key, work);
+    cast.push({ key, label: m?.actorName ? `${name} (${m.actorName})` : name, work, hold: 0 });
+  }
+  return { shootDays: days.length, castWork, castHold: new Map(), locationDays, elementDays, cast, personDays, gearDays: gearDaysOf(p, d), estimated: true };
+}
+
+/** Whether the budget is working from an estimate (no shoot days scheduled, and the Funding pace is set). */
+export function usesEstimate(p: Project): boolean {
+  return !!p.budget.funding?.pagesPerDay && shootDays(p).length === 0;
+}
+
+/** Real facts from the schedule, or the estimate when there's no schedule yet and an estimate pace is set. */
+export function budgetFacts(p: Project, d: Derived): BreakdownFacts {
+  return usesEstimate(p) ? estimatedFacts(p, d, p.budget.funding!.pagesPerDay) : breakdownFacts(p, d);
 }
 
 /** The quantity a linked line should have now; null when its source no longer exists. */
@@ -137,6 +201,7 @@ const CATEGORY_ACCOUNT: Record<string, { account: string; units: BudgetUnits }> 
 export function crewAccount(role: string): string {
   const r = role.toLowerCase();
   if (/stunt/.test(r)) return '3300';
+  if (/stills|unit photographer/.test(r)) return '5100';
   if (/sound|boom|mixer/.test(r)) return '2800';
   if (/\b(dp|dop)\b|photograph|cinematograph|camera|focus|\b1st ac\b|\b2nd ac\b|\bac\b|\bdit\b|steadicam|camera operator/.test(r)) return '2200';
   if (/grip|gaffer|electric|best boy|dolly|lighting/.test(r)) return '2300';

@@ -16,6 +16,21 @@ export interface BudgetTemplate {
 
 const A = (code: string, name: string, group: BudgetGroup): BudgetAccount => ({ id: `acc-${code}`, code, name, group });
 
+/** Marketing & festivals (account 5100): budget it from day one; some of it has to happen on set. */
+export const MARKETING_LINES: TLine[] = [
+  { acc: '5100', d: 'Unit stills photographer', u: 'days', qty: 2 },
+  { acc: '5100', d: 'Behind the scenes / EPK', u: 'allow' },
+  { acc: '5100', d: 'Key art / poster', u: 'flat' },
+  { acc: '5100', d: 'Trailer edit', u: 'flat' },
+  { acc: '5100', d: 'Website, domain & socials', u: 'allow' },
+  { acc: '5100', d: 'Paid social ads', u: 'allow' },
+  { acc: '5100', d: 'Press kit', u: 'flat' },
+  { acc: '5100', d: 'Festival submissions', u: 'each', qty: 15 },
+  { acc: '5100', d: 'DCP & screening copies', u: 'flat' },
+  { acc: '5100', d: 'Festival travel', u: 'allow' },
+  { acc: '5100', d: 'Publicist (optional)', u: 'flat' },
+];
+
 /** An AICP-style bid form layout for commercials (sections A–P), described in our own words. */
 const COMMERCIAL_ACCOUNTS: BudgetAccount[] = [
   A('A', 'Prep & wrap crew', 'btl'), A('B', 'Shoot crew', 'btl'), A('C', 'Prep & wrap expenses', 'btl'),
@@ -46,7 +61,7 @@ export const BUDGET_TEMPLATES: BudgetTemplate[] = [
       { acc: '4200', d: 'Music license / composer', u: 'flat' },
       { acc: '4400', d: 'Sound mix', u: 'flat' },
       { acc: '4500', d: 'Color grade & deliverables', u: 'flat' },
-      { acc: '5100', d: 'Festival submissions', u: 'each', qty: 15 },
+      ...MARKETING_LINES,
     ],
   },
   {
@@ -82,7 +97,7 @@ export const BUDGET_TEMPLATES: BudgetTemplate[] = [
       { acc: '4400', d: 'Sound design & mix', u: 'flat' },
       { acc: '4500', d: 'Color grade', u: 'flat' },
       { acc: '4500', d: 'Deliverables (DCP, captions, masters)', u: 'flat' },
-      { acc: '5100', d: 'Festivals & marketing', u: 'allow' },
+      ...MARKETING_LINES,
       { acc: '5200', d: 'Legal & accounting', u: 'allow' },
     ],
   },
@@ -149,4 +164,10 @@ export function templateLines(t: BudgetTemplate, accounts: BudgetAccount[]): Bud
     ...(l.items ? { items: l.items.map((d) => ({ id: newId(), description: d, qty: 1, rate: 0 })) } : {}),
     ...(l.link ? { link: { kind: l.link, auto: true } } : {}),
   }));
+}
+
+/** Marketing & festival lines this budget doesn't have yet (matched by description), ready to add. */
+export function missingMarketingLines(accounts: BudgetAccount[], existing: BudgetLine[]): BudgetLine[] {
+  const have = new Set(existing.map((l) => l.description.trim().toLowerCase()));
+  return templateLines({ id: 'marketing', name: 'Marketing', description: '', lines: MARKETING_LINES.filter((l) => !have.has(l.d.toLowerCase())) }, accounts);
 }

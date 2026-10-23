@@ -760,6 +760,64 @@ export interface Budget {
   templates?: Partial<Record<PaperKind, string>>;
   /** Union agreements you signed, attached from Reference → Guilds & Unions. */
   agreements?: SignedAgreement[];
+  /** Where the money comes from (Budget → Funding). Private like the rest of the budget. */
+  fundingSources?: FundingSource[];
+  /** Funding settings: estimate pace, starter-rate level, crowdfunding plan. */
+  funding?: FundingPlan;
+}
+
+export type FundingKind = 'cash' | 'inkind' | 'deferral' | 'grant' | 'investor' | 'crowdfunding' | 'sponsor' | 'presale' | 'incentive' | 'loan' | 'other';
+export type FundingStatus = 'idea' | 'applied' | 'pledged' | 'received';
+
+/** One source of money (or in-kind value) for the film. */
+export interface FundingSource {
+  id: Id;
+  kind: FundingKind;
+  name: string;
+  amount: number;
+  status: FundingStatus;
+  /** When the money arrives (incentives and some grants come after the shoot). */
+  date?: ISODate;
+  notes?: string;
+}
+
+/** A crowdfunding reward tier, for working out fulfilment costs. */
+export interface RewardTier {
+  id: Id;
+  name: string;
+  /** Pledge amount for this tier. */
+  price: number;
+  /** Expected number of backers at this tier. */
+  backers: number;
+  /** Cost to make one reward (print, item, packaging). */
+  costEach: number;
+  /** Postage per reward (0 for digital). */
+  shipEach: number;
+}
+
+export interface CrowdPlan {
+  platform: string;
+  /** Platform fee, % of money raised. */
+  feePct: number;
+  /** Payment processing, % of each pledge… */
+  processingPct: number;
+  /** …plus a fixed amount per pledge. */
+  perPledge: number;
+  /** Pledge manager or fulfilment service, % of money raised. */
+  pledgeMgrPct: number;
+  /** Set aside for tax on rewards / income, % of money raised. */
+  taxReservePct: number;
+  /** Share of money pledged with no reward (a straight donation), %. */
+  noRewardPct: number;
+  tiers: RewardTier[];
+}
+
+export interface FundingPlan {
+  /** Pages shot per day, for estimating shoot days before there's a schedule. */
+  pagesPerDay?: number;
+  /** Which starter rates "Quick estimate" fills in. */
+  level?: 'none' | 'micro' | 'indie';
+  crowd?: CrowdPlan;
 }
 
 /** A copy of a union agreement the production signed (a PDF kept with the budget). */

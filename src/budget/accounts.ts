@@ -61,6 +61,7 @@ export function newBudget(): Budget {
     clearances: [],
     timecards: [],
     agreements: [],
+    fundingSources: [],
   };
 }
 
