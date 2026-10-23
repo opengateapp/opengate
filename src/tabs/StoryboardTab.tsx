@@ -7,14 +7,18 @@ import { RichText } from '../components/RichText';
 import { LENSES, MOVES, SHOT_TYPES } from '../model/defaults';
 import { newId } from '../model/ids';
 import type { DerivedScene, Shot, StoryboardSettings } from '../model/types';
-import { storyboardPanels, PANEL_SHOT_TYPES, shotTypeCodes, type Panel } from '../script/storyboard';
+import { insertFrame, storyboardPanels, PANEL_SHOT_TYPES, shotTypeCodes, type Panel } from '../script/storyboard';
 import { addSceneToScript } from '../script/scenes';
 import { putMedia, useMediaUrl } from '../store/media';
+import { FramingControls, GuideOverlay } from './storyboard/FramingControls';
+import { formatOf } from './storyboard/formats';
+
 import { FrameEditor } from './storyboard/FrameEditor';
 import { exportStoryboardPdf } from './storyboard/render';
 import { planPng } from '../visualize/planImage';
 import { prepareImage } from './storyboard/images';
-import { More } from '../components/More';
+import { More, MoreMenu } from '../components/More';
+import { usePhone } from '../ui/responsive';
 import { Hint } from '../components/Hint';
 import { blankShot } from './ShotsTab';
 
@@ -30,6 +34,7 @@ export function StoryboardTab() {
   const d = useDerived();
   const update = useStore((s) => s.update);
   const settings = p.storyboardSettings ?? DEFAULT;
+  const phone = usePhone();
   const [editing, setEditing] = useState<{ frameId: string; layer: 'frame' | 'ref' } | null>(null);
   const [sceneFilter, setSceneFilter] = useState('');
   const [busy, setBusy] = useState(false);
@@ -130,6 +135,9 @@ export function StoryboardTab() {
           {d.scenes.map((s) => <option key={s.id} value={s.id}>{s.number}. {s.heading}</option>)}
           <option value="none">Panels without a scene</option>
         </select>
+        <MoreMenu label={`Framing: ${formatOf(settings).label}`} className="framing-menu" sheet={phone} icon={<span className="framing-btn"><span aria-hidden>▭</span> {formatOf(settings).short}{(settings.guides ?? []).length ? ` +${(settings.guides ?? []).filter((g) => g !== formatOf(settings).id).length}` : ''} ▾</span>}>
+          <FramingControls />
+        </MoreMenu>
         <More label="Storyboard options">
         <span className="muted small">Panels per page</span>
         <div className="seg">
@@ -244,10 +252,7 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, c
     }, 'Delete panel');
     deletedToast(onlyFrame ? `panel and shot ${shot.shotNumber || ''}`.trim() : 'frame');
   };
-  const addFrame = () => update((dr) => {
-    const n = Math.max(-1, ...dr.storyboard.filter((f) => f.shotId === shot.id).map((f) => f.order)) + 1;
-    dr.storyboard.push({ id: newId(), shotId: shot.id, order: n, rev: 0, caption: '' });
-  }, 'Add frame');
+  const addFrame = () => update((dr) => { insertFrame(dr, shot.id); }, 'Add frame');
 
   return (
     <article className={`sb-panel ${compact ? 'compact' : ''}`}>
@@ -264,7 +269,7 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, c
               {panel.frameCount > 1 && <span className="muted small">{panel.frameNo}/{panel.frameCount}</span>}
             </span>
           </div>
-          <DropBox className="sb-frame" imageId={frame?.imageId} drawingId={frame?.drawingId} empty="Click to draw · drop or upload an image"
+          <DropBox framed className="sb-frame" imageId={frame?.imageId} drawingId={frame?.drawingId} empty="Click to draw · drop or upload an image"
             onOpen={() => onOpen('frame')} onFile={(f) => onImage(f, 'frame')} />
         </div>
         {showRef && (
@@ -323,7 +328,11 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, c
 }
 
 /** Frame / set plan box: click to draw, drop or upload an image. */
-function DropBox({ className, imageId, drawingId, empty, onOpen, onFile }: { className: string; imageId?: string; drawingId?: string; empty: string; onOpen: () => void; onFile: (f: File | undefined) => void }) {
+function DropBox({ className, imageId, drawingId, empty, onOpen, onFile, framed }: { className: string; imageId?: string; drawingId?: string; empty: string; onOpen: () => void; onFile: (f: File | undefined) => void; framed?: boolean }) {
+  // Frame panels take the storyboard's format and show its frame guides; set plan boxes don't.
+  const sb = useProject().storyboardSettings;
+  const fmt = formatOf(sb);
+  const guideIds = framed && sb?.guidesInPrint !== false ? (sb?.guides ?? []).filter((g) => g !== fmt.id) : [];
   const img = useMediaUrl(imageId);
   const drawing = useMediaUrl(drawingId);
   const [over, setOver] = useState(false);
@@ -332,10 +341,11 @@ function DropBox({ className, imageId, drawingId, empty, onOpen, onFile }: { cla
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.stopPropagation(); setOver(true); } }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); onFile([...e.dataTransfer.files].find((f) => f.type.startsWith('image/'))); }}>
-      <button className="sb-canvas" onClick={onOpen} title="Open the drawing tools">
+      <button className="sb-canvas" onClick={onOpen} title="Open the drawing tools" style={framed ? (fmt.ratio >= 1 ? { aspectRatio: String(fmt.ratio) } : { aspectRatio: String(fmt.ratio), width: 'auto', height: 'min(62vh, 560px)', maxWidth: '100%', margin: '0 auto' }) : undefined}>
         {img && <img src={img} alt="" />}
         {drawing && <img src={drawing} alt="" className="layer" />}
         {!img && !drawing && <span className="muted small">{empty}</span>}
+        {framed && <GuideOverlay ratio={fmt.ratio} ids={guideIds} />}
       </button>
       <label className="sb-upload" title="Upload an image">⇪<input type="file" accept="image/*" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} /></label>
     </div>

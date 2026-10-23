@@ -81,7 +81,7 @@ export function ShootTab() {
   ];
   return (
     <div className="shoot-tab pad scroll">
-      <h2>Reports &amp; paperwork</h2>
+      <h2>Exports</h2>
       <div className="report-grid">
         {reports.map((r) => (
           <div key={r.title} className="report-card">

@@ -1,3 +1,4 @@
+import { personByName, withLetters, type Societied } from '../paperwork/societies';
 import type { CreditStyle, CreditsSettings, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { creditLine, kindLabel } from '../budget/licenses';
@@ -15,8 +16,8 @@ export const DEPARTMENTS: { id: string; heading: string; match: RegExp }[] = [
   { id: 'casting', heading: 'Casting', match: /\bcasting\b/ },
   { id: 'stunts', heading: 'Stunts', match: /stunt|fight (co|chor)/ },
   { id: 'transport', heading: 'Transportation', match: /transport|driver|teamster/ },
-  { id: 'catering', heading: 'Catering & Craft Services', match: /catering|craft serv|\bchef\b|cook/ },
-  { id: 'camera', heading: 'Camera Department', match: /director of photography|cinematograph|\bd\.?o\.?p\b|\bdp\b|camera|\b(1st|2nd|first|second)?\s*a\.?c\.?\b|focus pull|clapper|loader|\bdit\b|digital imaging|data wrang|steadicam|gimbal|drone/ },
+  { id: 'catering', heading: 'Catering & Craft Services', match: /cater|craft serv|\bchef\b|cook/ },
+  { id: 'camera', heading: 'Camera Department', match: /director of photography|cinematograph|\bd\.?o\.?p\b|\bdp\b|camera|\b(1st|2nd|first|second)?\s*a\.?c\.?\b|focus pull|clapper|loader|\bdit\b|digital imaging|data wrang|steadicam|gimbal|drone|stills/ },
   { id: 'art', heading: 'Art Department', match: /production design|art direct|\bart\b|set decor|set dress|props?\b|prop master|construction|carpent|scenic|graphic/ },
   { id: 'electric', heading: 'Electrical Department', match: /gaffer|best boy electric|electric|lamp op|genny|generator|lighting/ },
   { id: 'grip', heading: 'Grip Department', match: /\bgrip|dolly/ },
@@ -51,14 +52,16 @@ export function buildCredits(p: Project, d: Derived, opts: { includeLicenses?: b
   const c = creditsOf(p);
   const auto: { id: string; heading: string; style: CreditStyle; lines: CreditLine[] }[] = [];
   const title = p.titlePage.title || p.title;
+  // Society letters after names ("Jane Doe, ASC"), only for people ticked as members.
+  const L = (name: string, who?: Societied) => (c.noSocietyLetters ? name : withLetters(p, name, who));
 
   // Opening cards
   const cards: CreditLine[] = [];
   if (p.production.company) cards.push({ key: 'company', role: 'A production of', name: p.production.company });
   if (title) cards.push({ key: 'title', name: title.toUpperCase() });
-  if (p.production.director) cards.push({ key: 'director', role: 'Directed by', name: p.production.director });
-  if (p.titlePage.author) cards.push({ key: 'writer', role: p.titlePage.credit || 'Written by', name: p.titlePage.author });
-  if (p.production.producer) cards.push({ key: 'producer', role: 'Produced by', name: p.production.producer });
+  if (p.production.director) cards.push({ key: 'director', role: 'Directed by', name: L(p.production.director, personByName(p, p.production.director)) });
+  if (p.titlePage.author) cards.push({ key: 'writer', role: p.titlePage.credit || 'Written by', name: L(p.titlePage.author, personByName(p, p.titlePage.author)) });
+  if (p.production.producer) cards.push({ key: 'producer', role: 'Produced by', name: L(p.production.producer, personByName(p, p.production.producer)) });
   auto.push({ id: 'cards', heading: '', style: 'card', lines: cards });
 
   // Cast
@@ -68,17 +71,17 @@ export function buildCredits(p: Project, d: Derived, opts: { includeLicenses?: b
     c.castOrder === 'alpha' ? (a.actorName || a.characterName).localeCompare(b.actorName || b.characterName)
       : c.castOrder === 'appearance' ? (firstScene.get(a.characterName) ?? 1e9) - (firstScene.get(b.characterName) ?? 1e9) || a.castNumber - b.castNumber
         : a.castNumber - b.castNumber);
-  auto.push({ id: 'cast', heading: 'Cast', style: 'columns', lines: cast.map((m) => ({ key: m.id, role: titleCase(m.characterName), name: m.actorName || '(to be cast)' })) });
+  auto.push({ id: 'cast', heading: 'Cast', style: 'columns', lines: cast.map((m) => ({ key: m.id, role: titleCase(m.characterName), name: m.actorName ? L(m.actorName, m) : '(to be cast)' })) });
 
   // Crew by department (crew list plus crew contacts not already on it)
   const seen = new Set<string>();
-  const crew: { id: string; name: string; role: string }[] = [];
+  const crew: ({ id: string; name: string; role: string } & Societied)[] = [];
   for (const m of p.crew) if (m.name.trim()) { crew.push(m); seen.add(m.name.trim().toLowerCase()); }
-  for (const m of p.contacts) if (m.kind === 'crew' && m.name.trim() && !seen.has(m.name.trim().toLowerCase())) crew.push({ id: m.id, name: m.name, role: m.role });
+  for (const m of p.contacts) if (m.kind === 'crew' && m.name.trim() && !seen.has(m.name.trim().toLowerCase())) crew.push({ id: m.id, name: m.name, role: m.role, societies: m.societies, pgaCertified: m.pgaCertified });
   const byDept = new Map<string, CreditLine[]>();
   for (const m of crew) {
     const dept = departmentOf(m.role || '');
-    byDept.set(dept, [...(byDept.get(dept) ?? []), { key: m.id, role: m.role || '', name: m.name }]);
+    byDept.set(dept, [...(byDept.get(dept) ?? []), { key: m.id, role: m.role || '', name: L(m.name, m) }]);
   }
   for (const id of DEPT_ORDER) {
     const lines = byDept.get(id);

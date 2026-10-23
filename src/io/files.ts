@@ -30,6 +30,18 @@ export function safeName(s: string): string {
   return (s || 'Untitled').replace(/[\\/:*?"<>|]+/g, '').trim() || 'Untitled';
 }
 
+/** Files that belong to the budget (receipts, licenses, paperwork, clearances): synced with the budget's own key. */
+export function budgetMediaIds(p: Project): string[] {
+  const b = p.budget;
+  return [
+    ...(b?.expenses ?? []).map((e) => e.receiptId),
+    ...(b?.licenses ?? []).map((l) => l.fileId),
+    ...(b?.paperwork ?? []).flatMap((x) => [x.fileId, x.signature?.mediaId]),
+    ...(b?.clearances ?? []).map((c) => c.fileId),
+    ...(b?.agreements ?? []).map((a) => a.fileId),
+  ].filter((x): x is string => !!x);
+}
+
 export function mediaIds(p: Project): string[] {
   return [...new Set([
     ...p.storyboard.flatMap((f) => [f.imageId, f.drawingId]),
@@ -39,7 +51,7 @@ export function mediaIds(p: Project): string[] {
     ...Object.values(p.callSheets).map((c) => c.logoId),
     p.titlePage.logoId,
     ...(p.budget?.expenses ?? []).map((e) => e.receiptId),
-    ...(p.budget?.licenses ?? []).map((l) => l.fileId),
+    ...budgetMediaIds(p),
     ...(p.characters ?? []).flatMap((c) => [c.portraitId, ...c.continuity.map((x) => x.imageId)]),
     ...(p.plans ?? []).map((pl) => pl.backgroundId),
   ].filter((x): x is string => !!x))];
@@ -55,7 +67,12 @@ function remapMedia(p: Project, remap: Map<string, string>): Project {
     locations: p.locations.map((l) => ({ ...l, photoIds: l.photoIds?.map((x) => re(x)!) })),
     callSheets: Object.fromEntries(Object.entries(p.callSheets).map(([k, c]) => [k, { ...c, logoId: re(c.logoId) }])),
     titlePage: { ...p.titlePage, logoId: re(p.titlePage.logoId) },
-    budget: p.budget && { ...p.budget, expenses: p.budget.expenses.map((e) => ({ ...e, receiptId: re(e.receiptId) })), licenses: (p.budget.licenses ?? []).map((l) => ({ ...l, fileId: re(l.fileId) })) },
+    budget: p.budget && {
+      ...p.budget, expenses: p.budget.expenses.map((e) => ({ ...e, receiptId: re(e.receiptId) })), licenses: (p.budget.licenses ?? []).map((l) => ({ ...l, fileId: re(l.fileId) })),
+      paperwork: (p.budget.paperwork ?? []).map((x) => ({ ...x, fileId: re(x.fileId), signature: x.signature && { ...x.signature, mediaId: re(x.signature.mediaId) } })),
+      clearances: (p.budget.clearances ?? []).map((c) => ({ ...c, fileId: re(c.fileId) })),
+      agreements: (p.budget.agreements ?? []).map((a) => ({ ...a, fileId: re(a.fileId)! })),
+    },
     plans: p.plans?.map((pl) => ({ ...pl, backgroundId: re(pl.backgroundId) })),
     characters: (p.characters ?? []).map((c) => ({ ...c, portraitId: re(c.portraitId), continuity: c.continuity.map((x) => ({ ...x, imageId: re(x.imageId)! })) })),
   };

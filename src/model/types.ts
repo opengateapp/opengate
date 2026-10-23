@@ -106,6 +106,15 @@ export interface CastMember {
   phone?: string;
   email?: string;
   unavailable: DateRange[];
+  /** Union membership (no member ID numbers — see Paperwork). */
+  union?: string;
+  unionStatus?: UnionStatus;
+  /** e.g. "600" for IATSE Local 600. */
+  unionLocal?: string;
+  /** Honorary societies (ids from the Societies list): letters after the name in credits. */
+  societies?: string[];
+  /** The PGA certified this person's producing credit on this production (the p.g.a. mark). */
+  pgaCertified?: boolean;
 }
 
 export interface Location {
@@ -134,6 +143,15 @@ export interface CrewMember {
   role: string;
   phone?: string;
   dailyDefault?: boolean;
+  /** Union membership (no member ID numbers — see Paperwork). */
+  union?: string;
+  unionStatus?: UnionStatus;
+  /** e.g. "600" for IATSE Local 600. */
+  unionLocal?: string;
+  /** Honorary societies (ids from the Societies list): letters after the name in credits. */
+  societies?: string[];
+  /** The PGA certified this person's producing credit on this production (the p.g.a. mark). */
+  pgaCertified?: boolean;
 }
 
 export interface Shot {
@@ -368,6 +386,12 @@ export interface StoryboardSettings {
   /** Panels per page: 1, 2 or 3 stack full-width panels with a set-plan box; 4 and 6 are grids. */
   perPage: 1 | 2 | 3 | 4 | 6;
   showReference: boolean;
+  /** Framing the panels are drawn in: '16:9' (default), '9:16', '2.39', '1.43'… (tabs/storyboard/formats.ts). */
+  format?: string;
+  /** Extra frame guides drawn inside each panel, e.g. protect for '16:9' and '9:16'. */
+  guides?: string[];
+  /** Show the frame guides on the panels and in the PDF too (not only while drawing). Default on. */
+  guidesInPrint?: boolean;
 }
 
 // ---- Plan: contacts and tasks ----
@@ -384,6 +408,15 @@ export interface Contact {
   phone: string;
   email: string;
   notes: string;
+  /** Union membership (no member ID numbers — see Paperwork). */
+  union?: string;
+  unionStatus?: UnionStatus;
+  /** e.g. "600" for IATSE Local 600. */
+  unionLocal?: string;
+  /** Honorary societies (ids from the Societies list): letters after the name in credits. */
+  societies?: string[];
+  /** The PGA certified this person's producing credit on this production (the p.g.a. mark). */
+  pgaCertified?: boolean;
 }
 
 export interface Task {
@@ -496,6 +529,8 @@ export interface ProductionInfo {
   defaultLunch: string;
   /** Shooting time per eighth of a page, for scene estimates (default 15 min = 2 h per page). */
   minutesPerEighth?: number;
+  /** The production's union agreement (sets defaults for new cast). */
+  agreement?: { union?: string; tier?: string };
 }
 
 /** An invite link the owner created (kept locally so it can be copied again; the relay only stores its hash). */
@@ -542,7 +577,7 @@ export interface ShareInfo {
 export type BudgetGroup = 'atl' | 'btl' | 'post' | 'other';
 export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each' | 'rentdays';
 /** Where a linked line's quantity comes from. */
-export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear' | 'license';
+export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear' | 'license' | 'kit' | 'festival' | 'festivalTravel';
 
 export interface BudgetAccount {
   id: Id;
@@ -713,6 +748,201 @@ export interface Budget {
   expenses: BudgetExpense[];
   /** Music, stock footage and other licenses (clearances). */
   licenses: License[];
+  /** Deal memos, releases and start paperwork (private like the rest of the budget). */
+  paperwork?: PaperDoc[];
+  /** Clearances log: locations, artwork, brands, names… */
+  clearances?: Clearance[];
+  /** Hours actually worked, per person per shoot day. */
+  timecards?: TimeCard[];
+  /** Overtime and meal rules for time cards. */
+  payrollRules?: PayrollRules;
+  /** This project's own wording for release and deal memo templates. */
+  templates?: Partial<Record<PaperKind, string>>;
+  /** Union agreements you signed, attached from Reference → Guilds & Unions. */
+  agreements?: SignedAgreement[];
+  /** Where the money comes from (Budget → Funding). Private like the rest of the budget. */
+  fundingSources?: FundingSource[];
+  /** Funding settings: estimate pace, starter-rate level, crowdfunding plan. */
+  funding?: FundingPlan;
+  /** Festivals you're aiming at: deadlines, fees and status (Budget → Festivals). */
+  festivals?: Festival[];
+}
+
+export type FestivalStatus = 'considering' | 'planned' | 'submitted' | 'accepted' | 'declined' | 'withdrawn';
+export type FestivalTier = 'top' | 'target' | 'local' | 'long-shot';
+export type PremiereRule = 'world' | 'international' | 'north-american' | 'national' | 'regional' | 'none';
+
+export interface FestivalDeadline { id: Id; label: string; date: ISODate; fee: number }
+
+/** A festival on your list. Typed or pasted in by you: Open Gate never fetches festival sites. */
+export interface Festival {
+  id: Id;
+  name: string;
+  url?: string;
+  platform: 'filmfreeway' | 'site' | 'other';
+  location?: string;
+  eventStart?: ISODate;
+  eventEnd?: ISODate;
+  tier: FestivalTier;
+  /** Premiere status the festival requires. */
+  premiere?: PremiereRule;
+  category?: string;
+  deadlines: FestivalDeadline[];
+  /** The deadline you plan to hit (its fee is what's budgeted). */
+  aim?: Id;
+  /** Fee waiver code or note: a waived festival budgets $0. */
+  waiver?: string;
+  status: FestivalStatus;
+  submittedOn?: ISODate;
+  feePaid?: number;
+  notifyDate?: ISODate;
+  attend?: boolean;
+  travel?: number;
+  notes?: string;
+}
+
+export type FundingKind = 'cash' | 'inkind' | 'deferral' | 'grant' | 'investor' | 'crowdfunding' | 'sponsor' | 'presale' | 'incentive' | 'loan' | 'other';
+export type FundingStatus = 'idea' | 'applied' | 'pledged' | 'received';
+
+/** One source of money (or in-kind value) for the film. */
+export interface FundingSource {
+  id: Id;
+  kind: FundingKind;
+  name: string;
+  amount: number;
+  status: FundingStatus;
+  /** When the money arrives (incentives and some grants come after the shoot). */
+  date?: ISODate;
+  notes?: string;
+}
+
+/** A crowdfunding reward tier, for working out fulfilment costs. */
+export interface RewardTier {
+  id: Id;
+  name: string;
+  /** Pledge amount for this tier. */
+  price: number;
+  /** Expected number of backers at this tier. */
+  backers: number;
+  /** Cost to make one reward (print, item, packaging). */
+  costEach: number;
+  /** Postage per reward (0 for digital). */
+  shipEach: number;
+}
+
+export interface CrowdPlan {
+  platform: string;
+  /** Platform fee, % of money raised. */
+  feePct: number;
+  /** Payment processing, % of each pledge… */
+  processingPct: number;
+  /** …plus a fixed amount per pledge. */
+  perPledge: number;
+  /** Pledge manager or fulfilment service, % of money raised. */
+  pledgeMgrPct: number;
+  /** Set aside for tax on rewards / income, % of money raised. */
+  taxReservePct: number;
+  /** Share of money pledged with no reward (a straight donation), %. */
+  noRewardPct: number;
+  tiers: RewardTier[];
+}
+
+export interface FundingPlan {
+  /** Pages shot per day, for estimating shoot days before there's a schedule. */
+  pagesPerDay?: number;
+  /** Which starter rates "Quick estimate" fills in. */
+  level?: 'none' | 'micro' | 'indie';
+  crowd?: CrowdPlan;
+}
+
+/** A copy of a union agreement the production signed (a PDF kept with the budget). */
+export interface SignedAgreement { id: Id; guildId: string; title: string; fileId: Id; added: string }
+
+// ---------- Paperwork, unions, clearances, time cards ----------
+
+export type UnionStatus = 'nonunion' | 'member' | 'ficore' | 'taft-hartley' | 'pending';
+
+/** A person paperwork belongs to: a cast member, crew member, contact or location. */
+export interface PersonRef { kind: 'cast' | 'crew' | 'contact' | 'location'; id: Id }
+
+export type PaperKind = 'deal' | 'nda' | 'crew' | 'talent' | 'appearance' | 'location' | 'minor' | 'w9' | 'w4' | 'i9' | 'other';
+export type PaperStatus = 'draft' | 'sent' | 'signed' | 'received' | 'na';
+
+/** The terms of a deal memo; the rate goes into that person's budget line. */
+export interface DealTerms {
+  rate: number;
+  per: 'day' | 'week' | 'flat';
+  kitFee?: number;
+  kitPer?: 'day' | 'week' | 'flat';
+  guaranteedDays?: number;
+  /** Overtime after this many hours, at this multiplier (defaults from payroll rules). */
+  otAfter?: number;
+  otMult?: number;
+  /** Paid as a contractor (1099 / W-9) rather than through payroll. */
+  contractor?: boolean;
+}
+
+export interface PaperDoc {
+  id: Id;
+  kind: PaperKind;
+  person: PersonRef;
+  title: string;
+  status: PaperStatus;
+  /** Filled-in template text (releases, deal memos). */
+  body?: string;
+  /** Signed copy or scan (media id). */
+  fileId?: Id;
+  /** Signed in Open Gate: typed name, drawn signature image (media id), when. */
+  signature?: { name: string; mediaId?: Id; at: string };
+  deal?: DealTerms;
+  /** Where a start form is kept ("accountant's folder") — never its contents. */
+  where?: string;
+  /** Minor work permits, location releases…: when it runs out. */
+  expires?: ISODate;
+  notes?: string;
+  updated: string;
+}
+
+export type ClearanceKind = 'location' | 'artwork' | 'logo' | 'name' | 'phone' | 'address' | 'web' | 'archival' | 'minor' | 'music' | 'other';
+export type ClearanceStatus = 'needed' | 'requested' | 'cleared' | 'replace' | 'na';
+
+export interface Clearance {
+  id: Id;
+  kind: ClearanceKind;
+  /** What needs clearing: the brand, name, number, artwork… */
+  item: string;
+  sceneIds: Id[];
+  status: ClearanceStatus;
+  /** Found by the script scan, or added by hand. */
+  source: 'scan' | 'manual';
+  /** Release or other paperwork that covers it. */
+  docId?: Id;
+  fileId?: Id;
+  notes?: string;
+  /** For a location clearance: the location in Plan → Locations. */
+  locationId?: Id;
+}
+
+export interface TimeCard {
+  id: Id;
+  dayId: Id;
+  person: PersonRef;
+  /** "HH:MM" (24 h). Out before in = past midnight. */
+  in?: string;
+  mealOut?: string;
+  mealIn?: string;
+  out?: string;
+  notes?: string;
+}
+
+export interface PayrollRules {
+  /** Overtime (1.5×) after this many hours, double time (2×) after this many. */
+  otAfter: number;
+  dtAfter: number;
+  /** A meal break is due within this many hours of call (and of the last meal). */
+  mealEvery: number;
+  /** Amount per meal penalty (0 = count only). */
+  mealPenalty: number;
 }
 
 // ---------- Characters ----------
@@ -958,6 +1188,8 @@ export interface CreditsSettings {
   secondsPerScreen: number;
   /** Fixed runtime in seconds (otherwise worked out from the length). */
   runtime?: number;
+  /** Leave society letters (ASC, ACE…) off names. */
+  noSocietyLetters?: boolean;
 }
 
 export interface Project {
@@ -1007,9 +1239,19 @@ export interface Project {
   bible?: StoryBible;
   credits?: CreditsSettings;
   characterOptions?: CharacterOptions;
+  /** The union list (Settings → Unions); built-in list when unset. */
+  unionOptions?: UnionOption[];
+  /** The honorary societies list (Settings → Unions & Societies); built-in list when unset. */
+  societyOptions?: SocietyOption[];
   /** Where each character sits on the relationship map (by name). */
   characterMap: Record<string, { x: number; y: number }>;
   notes: string;
   /** Present when this project is shared through a relay. */
   share?: ShareInfo;
 }
+
+/** A union in the Settings list. */
+export interface UnionOption { id: string; name: string; group: string; locals?: string[]; custom?: boolean; hidden?: boolean }
+
+/** An honorary society in the Settings list, with how its letters are written. */
+export interface SocietyOption { id: string; abbr: string; name: string; craft: string; letters: string; custom?: boolean; hidden?: boolean }

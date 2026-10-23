@@ -12,7 +12,7 @@ export function More({ children, always, label = 'More', className }: { children
   return <MoreMenu label={label} className={className} sheet={phone}>{children}</MoreMenu>;
 }
 
-export function MoreMenu({ children, label = 'More', className, sheet, icon = '⋯' }: { children: React.ReactNode; label?: string; className?: string; sheet?: boolean; icon?: React.ReactNode }) {
+export function MoreMenu({ children, label = 'More', className, sheet, icon = '⋯', buttonClassName = '' }: { children: React.ReactNode; label?: string; className?: string; sheet?: boolean; icon?: React.ReactNode; buttonClassName?: string }) {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -43,7 +43,7 @@ export function MoreMenu({ children, label = 'More', className, sheet, icon = '�
 
   return (
     <>
-      <button ref={btn} className={`more-btn ${open ? 'active' : ''}`} aria-haspopup="menu" aria-expanded={open} title={label} aria-label={label} onClick={toggle}>{icon}</button>
+      <button ref={btn} className={`more-btn ${buttonClassName} ${open ? 'active' : ''}`} aria-haspopup="menu" aria-expanded={open} title={label} aria-label={label} onClick={toggle}>{icon}</button>
       {open && createPortal(
         <>
           {sheet && <div className="sheet-scrim" onClick={() => setOpen(false)} />}

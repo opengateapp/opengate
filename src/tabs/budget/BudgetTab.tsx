@@ -5,7 +5,9 @@ import type { Budget, BudgetAccount, BudgetGroup, BudgetLine, BudgetUnits, Proje
 import { newId } from '../../model/ids';
 import { GROUPS, TYPICAL_SPLIT, accountLabel } from '../../budget/accounts';
 import { money, totals, lineTotal, round2, billedQty } from '../../budget/calc';
-import { breakdownFacts, importFromBreakdown, LINK_LABEL } from '../../budget/fromBreakdown';
+import { breakdownFacts, importFromBreakdown, LINK_LABEL, usesEstimate } from '../../budget/fromBreakdown';
+import { missingMarketingLines } from '../../budget/templates';
+import { RefLink } from '../ReferenceTab';
 import { canWrite, useSync } from '../../sync/state';
 import { askConfirm, askText } from '../../components/dialogs';
 import { toast } from '../../components/common';
@@ -145,6 +147,12 @@ function BudgetScreen() {
     ub((bd) => { bd.lines.push(...added); }, 'Import from breakdown');
     toast(`Added ${added.length} line${added.length === 1 ? '' : 's'} from the breakdown — fill in the rates`);
   };
+  const addMarketing = () => {
+    const add = missingMarketingLines(b.accounts, b.lines);
+    if (!add.length) { toast('The budget already has every marketing & festival line'); return; }
+    ub((bd) => { bd.lines.push(...add); }, 'Add marketing & festival lines');
+    toast(`Added ${add.length} marketing & festival line${add.length === 1 ? '' : 's'} to Festivals & Marketing (5100): ${add.map((l) => l.description).join(', ')}. Fill in the rates.`);
+  };
 
   const accountsIn = (g: BudgetGroup) => b.accounts.filter((a) => a.group === g);
   const visible = (a: BudgetAccount) => showEmpty || a.id === accountId || view.t.byAccount.has(a.id) || a.target != null || view.t.actualByAccount.has(a.id);
@@ -178,6 +186,8 @@ function BudgetScreen() {
         {!ro && <button onClick={() => setDialog('templates')} title="Typical lines for a short, a feature, a music video or a commercial">Templates…</button>}
         {!ro && <button onClick={() => setDialog('import')} title="Bring in an existing budget from CSV or Excel">Import spreadsheet…</button>}
         {mode === 'build' && !ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet">⛓ Update from breakdown</button>}
+        {!ro && <button onClick={addMarketing} title="Unit stills, BTS/EPK, key art, trailer, website, ads, press kit, festival fees, DCP, travel, publicist">＋ Marketing & festival lines</button>}
+        <button onClick={() => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'funding' }))} title="From your breakdown to how much you need to raise">$ How much to raise…</button>
         <button onClick={() => exportBudget(p, 'pdf', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet and detail of the version shown">PDF</button>
         <button onClick={() => exportBudget(p, 'xlsx', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet, detail with formulas, and expenses">Excel</button>
         <button className={settings ? 'active' : ''} onClick={() => setSettings((x) => !x)}>Settings</button>
@@ -187,6 +197,10 @@ function BudgetScreen() {
           <span className="muted small">Total{scenario ? ` · ${scenario.name}` : ''}</span>
           <b>{$(view.t.total)}</b>
           {b.targetTotal ? <span className={`small ${view.t.total > b.targetTotal ? 'over' : 'under'}`}>{view.t.total > b.targetTotal ? `${$(view.t.total - b.targetTotal)} over target` : `${$(b.targetTotal - view.t.total)} under target`}</span> : null}
+          {(b.fundingSources ?? []).length > 0 && (() => {
+            const secured = (b.fundingSources ?? []).filter((x) => x.kind !== 'incentive' && (x.status === 'pledged' || x.status === 'received')).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+            return <button className="link small" onClick={() => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'funding' }))}>To raise: {$(Math.max(0, view.t.total - secured))}</button>;
+          })()}
         </div>
       </div>
 
@@ -202,6 +216,7 @@ function BudgetScreen() {
           <button onClick={() => setDialog('import')}>Import spreadsheet…</button>
         </div>
       )}
+      {usesEstimate(p) && <p className="budget-note">Shoot days are <b>estimated</b> from page count ({p.budget.funding?.pagesPerDay} pages a day) because nothing is on the stripboard yet. Schedule the film and the budget switches to the real days. <RefLink page="budget-how" /></p>}
       {scenario && mode !== 'scenarios' && <p className="budget-note">Showing <b>{scenario.name}</b>. Changes to quantities and rates are saved to this version only; the base budget stays as it is.</p>}
 
       {mode === 'cost' ? (

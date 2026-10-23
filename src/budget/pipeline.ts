@@ -2,7 +2,7 @@ import type { BudgetLine, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { finalizeLines, scenarioLines } from './calc';
 import type { Vars } from './expr';
-import { breakdownFacts, resolveLines, type BreakdownFacts } from './fromBreakdown';
+import { budgetFacts, resolveLines, type BreakdownFacts } from './fromBreakdown';
 
 // From the stored budget to the lines that get added up — one path for the screen, version
 // comparison, PDF and spreadsheet: linked quantities → version changes → formulas and sub-items.
@@ -49,7 +49,7 @@ export interface BudgetView {
 }
 
 export function budgetView(p: Project, d: Derived, scenarioId?: string, facts?: BreakdownFacts): BudgetView {
-  const f = facts ?? breakdownFacts(p, d);
+  const f = facts ?? budgetFacts(p, d);
   const { lines: base, orphaned } = resolveLines(p, f);
   const sc = p.budget.scenarios.find((s) => s.id === scenarioId);
   const vars = budgetVars(p, d, f, sc?.shootDays ?? f.shootDays);

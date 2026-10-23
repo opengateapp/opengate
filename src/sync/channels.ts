@@ -65,29 +65,30 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
 
 /** Format 2: the tabs a link can grant, the channels each one writes, and what it needs to make sense. */
 export interface TabAccess { id: string; label: string; section: string; channels: Channel[]; needs?: string[]; follows?: string }
+// Listed in the app's section order; the section is only the share dialog's grouping (channels never move).
 export const TAB_ACCESS: TabAccess[] = [
   { id: 'screenplay', label: 'Screenplay', section: 'Write', channels: ['script', 'screenplay'] },
   { id: 'characters', label: 'Characters', section: 'Write', channels: ['characters'] },
   { id: 'bible', label: 'Story Bible', section: 'Write', channels: ['bible'] },
   { id: 'docs', label: 'Docs', section: 'Write', channels: ['docs'] },
   { id: 'av', label: 'A/V Scripts', section: 'Write', channels: ['av'] },
+  { id: 'boards', label: 'Mood Boards', section: 'Visualize', channels: ['boards'] },
+  { id: 'designer', label: 'Shot Designer', section: 'Visualize', channels: ['designer'], needs: ['shots'] },
+  { id: 'storyboard', label: 'Storyboards', section: 'Visualize', channels: ['storyboard'], needs: ['shots'] },
   { id: 'breakdown', label: 'Script Breakdown', section: 'Breakdown', channels: ['breakdown'], needs: ['screenplay'] },
+  { id: 'shots', label: 'Shot Lists', section: 'Breakdown', channels: ['shots'], needs: ['screenplay'] },
   { id: 'stripboard', label: 'Stripboard, DOOD & Sides', section: 'Breakdown', channels: ['schedule'], needs: ['screenplay', 'breakdown'] },
-  { id: 'budget', label: 'Budget & Expenses', section: 'Budget', channels: ['budget'] },
-  { id: 'gear', label: 'Gear', section: 'Budget', channels: ['gear'] },
   { id: 'contacts', label: 'Contacts (cast & crew)', section: 'Plan', channels: ['contacts'] },
+  { id: 'locations', label: 'Locations', section: 'Plan', channels: ['locations'] },
   { id: 'calendar', label: 'Calendar', section: 'Plan', channels: ['calendar'], needs: ['stripboard'] },
   { id: 'tasks', label: 'Tasks', section: 'Plan', channels: ['tasks'] },
-  { id: 'storyboard', label: 'Storyboards', section: 'Visualize', channels: ['storyboard'], needs: ['shots'] },
-  { id: 'boards', label: 'Mood Boards', section: 'Visualize', channels: ['boards'] },
-  { id: 'shots', label: 'Shot Lists', section: 'Visualize', channels: ['shots'], needs: ['screenplay'] },
-  { id: 'designer', label: 'Shot Designer', section: 'Visualize', channels: ['designer'], needs: ['shots'] },
+  { id: 'budget', label: 'Budget, Expenses, Licenses & Paperwork', section: 'Budget', channels: ['budget'] },
+  { id: 'gear', label: 'Gear', section: 'Budget', channels: ['gear'] },
   { id: 'callsheets', label: 'Call Sheets', section: 'Shoot', channels: ['callsheets'], needs: ['stripboard', 'contacts', 'locations'] },
-  { id: 'locations', label: 'Locations', section: 'Shoot', channels: ['locations'] },
   { id: 'settings', label: 'Project settings', section: 'Settings', channels: ['settings'] },
 ];
 /** App tabs that show another tab's data (they follow its access). */
-export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', reports: 'stripboard' };
+export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', funding: 'budget', festivals: 'budget', reports: 'stripboard' };
 
 /** Tagging, shot marks and storyboards add highlights to the script, so these tabs may write marks to it. */
 export const MARKS_TABS = ['breakdown', 'shots', 'storyboard'];
@@ -142,7 +143,7 @@ export function accessWarnings(access: Record<string, Access>): string[] {
 export const LOCAL_ONLY = new Set(['schemaVersion', 'id', 'updatedAt', 'scriptDoc', 'share']);
 
 const KEY_CHANNEL: Record<string, Channel> = {
-  title: 'settings', createdAt: 'settings', production: 'settings',
+  title: 'settings', createdAt: 'settings', production: 'settings', unionOptions: 'settings', societyOptions: 'settings',
   titlePage: 'write', notes: 'write', characters: 'write', drafts: 'write', revision: 'write', sceneVariants: 'write', sceneVariantActive: 'write', autoDrafts: 'write', structure: 'write', bible: 'write', credits: 'write', relationships: 'write', characterMap: 'write', characterOptions: 'write', docs: 'write', avScripts: 'write', sceneNumbersLocked: 'write',
   elements: 'breakdown', sceneMeta: 'breakdown', categories: 'breakdown', schedule: 'breakdown',
   contacts: 'plan', tasks: 'plan', events: 'plan', cast: 'plan', crew: 'plan',
@@ -152,7 +153,7 @@ const KEY_CHANNEL: Record<string, Channel> = {
 };
 
 const KEY_CHANNEL_V2: Record<string, Channel> = {
-  title: 'settings', createdAt: 'settings', production: 'settings',
+  title: 'settings', createdAt: 'settings', production: 'settings', unionOptions: 'settings', societyOptions: 'settings',
   titlePage: 'screenplay', notes: 'screenplay', drafts: 'screenplay', revision: 'screenplay', sceneVariants: 'screenplay', sceneVariantActive: 'screenplay', autoDrafts: 'screenplay', structure: 'screenplay', sceneNumbersLocked: 'screenplay', credits: 'settings',
   characters: 'characters', relationships: 'characters', characterMap: 'characters', characterOptions: 'characters',
   bible: 'bible', docs: 'docs', avScripts: 'av',
@@ -170,7 +171,7 @@ export function channelOf(key: string, f: RoomFormat = format): Channel {
 
 const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
 const RECORDS = new Set(['sceneMeta', 'callSheets', 'characterMap']);
-const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses'];
+const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses', 'paperwork', 'clearances', 'timecards', 'agreements', 'fundingSources', 'festivals'];
 
 /** Which project field an entry key belongs to. */
 export function fieldOf(entryKey: string): string {

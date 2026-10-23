@@ -11,6 +11,8 @@ import { More } from '../components/More';
 import { LongPress } from '../components/ActionSheet';
 import { useTouch } from '../ui/responsive';
 import { toast } from '../components/common';
+import { useSync } from '../sync/state';
+import { festivalDates } from '../budget/festivals';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -27,6 +29,10 @@ export function CalendarTab() {
   const conflicts = useMemo(() => scanConflicts(p, d), [p, d]);
   const bone = boneyard(p, d);
   const byDate = new Map(p.schedule.days.map((x) => [x.date, x]));
+  // Festival deadlines and dates (Budget → Festivals), only for people who can see the budget.
+  const seesBudget = useSync((s) => s.write === null || s.admin || s.budget);
+  const fest = useMemo(() => (seesBudget ? festivalDates(p.budget.festivals ?? []) : new Map<string, string[]>()), [seesBudget, p.budget.festivals]);
+  const festChips = (date: string) => (fest.get(date) ?? []).map((t, i) => <div key={`f${i}`} className="cal-event cal-fest" title="Budget → Festivals" onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'festivals' })); }}>🎬 {t}</div>);
 
   // Weeks covering the whole range, starting on Sunday or Monday (App preferences).
   const ws = usePrefs((s) => s.weekStart);
@@ -50,7 +56,7 @@ export function CalendarTab() {
     const n = day ? nums.get(day.id) : undefined;
     const isFirstOfMonth = fromISO(date).getDate() === 1 || date === gridStart;
     if (!day || !inRange) {
-      return <div key={date} className="cal-cell out"><span className="cal-date">{fromISO(date).getDate()}</span></div>;
+      return <div key={date} className="cal-cell out"><span className="cal-date">{fromISO(date).getDate()}</span>{festChips(date)}</div>;
     }
     const t = dayTotals(p, d, day);
     return (
@@ -73,6 +79,7 @@ export function CalendarTab() {
           <button className="icon-btn small" title="Day details" onClick={() => setDayDialog(day.id)}>⋯</button>
         </div>
         {events.map((e) => <div key={e.id} className="cal-event" style={{ background: e.color }}>{e.start ? e.start + ' ' : ''}{e.title}</div>)}
+        {festChips(date)}
         {tasks.map((t) => (
           <div key={t.id} className="cal-task" draggable onDragStart={(e) => { e.stopPropagation(); setDrag(e, { kind: 'task', id: t.id }); }} title={`Task${t.assignee ? ` · ${t.assignee}` : ''} — drag to another day`}>
             <input type="checkbox" checked={false} onChange={() => update((dr) => { const x = dr.tasks.find((y) => y.id === t.id); if (x) x.done = true; }, 'Complete task')} onClick={(e) => e.stopPropagation()} /> {t.title}
@@ -158,6 +165,7 @@ export function CalendarTab() {
                   </div>
                   <div className="cal-row-items">
                     {events.map((e) => <span key={e.id} className="cal-event" style={{ background: e.color }}>{e.title}</span>)}
+                    {festChips(day.date)}
                     {p.tasks.filter((t) => t.due === day.date && !t.done).map((t) => <span key={t.id} className="cal-task" draggable onDragStart={(e) => setDrag(e, { kind: 'task', id: t.id })}>☐ {t.title}</span>)}
                     {day.items.map((it) => {
                       if (it.kind !== 'scene') return null;

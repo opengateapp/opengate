@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.4.0 — 2026-10-23
+
+Paperwork and unions, funding and festivals, a filled-in sample production, and a storyboard toolbar made for artists.
+
+- **Paperwork** (Plan → Paperwork), private like the budget:
+  - deal memos whose rates feed the budget;
+  - releases you can **sign on a phone or iPad**;
+  - start forms (recording only that they were received, never SSNs or bank details);
+  - a **clearances log** with **Scan script** (phone numbers, addresses, websites, brands, names, tagged props, and now every location);
+  - **time cards** with overtime and meal penalties, and payroll CSVs.
+- **Unions:** union, status and local for every cast, crew and contact row; the production's agreement (SAG-AFTRA tiers checked October 2026); Taft-Hartley warnings; union fringes; and a call-sheet warning when someone hasn't signed.
+- **Reference:**
+  - **Guilds & Unions:** researched pages for every major union and honorary society, with sources;
+  - **Budget & Funding:** how budgets work, fringes and payroll, crowdfunding (Kickstarter, Indiegogo, Seed&Spark and more), perks and fulfilment, grants and fiscal sponsorship, investors, and tax incentives for the US, UK, Canada, Australia and the EU, plus marketing, festivals, distribution and a money glossary;
+  - **Legal & Insurance:** production insurance, E&O, chain of title, releases, music licensing, drones and minors.
+  - Every page states when it was checked.
+- **Budget → Funding: "How much do I need to raise?"**
+  - From your breakdown to a goal: shoot days estimated from page count before you schedule (so the budget isn't $0);
+  - a quick estimate with starter rates (it never overwrites your numbers);
+  - a checklist of what people forget;
+  - your funding sources;
+  - what's left to raise before and after the shoot;
+  - a **crowdfunding goal that pays for its own fees, perks and postage**.
+- **Budget → Festivals:**
+  - your festival list with every deadline, fee, festival date, tier, premiere rule and status;
+  - **paste a festival's dates and fees** from FilmFreeway or its website (Open Gate reads them on your device; it never scrapes);
+  - fees and travel go into the budget, and deadlines show on the Calendar.
+- **Marketing:**
+  - a Festivals & Marketing block for budgets: stills, EPK, key art, trailer, web, ads, press kit, festival fees, DCP, travel and publicist;
+  - a **marketing & festival checklist** in Tasks, timed from your shoot and picture lock.
+- **Sample production:**
+  - Home now offers **Sample script** or **Sample production**;
+  - the production is an original 11-page "The Last Reel" filled in across every section, with **two stunts and their stunt performers**, code-drawn storyboards, a budget at real Ultra Low rates, funding and festivals;
+  - a few deliberate problems (Taft-Hartley, an unsigned release, a meal penalty, an uncleared song) show what the warnings are for.
+- **Storyboards:**
+  - **framing formats** (vertical 9:16 to scope 2.39 and IMAX) and colour-coded frame guides;
+  - a **grid** on the toolbar (rule of thirds or N × M, centre mark, safe areas);
+  - a simpler toolbar with one colour palette and size previews;
+  - **"+ Frame" inside the editor** with onion skin for drawing motion;
+  - PDFs that keep the frame's shape.
+- **Layout:**
+  - sections follow the production pipeline (Shot Lists in Breakdown; Contacts, Locations, Paperwork, Calendar and Tasks in Plan);
+  - Reports are now the ⤓ Exports button;
+  - the Reference hover menu shows categories and jumps to the page in the sidebar.
+- **Contacts:**
+  - crew roles are a department dropdown;
+  - locations show their clearance status and link to their release;
+  - honorary societies add their letters after names in the end credits.
+- **Fixes:** menus, dialogs and labels wrap instead of running off; many phone and iPad layout fixes.
+
 ## v0.3.0 — 2026-10-19
 
 End credits, and a home for music and footage licenses.

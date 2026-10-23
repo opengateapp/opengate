@@ -7,17 +7,22 @@ import { TOOLS } from '../reference/Tools';
 import { ARC_GUIDE, FRAMEWORKS, placeBeats, type Framework } from '../reference/story';
 import { LIBRARY, RESOURCE_TYPES, TOPIC_LABELS, learnMore, type Resource, type ResourceType } from '../reference/library';
 import { templateDoc } from './DocsTab';
-import { canEdit, useSync } from '../sync/state';
+import { budgetVisible, canEdit, useSync } from '../sync/state';
 import { toast } from '../components/common';
+import { getMedia, putMedia } from '../store/media';
+import { askConfirm } from '../components/dialogs';
 
 // Reference: a small film school inside Open Gate. Plain-language pages by topic, calculators,
 // story structures you can apply to your script, and a library of places to learn more.
 
 /** Which page the Reference tab shows; "?" links elsewhere set it. */
-export const useRefFocus = create<{ page: string }>(() => ({ page: 'frameworks' }));
+// `section` (a heading on the page) scrolls to it; `n` changes on every jump so repeat clicks still scroll.
+export const useRefFocus = create<{ page: string; section?: string; n?: number }>(() => ({ page: 'frameworks' }));
 
-export function openReference(page: string) {
-  useRefFocus.setState({ page });
+const sectionId = (h: string) => 'ref-sec-' + h.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+export function openReference(page: string, section?: string) {
+  useRefFocus.setState({ page, section, n: Date.now() });
   window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'reference' }));
 }
 
@@ -29,7 +34,28 @@ export function RefLink({ page, label }: { page: string; label?: string }) {
 
 export function ReferenceTab() {
   const page = useRefFocus((s) => s.page);
+  const section = useRefFocus((s) => s.section);
+  const jump = useRefFocus((s) => s.n);
   const [q, setQ] = useState('');
+  // Jump to: show the page in the sidebar (its category is open while it's current) and scroll
+  // the page to the top, or to the section asked for.
+  useEffect(() => {
+    if (!jump) return;
+    setQ('');
+    const raf = requestAnimationFrame(() => {
+      const link = document.querySelector<HTMLElement>('.reference-tab .ref-nav .side-link.active');
+      const side = link?.closest<HTMLElement>('.side');
+      if (link && side && side.scrollHeight > side.clientHeight) {
+        const r = link.getBoundingClientRect(), sr = side.getBoundingClientRect();
+        side.scrollTo({ top: side.scrollTop + r.top - sr.top - side.clientHeight / 2 + r.height / 2, behavior: 'smooth' });
+      }
+      const main = document.querySelector<HTMLElement>('.ref-main');
+      const target = section ? document.getElementById(sectionId(section)) : null;
+      if (main && target) main.scrollTo({ top: main.scrollTop + target.getBoundingClientRect().top - main.getBoundingClientRect().top - 8, behavior: 'smooth' });
+      else main?.scrollTo({ top: 0 });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [jump]); // eslint-disable-line react-hooks/exhaustive-deps
   const [collapsed, setCollapsedState] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('opengate.refCollapsed') ?? '[]'); } catch { return []; } });
   const setCollapsed = (c: string[]) => { setCollapsedState(c); try { localStorage.setItem('opengate.refCollapsed', JSON.stringify(c)); } catch { /* ignore */ } };
   const results = useMemo(() => {
@@ -37,7 +63,7 @@ export function ReferenceTab() {
     if (!t) return [];
     return PAGES.filter((p) => `${p.title} ${p.lead} ${p.keywords ?? ''} ${p.sections.map((s) => s.p).join(' ')}`.toLowerCase().includes(t));
   }, [q]);
-  const go = (id: string) => { useRefFocus.setState({ page: id }); setQ(''); document.querySelector('.ref-main')?.scrollTo({ top: 0 }); };
+  const go = (id: string) => { useRefFocus.setState({ page: id, section: undefined, n: Date.now() }); setQ(''); };
 
   return (
     <div className="with-side reference-tab">
@@ -59,7 +85,10 @@ export function ReferenceTab() {
                   <button className={`ref-cat ${open ? 'open' : ''}`} aria-expanded={open} onClick={() => setCollapsed(open ? [...collapsed, c.id] : collapsed.filter((x) => x !== c.id))}>
                     <span aria-hidden>{open ? '▾' : '▸'}</span> <span aria-hidden>{c.icon}</span> {c.label} <span className="muted small">{PAGES.filter((p) => p.category === c.id).length}</span>
                   </button>
-                  {open && PAGES.filter((p) => p.category === c.id).map((p) => <button key={p.id} className={`side-link ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>{p.title}</button>)}
+                  {open && PAGES.filter((p) => p.category === c.id).map((p, i, all) => [
+                    p.group && p.group !== all[i - 1]?.group ? <span key={`g-${p.group}`} className="ref-group">{p.group}</span> : null,
+                    <button key={p.id} className={`side-link ${page === p.id ? 'active' : ''}`} onClick={() => go(p.id)}>{p.category === 'guilds' && p.group !== 'Overview' ? p.title.split(' — ')[0] : p.title}</button>,
+                  ])}
                 </div>
               );
             })}
@@ -82,7 +111,7 @@ function RefPageView({ page }: { page: RefPage }) {
       <span className="muted small">{CATEGORIES.find((c) => c.id === page.category)?.label}</span>
       <h2>{page.title}</h2>
       <p className="ref-lead">{page.lead}</p>
-      {page.sections.map((s, i) => <section key={i}>{s.h && <h4>{s.h}</h4>}<p>{s.p}</p></section>)}
+      {page.sections.map((s, i) => <section key={i}>{s.h && <h4 id={sectionId(s.h)}>{s.h}</h4>}<p className={s.p.includes('\n') ? 'pre-line' : ''}>{s.p}</p></section>)}
       {tools.map((t) => {
         if (t === 'frameworks') return <Frameworks key={t} />;
         if (t === 'arcs') return <Arcs key={t} />;
@@ -90,23 +119,63 @@ function RefPageView({ page }: { page: RefPage }) {
         return Tool ? <div key={t} className="tool-card"><Tool /></div> : null;
       })}
       {page.table && (
-        <div className="table-scroll"><table className="table compact ref-table">
+        <div className="table-scroll"><table className={`table compact ref-table ${['guilds', 'money', 'legal'].includes(page.category) ? 'wrap' : ''} ${['money', 'legal'].includes(page.category) && page.table.head.length >= 3 ? 'cards-on-phone' : ''}`}>
           <thead><tr>{page.table.head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-          <tbody>{page.table.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+          <tbody>{page.table.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} data-label={j ? page.table!.head[j] : ''}>{/^https?:\/\//.test(c) ? <a href={c} target="_blank" rel="noreferrer noopener">Open ↗</a> : c}</td>)}</tr>)}</tbody>
         </table></div>
       )}
+      {page.guild && <AgreementBox guildId={page.guild} title={page.title.split(' — ')[0]} />}
       {page.use?.length ? (
         <div className="ref-use"><b className="small">Use it in Open Gate</b>
           <div className="row wrap">{page.use.map((u) => <button key={u.tab + u.label} className="small" onClick={() => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: u.tab }))}>{u.label} →</button>)}</div>
         </div>
       ) : null}
-      {more.length > 0 && (
+      {page.sources?.length ? (
+        <div className="ref-sources">
+          {page.notice && <p className="ref-notice">⚖ {page.notice}</p>}
+          <b className="small">Sources</b>
+          <ul>{page.sources.map((s) => <li key={s.url}><a href={s.url} target="_blank" rel="noreferrer noopener">{s.label}</a></li>)}</ul>
+          {page.checked && <p className="muted small">Checked {new Date(page.checked + 'T12:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}; {page.guild ? 'rules and tiers change, so always confirm with the union.' : 'fees, rates and rules change, so always confirm with the source.'}</p>}
+        </div>
+      ) : null}
+      {more.length > 0 && page.category !== 'guilds' && (
         <div className="ref-more"><b className="small">Learn more</b>
           <ul className="res-list">{more.map((r) => <ResourceItem key={r.id} r={r} />)}</ul>
-          <button className="link small" onClick={() => useRefFocus.setState({ page: 'library' })}>The whole library →</button>
+          <button className="link small" onClick={() => useRefFocus.setState({ page: 'library', section: undefined, n: Date.now() })}>The whole library →</button>
         </div>
       )}
     </article>
+  );
+}
+
+/** Your own signed copy of a union's agreement, kept with the (private) budget. */
+function AgreementBox({ guildId, title }: { guildId: string; title: string }) {
+  const p = useProject();
+  const update = useStore((s) => s.update);
+  useSync((s) => s.write);
+  if (!budgetVisible()) return null;
+  const ro = !canEdit('budget');
+  const mine = (p.budget.agreements ?? []).filter((a) => a.guildId === guildId);
+  const add = async (files: File[]) => {
+    for (const f of files.filter((x) => x.type === 'application/pdf' || /\.(pdf|png|jpe?g)$/i.test(x.name))) {
+      const fileId = await putMedia(p.id, f);
+      update((d) => { d.budget.agreements ??= []; d.budget.agreements.push({ id: newId(), guildId, title: f.name.replace(/\.[a-z0-9]+$/i, ''), fileId, added: new Date().toISOString() }); }, 'Attach agreement');
+    }
+  };
+  const open = async (id: string) => {
+    const b = await getMedia(id);
+    if (!b) { toast('This file hasn’t arrived on this device yet'); return; }
+    const url = URL.createObjectURL(b); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+  return (
+    <div className="ref-agreement tool-card">
+      <b className="small">Your signed {title} agreement</b>
+      {mine.length ? <ul className="doc-rows">{mine.map((a) => (
+        <li key={a.id}><button className="link" onClick={() => void open(a.fileId)}>📄 {a.title}</button><span className="muted small">{new Date(a.added).toLocaleDateString()}</span>
+          {!ro && <button className="icon-btn" aria-label="Remove agreement" onClick={async () => { if (await askConfirm(`Remove “${a.title}”?`)) update((d) => { d.budget.agreements = (d.budget.agreements ?? []).filter((x) => x.id !== a.id); }, 'Remove agreement'); }}>×</button>}</li>
+      ))}</ul> : <p className="muted small">Keep the agreement you signed here, so it’s on hand during the shoot. It stays private with the budget.</p>}
+      {!ro && <label className="button-like small">📎 Attach PDF…<input type="file" hidden accept="application/pdf,image/*" onChange={(e) => { void add([...(e.target.files ?? [])]); e.target.value = ''; }} /></label>}
+    </div>
   );
 }
 

@@ -1,21 +1,27 @@
 import { CREW } from './crew';
+import { CHECKED, GUILDS, LEGAL_NOTE, type Guild } from './guilds';
+import { MONEY_PAGES } from './money';
+import { LEGAL_PAGES } from './legal';
 
 // Reference pages: short plain-language explainers written for Open Gate, a quick-reference
 // table where it helps, an interactive tool, and links to where it's used in the app.
 
-export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'crew' | 'post';
+export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'money' | 'legal' | 'crew' | 'guilds' | 'post';
 
-export const CATEGORIES: { id: RefCategory; label: string; icon: string }[] = [
-  { id: 'story', label: 'Story', icon: '✎' },
-  { id: 'camera', label: 'Camera', icon: '◉' },
-  { id: 'lenses', label: 'Lenses', icon: '◎' },
-  { id: 'lighting', label: 'Lighting', icon: '☀' },
-  { id: 'audio', label: 'Audio', icon: '♪' },
-  { id: 'video', label: 'Video & Data', icon: '▤' },
-  { id: 'grip', label: 'Grip & Support', icon: '⌖' },
-  { id: 'production', label: 'Production', icon: '☰' },
-  { id: 'crew', label: 'Crew & departments', icon: '☺' },
-  { id: 'post', label: 'Post', icon: '✂' },
+export const CATEGORIES: { id: RefCategory; label: string; icon: string; hint: string }[] = [
+  { id: 'story', label: 'Story', icon: '✎', hint: 'Structures, character arcs, script format' },
+  { id: 'camera', label: 'Camera', icon: '◉', hint: 'Sensors, frame rates, exposure, aspect ratios' },
+  { id: 'lenses', label: 'Lenses', icon: '◎', hint: 'Focal length, depth of field, stops, mounts' },
+  { id: 'lighting', label: 'Lighting', icon: '☀', hint: 'Colour temperature, setups, falloff' },
+  { id: 'audio', label: 'Audio', icon: '♪', hint: 'Levels, formats, microphones, on-set sound' },
+  { id: 'video', label: 'Video & Data', icon: '▤', hint: 'Codecs, storage, backups' },
+  { id: 'grip', label: 'Grip & Support', icon: '⌖', hint: 'Tripods, rigs, power' },
+  { id: 'production', label: 'Production', icon: '☰', hint: 'Scheduling, call sheets, crew lingo, coverage' },
+  { id: 'money', label: 'Budget & Funding', icon: '$', hint: 'How budgets work, paying for your film, incentives, marketing and festivals' },
+  { id: 'legal', label: 'Legal & Insurance', icon: '§', hint: 'Insurance, rights, releases, music, permits' },
+  { id: 'crew', label: 'Crew & departments', icon: '☺', hint: 'Who does what on set' },
+  { id: 'guilds', label: 'Guilds & Unions', icon: '⚖', hint: 'What each union and society does, and their agreements' },
+  { id: 'post', label: 'Post', icon: '✂', hint: 'Editing, deliverables' },
 ];
 
 export type ToolId = 'dof' | 'fov' | 'crop' | 'exposure' | 'shutter' | 'kelvin' | 'falloff' | 'storage' | 'audio' | 'battery' | 'power' | 'phone' | 'frameworks' | 'arcs';
@@ -35,6 +41,14 @@ export interface RefPage {
   keywords?: string;
   /** Library topics for "Learn more". */
   topics: string[];
+  /** Where the facts come from, and when we last checked them (Guilds & Unions). */
+  sources?: { label: string; url: string }[];
+  checked?: string;
+  notice?: string;
+  /** A sub-group heading in the side list ("United States"). */
+  group?: string;
+  /** The Guild this page is about (attach your agreement, union pickers). */
+  guild?: string;
 }
 
 export const PAGES: RefPage[] = [
@@ -254,13 +268,6 @@ export const PAGES: RefPage[] = [
     topics: ['production'], keywords: 'ad dp gaffer grip script supervisor martini abby singer',
   },
   {
-    id: 'budget-terms', category: 'production', title: 'Budget terms', lead: 'Above the line, below the line, fringes and contingency.',
-    sections: [
-      { p: 'Above-the-line (ATL) costs are the creative leads — writer, director, producers, principal cast — often negotiated up front. Below-the-line (BTL) is everything that makes the film: crew, equipment, locations, post. Fringes are payroll costs on top of wages (taxes, union pension and health). Contingency is a safety margin, usually 10%.' },
-    ],
-    use: [{ tab: 'budget', label: 'Budget' }, { tab: 'gear', label: 'Gear' }], topics: ['production'], keywords: 'atl btl fringe contingency top sheet',
-  },
-  {
     id: 'coverage', category: 'production', title: 'Shot sizes & the 180° rule', lead: 'The vocabulary of a shot list.',
     sections: [
       { p: 'Shot sizes run from extreme wide (EWS) through wide (WS), medium (MS), medium close-up (MCU), close-up (CU) to extreme close-up (ECU). Coverage is the set of angles shot for a scene so the editor has choices.' },
@@ -277,6 +284,10 @@ export const PAGES: RefPage[] = [
     use: [{ tab: 'contacts', label: 'Plan → Contacts' }, { tab: 'setup', label: 'Settings → Crew' }, { tab: 'callsheets', label: 'Call Sheets' }],
     topics: ['production'], keywords: d.roles.map((r) => r[0]).join(' ').toLowerCase(),
   })),
+  // ---------- Guilds & Unions ----------
+  ...MONEY_PAGES,
+  ...LEGAL_PAGES,
+  ...GUILDS.map(guildPage),
   // ---------- Post ----------
   {
     id: 'editing', category: 'post', title: 'Cuts & transitions', lead: 'How shots join up.',
@@ -291,4 +302,26 @@ export const PAGES: RefPage[] = [
 ];
 
 export const pageById = (id: string) => PAGES.find((p) => p.id === id);
+
+function guildPage(g: Guild): RefPage {
+  const sections: RefPage['sections'] = [{ p: g.summary }];
+  if (g.kind !== 'overview') sections.push({ h: g.kind === 'union' ? 'A union' : 'An honorary society', p: g.kind === 'union' ? 'It bargains with producers for its members: minimum pay, hours, safety, benefits and credits. Its rules apply once your production signs its agreement.' : 'Membership is by invitation or application for the quality of someone’s work. It gives letters after a name and sets no pay or working rules.' });
+  if (g.why) sections.push({ h: g.kind === 'overview' ? 'Why it matters' : 'Why it matters to your production', p: g.why });
+  if (g.rules?.length) sections.push({ h: g.kind === 'society' ? 'Using the letters' : 'Key rules in plain language', p: g.rules.map((r) => `• ${r}`).join('\n') });
+  if (g.consequences?.length) sections.push({ h: 'If the rules aren’t met', p: g.consequences.map((r) => `• ${r}`).join('\n') });
+  if (g.letters) sections.push({ h: 'In the credits', p: `Written “${g.letters}” after the name: Jane Doe, ${g.letters}.` });
+  const use: RefPage['use'] = g.kind === 'overview'
+    ? [{ tab: 'paperwork', label: 'Plan → Paperwork' }, { tab: 'setup', label: 'Settings → Unions & Societies' }]
+    : g.kind === 'union'
+      ? [{ tab: 'contacts', label: 'Union field: Plan → Contacts' }, { tab: 'setup', label: 'Production agreement: Settings → Unions & Societies' }, { tab: 'budget', label: 'Union fringes: Budget' }, { tab: 'paperwork', label: 'Plan → Paperwork' }]
+      : [{ tab: 'contacts', label: 'Societies field: Plan → Contacts' }, { tab: 'reports', label: 'End credits: ⤓ Exports' }];
+  return {
+    id: `guild-${g.id}`, category: 'guilds', title: g.kind === 'overview' ? g.name : `${g.abbr}${g.abbr !== g.name ? ` — ${g.name}` : ''}`,
+    lead: g.kind === 'overview' ? g.summary.split('. ')[0] + '.' : g.kind === 'union' ? `Union · ${g.region}` : `Honorary society${g.letters ? ` · letters: ${g.letters}` : ''}`,
+    sections,
+    table: g.agreements?.length ? { head: ['Agreement / tier', 'Who it fits', 'Budget', ''], rows: g.agreements.map((a) => [a.name, a.fits, a.budget ?? '—', a.url ?? g.url]) } : undefined,
+    use, topics: ['production'], keywords: `${g.abbr} ${g.name} ${g.aka ?? ''}`.toLowerCase(),
+    sources: g.sources, checked: CHECKED, notice: LEGAL_NOTE, group: g.region, guild: g.kind === 'union' ? g.id : undefined,
+  };
+}
 

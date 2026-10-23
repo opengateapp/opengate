@@ -6,6 +6,9 @@ import { addDays, formatDate, todayISO } from '../model/dates';
 import { LongPress } from '../components/ActionSheet';
 import { Hint } from '../components/Hint';
 import { setDrag } from '../components/scheduleBits';
+import { addMarketingTasks, marketingAnchors } from '../plan/marketingTasks';
+import { toast } from '../components/common';
+import { RefLink } from './ReferenceTab';
 
 // Tasks: prep to-dos with due dates, owners and departments. Dated tasks show on the Calendar,
 // and dragging a task onto a calendar day sets its due date.
@@ -50,6 +53,13 @@ export function TasksTab() {
         <input className="grow" placeholder="Add a task and press Enter…" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
         <button className="primary" onClick={() => add()}>Add</button>
         <label className="check"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> Show done ({p.tasks.filter((t) => t.done).length})</label>
+        <button className="small" title="Stills, BTS, key art, trailer, press kit, festival strategy and submissions, timed from your shoot and picture lock" onClick={() => {
+          let n = 0;
+          update((dr) => { n = addMarketingTasks(dr); }, 'Add marketing & festival checklist');
+          const a = marketingAnchors(p);
+          toast(n ? `Added ${n} marketing & festival tasks, timed from ${a.fromSchedule ? 'your first shoot day' : 'a shoot about six weeks from now'} and picture lock around ${formatDate(a.lock)}. Move the dates as your plan firms up.` : 'The marketing & festival checklist is already in your tasks.');
+        }}>＋ Marketing & festival checklist</button>
+        <RefLink page="marketing" />
       </div>
       <datalist id="people">{people.map((n) => <option key={n} value={n} />)}</datalist>
       <datalist id="depts">{DEPTS.map((n) => <option key={n} value={n} />)}</datalist>

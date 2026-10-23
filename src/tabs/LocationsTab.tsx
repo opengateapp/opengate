@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import type { Location } from '../model/types';
@@ -12,6 +13,11 @@ import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
 import { Hint } from '../components/Hint';
 import { csv } from '../io/reports';
+import type { ClearanceStatus } from '../model/types';
+import { CLEARANCE_STATUSES, locationClearance, locationSceneIds, setLocationClearance } from '../paperwork/clearanceScan';
+import { newDoc, syncPaperworkLines } from '../paperwork/paperwork';
+import { canEdit, useSync } from '../sync/state';
+import { openPaperwork } from './budget/PaperworkTab';
 
 // Location manager: each real location, the script sets it plays, contacts, permits,
 // logistics, scout photos, linked mood images and the shoot days it's used.
@@ -20,11 +26,24 @@ const STATUS: { id: NonNullable<Location['status']>; label: string }[] = [
   { id: 'scouting', label: 'Scouting' }, { id: 'hold', label: 'On hold' }, { id: 'confirmed', label: 'Confirmed' }, { id: 'passed', label: 'Passed' },
 ];
 
+/** Opens a location from another tab (e.g. a clearance in Paperwork). */
+const useLocFocus = create<{ id?: string; n?: number }>(() => ({}));
+export function openLocation(id: string) {
+  useLocFocus.setState({ id, n: Date.now() });
+  window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'locations' }));
+}
+
+/** Clearances are private like the budget: only shown to people who can see it. */
+const useClearancesVisible = () => useSync((s) => s.write === null || s.admin || s.budget);
+
 export function LocationsTab() {
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
-  const [id, setId] = useState<string | null>(null);
+  const focus = useLocFocus();
+  const [id, setId] = useState<string | null>(focus.id ?? null);
+  useEffect(() => { if (focus.id) setId(focus.id); }, [focus.n]); // eslint-disable-line react-hooks/exhaustive-deps
+  const showClear = useClearancesVisible();
   const loc = p.locations.find((l) => l.id === id) ?? p.locations[0];
   const missing = d.sets.filter((s) => !p.locations.some((l) => l.setName === s.name));
 
@@ -47,6 +66,7 @@ export function LocationsTab() {
           {p.locations.map((l) => (
             <li key={l.id} className={loc?.id === l.id ? 'active' : ''} onClick={() => setId(l.id)}>
               <span><b>{l.realName || <span className="muted">Unnamed</span>}</b><br /><span className="muted small">{l.setName || 'No script set'}</span></span>
+              {showClear && (() => { const c = locationClearance(p.budget.clearances, l); return c && <span className={`clear-dot c-${c.status}`} title={`Clearance: ${CLEARANCE_STATUSES.find((x) => x.id === c.status)?.label}`} aria-label={`Clearance: ${c.status}`} />; })()}
               <span className={`status-dot s-${l.status ?? 'scouting'}`} title={l.status ?? 'scouting'} />
             </li>
           ))}
@@ -65,8 +85,8 @@ function LocationDetail({ loc }: { loc: Location }) {
   const update = useStore((s) => s.update);
   const [over, setOver] = useState(false);
   const set = (patch: Partial<Location>, label: string | null = null) => update((dr) => { Object.assign(dr.locations.find((x) => x.id === loc.id)!, patch); }, label);
-  const scenes = d.scenes.filter((s) => s.set === loc.setName || p.sceneMeta[s.id]?.locationId === loc.id);
-  const sceneIds = new Set(scenes.map((s) => s.id));
+  const sceneIds = new Set(locationSceneIds(p, d, loc));
+  const scenes = d.scenes.filter((s) => sceneIds.has(s.id));
   const days = p.schedule.days.filter((day) => day.items.some((i) => i.kind === 'scene' && sceneIds.has(i.sceneId)));
 
   const addPhotos = async (files: File[]) => {
@@ -99,6 +119,7 @@ function LocationDetail({ loc }: { loc: Location }) {
         <button onClick={() => { update((dr) => { dr.locations = dr.locations.filter((x) => x.id !== loc.id); }, 'Remove location'); deletedToast(loc.realName || 'location'); }}>Delete</button>
         </More>
       </div>
+      <LocationClearance loc={loc} sceneIds={[...sceneIds]} />
       <div className="form-grid">
         <Field label="Script set (from scene headings)">
           <input list="loc-sets" value={loc.setName} onChange={(e) => set({ setName: e.target.value.toUpperCase() })} />
@@ -130,6 +151,48 @@ function LocationDetail({ loc }: { loc: Location }) {
       <h4>Shoot days</h4>
       <ul className="plain-list">{days.map((day) => <li key={day.id}>{formatDate(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}</li>)}{!days.length && <li className="muted small">Not scheduled yet.</li>}</ul>
     </section>
+  );
+}
+
+/** Is this location cleared to film? Linked to Paperwork → Clearances and the location release. */
+function LocationClearance({ loc, sceneIds }: { loc: Location; sceneIds: string[] }) {
+  const p = useProject();
+  const update = useStore((s) => s.update);
+  const visible = useClearancesVisible();
+  useSync((s) => s.write);
+  if (!visible) return null;
+  const ro = !canEdit('budget');
+  const c = locationClearance(p.budget.clearances, loc);
+  const releases = (p.budget.paperwork ?? []).filter((x) => x.kind === 'location' && x.person.kind === 'location' && x.person.id === loc.id);
+  const release = releases.find((x) => x.id === c?.docId) ?? releases.find((x) => x.status === 'signed') ?? releases[0];
+  const setStatus = (status: ClearanceStatus) => update((dr) => { setLocationClearance(dr, loc, sceneIds, { status }); }, 'Location clearance');
+  const createRelease = () => {
+    const doc = newDoc(p, 'location', { kind: 'location', id: loc.id });
+    update((dr) => {
+      dr.budget.paperwork ??= [];
+      dr.budget.paperwork.push(doc);
+      setLocationClearance(dr, loc, sceneIds, c?.status && c.status !== 'needed' ? { docId: doc.id } : { docId: doc.id, status: 'requested' });
+      syncPaperworkLines(dr);
+    }, 'Add location release');
+    openPaperwork('docs', doc.id);
+  };
+  return (
+    <div className={`loc-clearance st-${c?.status ?? 'none'}`}>
+      <h4>Clearance</h4>
+      <div className="row wrap">
+        <select disabled={ro} aria-label="Clearance status" className={`doc-status s-${c?.status ?? 'needed'}`} value={c?.status ?? ''} onChange={(e) => e.target.value && setStatus(e.target.value as ClearanceStatus)}>
+          {!c && <option value="">Not in the clearance log</option>}
+          {CLEARANCE_STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+        {release
+          ? <button className="link small" onClick={() => openPaperwork('docs', release.id)}>Location release: <b>{release.status === 'signed' ? 'signed' : release.status}</b> →</button>
+          : !ro && <button className="small" onClick={createRelease}>＋ Location release</button>}
+        {!ro && release?.status === 'signed' && c?.status !== 'cleared' && <button className="small" onClick={() => update((dr) => { setLocationClearance(dr, loc, sceneIds, { status: 'cleared', docId: release.id }); }, 'Mark cleared')}>Mark cleared</button>}
+        <span className="spacer" />
+        <button className="link small" onClick={() => openPaperwork('clearances')}>Open in Clearances →</button>
+      </div>
+      {c?.notes && c.notes !== 'Location release / permission to film' && <p className="muted small">{c.notes}</p>}
+    </div>
   );
 }
 

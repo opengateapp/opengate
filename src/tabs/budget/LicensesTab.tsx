@@ -16,6 +16,7 @@ import { toast } from '../../components/common';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
 import { BudgetHidden } from './BudgetTab';
+import { RefLink } from '../ReferenceTab';
 
 // Budget → Licenses: music, stock footage, archival, photos, fonts and software. Each license with
 // a fee is a budget line; licensed music and footage feed the end credits and the music cue sheet.
@@ -78,6 +79,7 @@ function LicensesScreen() {
       onDrop={(e) => { e.preventDefault(); setOver(false); if (!ro) void attach([...e.dataTransfer.files]); }}>
       <div className="toolbar flat wrap">
         <h3>Licenses</h3>
+        <RefLink page="legal-music" label="Music licensing" />
         <select value={kind} onChange={(e) => setKind(e.target.value as LicenseKind | '')} aria-label="Kind"><option value="">Every kind</option>{LICENSE_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
         <select value={status} onChange={(e) => setStatus(e.target.value as LicenseStatus | '')} aria-label="Status"><option value="">Every status</option>{STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
         {!ro && <button className="primary" onClick={(e) => addMenu({ x: e.clientX, y: e.clientY })}>＋ License</button>}

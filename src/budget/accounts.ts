@@ -57,6 +57,12 @@ export function newBudget(): Budget {
     scenarios: [],
     expenses: [],
     licenses: [],
+    paperwork: [],
+    clearances: [],
+    timecards: [],
+    agreements: [],
+    fundingSources: [],
+    festivals: [],
   };
 }
 

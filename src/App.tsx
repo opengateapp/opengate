@@ -29,6 +29,9 @@ import { StoryBibleTab } from './tabs/StoryBibleTab';
 import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
 import { LicensesTab } from './tabs/budget/LicensesTab';
+import { FundingTab } from './tabs/budget/FundingTab';
+import { FestivalsTab } from './tabs/budget/FestivalsTab';
+import { PaperworkTab } from './tabs/budget/PaperworkTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
 import { CategoryStyles } from './components/CategoryStyles';
@@ -50,11 +53,11 @@ import { AccessBanner } from './components/share/AccessBanner';
 import { startSync, stopSync, currentSync } from './sync/engine';
 import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
-export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'reference' | 'settings';
+export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'reference' | 'exports' | 'settings';
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
-  | 'budget' | 'expenses' | 'gear' | 'licenses'
+  | 'budget' | 'funding' | 'festivals' | 'expenses' | 'gear' | 'licenses' | 'paperwork'
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
@@ -62,6 +65,7 @@ export type TabId =
   | 'setup';
 
 export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label: string; hint: string }[] }[] = [
+  // In production order: write it, see it, break it down, plan the people and places, cost it, shoot it.
   { id: 'write', label: 'Write', tabs: [
     { id: 'screenplay', label: 'Screenplay', hint: 'Write or import a screenplay' },
     { id: 'characters', label: 'Characters', hint: 'Character builder: traits, alignment, profile and continuity photos' },
@@ -69,35 +73,39 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
     { id: 'docs', label: 'Docs', hint: 'Treatments, notes and other documents' },
     { id: 'av', label: 'A/V Scripts', hint: 'Two-column video / audio scripts' },
   ] },
+  { id: 'visualize', label: 'Visualize', tabs: [
+    { id: 'boards', label: 'Mood Boards', hint: 'Mood boards and whiteboards' },
+    { id: 'designer', label: 'Shot Designer', hint: 'Top-down plan per scene: actors, cameras with lens-accurate angles, lights, moves' },
+    { id: 'storyboard', label: 'Storyboards', hint: 'Frames for each shot' },
+  ] },
   { id: 'breakdown', label: 'Breakdown', tabs: [
     { id: 'breakdown', label: 'Script Breakdown', hint: 'Tag elements in the script' },
+    { id: 'shots', label: 'Shot Lists', hint: 'Plan coverage per scene: the setups that drive how long each day takes' },
     { id: 'stripboard', label: 'Stripboard', hint: 'Order scenes into shoot days' },
     { id: 'dood', label: 'Day Out of Days', hint: 'Cast work days across the shoot' },
-    { id: 'sides', label: 'Script Sides', hint: 'Each day’s pages for cast and crew' },
-  ] },
-  { id: 'budget', label: 'Budget', tabs: [
-    { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
-    { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
-    { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
-    { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
   ] },
   { id: 'plan', label: 'Plan', tabs: [
     { id: 'contacts', label: 'Contacts', hint: 'Cast, crew, vendors and other contacts' },
+    { id: 'locations', label: 'Locations', hint: 'Locations, contacts, permits and photos' },
+    { id: 'paperwork', label: 'Paperwork', hint: 'Deal memos, releases signed on a phone or iPad, start forms, unions, clearances and time cards' },
     { id: 'calendar', label: 'Calendar', hint: 'Shoot days, prep, events and tasks' },
     { id: 'tasks', label: 'Tasks', hint: 'Prep to-dos with due dates' },
   ] },
-  { id: 'visualize', label: 'Visualize', tabs: [
-    { id: 'storyboard', label: 'Storyboards', hint: 'Frames for each shot' },
-    { id: 'boards', label: 'Mood Boards', hint: 'Mood boards and whiteboards' },
-    { id: 'shots', label: 'Shot Lists', hint: 'Plan coverage per scene' },
-    { id: 'designer', label: 'Shot Designer', hint: 'Top-down plan per scene: actors, cameras with lens-accurate angles, lights, moves' },
+  { id: 'budget', label: 'Budget', tabs: [
+    { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
+    { id: 'funding', label: 'Funding', hint: 'How much to raise: from your breakdown to a funding goal, crowdfunding with rewards' },
+    { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and fees, and where each submission stands' },
+    { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
+    { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
+    { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
   ] },
   { id: 'shoot', label: 'Shoot', tabs: [
     { id: 'callsheets', label: 'Call Sheets', hint: 'Daily call sheets' },
-    { id: 'locations', label: 'Locations', hint: 'Locations, contacts, permits and photos' },
-    { id: 'reports', label: 'Reports', hint: 'Every export in one place' },
+    { id: 'sides', label: 'Script Sides', hint: 'Each day’s pages for cast and crew' },
   ] },
-  { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data and production — explainers, calculators and a library' }] },
+  { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data, production, guilds and unions — explainers, calculators and a library' }] },
+  // Shown as buttons next to the sections (⤓ and ⚙), not as sections.
+  { id: 'exports', label: 'Exports', tabs: [{ id: 'reports', label: 'Exports', hint: 'Every export in one place: PDFs, spreadsheets, calendars, end credits' }] },
   { id: 'settings', label: 'Settings', tabs: [{ id: 'setup', label: 'Settings', hint: 'This project (shared) and this device (yours)' }] },
 ];
 
@@ -111,7 +119,7 @@ const ALL_TABS = SECTIONS.flatMap((s) => s.tabs.map((t) => t.id));
 registerSections(SECTIONS);
 const sectionOf = (t: TabId) => SECTIONS.find((s) => s.tabs.some((x) => x.id === t))!.id;
 // Tab ids from before the sections layout.
-const LEGACY: Record<string, TabId> = { write: 'screenplay', schedule: 'stripboard', shoot: 'reports', setup: 'setup' };
+const LEGACY: Record<string, TabId> = { write: 'screenplay', schedule: 'stripboard', shoot: 'callsheets', setup: 'setup' };
 
 export function App() {
   const project = useStore((s) => s.project);
@@ -136,6 +144,8 @@ export function App() {
     setLastInSection((m) => ({ ...m, [sectionOf(t)]: t }));
   };
   const section = sectionOf(tab);
+  // A section's last tab, unless that tab has since moved to another section (then its first tab).
+  const lastTabIn = (x: { id: SectionId; tabs: { id: TabId }[] }) => { const t = lastInSection[x.id]; return t && x.tabs.some((y) => y.id === t) ? t : x.tabs[0].id; };
   const openBoards = useCallback(() => setTab('boards'), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Hide the side panel to give the work more room (remembered per tab on this device).
   const [hiddenSides, setHiddenSides] = useState<string[]>(() => { try { return JSON.parse(localStorageGet('sideHidden') ?? '[]'); } catch { return []; } });
@@ -232,23 +242,26 @@ export function App() {
         <header className="topbar">
           <ProjectMenu />
           <nav className="tabs sections" aria-label="Sections">
-            {allowed.filter((x) => x.id !== 'settings').map((x) => (
+            {allowed.filter((x) => x.id !== 'settings' && x.id !== 'exports').map((x) => (
               <div key={x.id} className="section-wrap">
-                <button className={section === x.id ? 'tab active' : 'tab'} title={x.label} onClick={(e) => { setTab(lastInSection[x.id] ?? x.tabs[0].id); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
+                <button className={section === x.id ? 'tab active' : 'tab'} title={x.label} onClick={(e) => { setTab(lastTabIn(x)); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
                   <span className="tab-full">{x.label}</span><span className="tab-short" aria-hidden>{SHORT_LABELS[x.id] ?? x.label}</span>
                 </button>
                 {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
                 {x.id === 'reference' ? (
+                  // Categories only (the pages are in Reference's own sidebar); each opens its first page.
                   <div className="section-flyout ref-flyout" role="menu">
-                    {REF_CATEGORIES.map((c) => (
-                      <div key={c.id} className="ref-fly-col">
-                        <span className="ref-fly-cat">{c.icon} {c.label}</span>
-                        {REF_PAGES.filter((pg) => pg.category === c.id).map((pg) => (
-                          <button key={pg.id} role="menuitem" onClick={(e) => { useRefFocus.setState({ page: pg.id }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>{pg.title}</button>
-                        ))}
-                      </div>
-                    ))}
-                    <div className="ref-fly-col"><span className="ref-fly-cat">❖ More</span><button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library' }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>Learn-more library</button></div>
+                    {REF_CATEGORIES.map((c) => {
+                      const pages = REF_PAGES.filter((pg) => pg.category === c.id);
+                      return (
+                        <button key={c.id} role="menuitem" disabled={!pages.length} onClick={(e) => { useRefFocus.setState({ page: pages[0].id, section: undefined, n: Date.now() }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
+                          <b><span aria-hidden>{c.icon}</span> {c.label} <span className="muted small">{pages.length}</span></b><span>{c.hint}</span>
+                        </button>
+                      );
+                    })}
+                    <button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library', section: undefined, n: Date.now() }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
+                      <b><span aria-hidden>❖</span> Learn-more library</b><span>Channels, sites, books, podcasts and free tools</span>
+                    </button>
                   </div>
                 ) : (
                 <div className="section-flyout" role="menu">
@@ -270,6 +283,7 @@ export function App() {
             <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
               {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
             </span>
+            {!tabHidden('reports') && <button className={`icon-btn settings-btn ${section === 'exports' ? 'active' : ''}`} title="Exports: every PDF, spreadsheet, calendar and the end credits" aria-label="Exports" onClick={() => setTab('reports')}>⤓</button>}
             <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Settings" onClick={() => setTab('setup')}>⚙</button>
           </div>
         </header>
@@ -299,7 +313,10 @@ export function App() {
         {tab === 'budget' && <BudgetTab />}
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}
+        {tab === 'funding' && <FundingTab />}
+        {tab === 'festivals' && <FestivalsTab />}
         {tab === 'licenses' && <LicensesTab />}
+        {tab === 'paperwork' && <PaperworkTab />}
         {tab === 'contacts' && <ContactsTab />}
         {tab === 'calendar' && <CalendarTab />}
         {tab === 'tasks' && <TasksTab />}

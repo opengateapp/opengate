@@ -7,7 +7,7 @@ import { useStore } from '../store/project';
 import { db } from '../store/db';
 import { toast } from '../components/common';
 import { getMedia, putMedia } from '../store/media';
-import { mediaIds } from '../io/files';
+import { budgetMediaIds, mediaIds } from '../io/files';
 import { schema } from '../script/schema';
 import { session } from '../script/session';
 import { newId } from '../model/ids';
@@ -622,8 +622,8 @@ export class ProjectSync {
     const p = useStore.getState().project;
     if (!p) return;
     const writer = useSync.getState().admin || (useSync.getState().write ?? []).length > 0;
-    // Receipts belong to the budget: encrypted with its key, and only for people who have it.
-    const receipts = new Set(p.budget.expenses.map((e) => e.receiptId).filter(Boolean));
+    // Receipts, license files and paperwork belong to the budget: encrypted with its key, and only for people who have it.
+    const receipts = new Set(budgetMediaIds(p));
     for (const id of mediaIds(p)) {
       if (this.failedMedia.has(id)) continue;
       const isReceipt = receipts.has(id);
@@ -639,7 +639,9 @@ export class ProjectSync {
         const res = await this.transport.http('GET', `media/${id}`);
         if (!res.ok) { this.failedMedia.add(id); continue; }
         const { author, payload } = unseal(new Uint8Array(await res.arrayBuffer()));
-        const bytes = await decrypt(mkey, payload);
+        // License files from v0.3.0 were uploaded with the main key; fall back to it.
+        let bytes: Uint8Array;
+        try { bytes = await decrypt(mkey, payload); } catch (e) { if (!isReceipt) throw e; bytes = await decrypt(this.key, payload); }
         await putMedia(this.projectId, new Blob([bytes], { type: author.n }), id);
         this.uploaded.add(id);
       }

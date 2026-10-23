@@ -23,6 +23,7 @@ export const RESOURCE_TYPES: { id: ResourceType; label: string }[] = [
 export const TOPIC_LABELS: Record<string, string> = {
   smartphone: 'Smartphone filmmaking', story: 'Story', screenwriting: 'Screenwriting', directing: 'Directing', cinematography: 'Cinematography', camera: 'Camera', lenses: 'Lenses',
   lighting: 'Lighting', audio: 'Sound', grip: 'Grip', production: 'Producing', post: 'Post', editing: 'Editing', data: 'Data', vfx: 'VFX',
+  funding: 'Funding', legal: 'Legal & insurance', marketing: 'Marketing & festivals',
 };
 
 export const LIBRARY: Resource[] = [
@@ -45,6 +46,13 @@ export const LIBRARY: Resource[] = [
   { id: 'this-guy-edits', name: 'This Guy Edits', url: 'https://www.youtube.com/@ThisGuyEdits', type: 'youtube', topics: ['editing', 'post'], level: 'all', free: true, desc: 'Editing craft and workflow from a working editor.' },
   // Websites
   { id: 'studiobinder-blog', name: 'StudioBinder blog', url: 'https://www.studiobinder.com/blog/', type: 'website', topics: ['production', 'directing', 'screenwriting'], level: 'beginner', free: true, desc: 'Long-form guides on almost every production topic.' },
+  { id: 'seedandspark-blog', name: 'Seed&Spark blog', url: 'https://seedandspark.com/blog', type: 'website', topics: ['funding', 'marketing'], level: 'beginner', free: true, desc: 'Crowdfunding and audience-building advice written for filmmakers.' },
+  { id: 'ks-handbook', name: 'Kickstarter Creator Handbook', url: 'https://www.kickstarter.com/help/handbook', type: 'website', topics: ['funding'], level: 'beginner', free: true, desc: 'Planning a campaign, rewards, budgets and shipping, from the platform itself.' },
+  { id: 'fi-fiscal', name: 'Film Independent: Fiscal Sponsorship', url: 'https://www.filmindependent.org/programs/fiscal-sponsorship/', type: 'website', topics: ['funding'], level: 'all', free: true, desc: 'How fiscal sponsorship works, from a film nonprofit that offers it.' },
+  { id: 'ida-fiscal', name: 'IDA: Fiscal Sponsorship', url: 'https://www.documentary.org/fiscal-sponsorship', type: 'website', topics: ['funding'], level: 'all', free: true, desc: 'The International Documentary Association’s fiscal sponsorship programme.' },
+  { id: 'film-collab', name: 'The Film Collaborative', url: 'https://www.thefilmcollaborative.org/', type: 'website', topics: ['marketing', 'funding'], level: 'intermediate', free: true, desc: 'A nonprofit for festival strategy, distribution and fiscal sponsorship, with free guides.' },
+  { id: 'vla-ny', name: 'Volunteer Lawyers for the Arts', url: 'https://vlany.org/', type: 'website', topics: ['legal'], level: 'all', free: true, desc: 'Free and low-cost legal help and clinics for artists (New York; similar groups exist elsewhere).' },
+  { id: 'litwak', name: 'Mark Litwak: entertainment law resources', url: 'https://www.marklitwak.com/', type: 'website', topics: ['legal', 'funding'], level: 'intermediate', free: true, desc: 'Articles on film contracts, financing and distribution from an entertainment lawyer.' },
   { id: 'nofilmschool', name: 'No Film School', url: 'https://nofilmschool.com/', type: 'website', topics: ['production', 'directing', 'screenwriting'], level: 'all', free: true, desc: 'News, interviews and how-tos for independent filmmakers.' },
   { id: 'asc', name: 'American Cinematographer', url: 'https://theasc.com/', type: 'website', topics: ['cinematography', 'lighting'], level: 'advanced', free: true, desc: 'The ASC’s magazine: cinematographers explain how they shot current films.' },
   { id: 'cined', name: 'CineD', url: 'https://www.cined.com/', type: 'website', topics: ['camera', 'lenses'], level: 'intermediate', free: true, desc: 'Camera news and standardised lab tests of dynamic range and rolling shutter.' },
@@ -88,6 +96,10 @@ export const LIBRARY: Resource[] = [
     ['blink-eye', 'In the Blink of an Eye', 'Walter Murch', ['editing'], 'all', 'A short, thoughtful essay on why and where to cut.'],
     ['filmmakers-handbook', 'The Filmmaker’s Handbook', 'Steven Ascher & Edward Pincus', ['production', 'camera', 'post'], 'all', 'An encyclopaedic guide to the whole process.'],
     ['fpm101', 'Film Production Management 101', 'Deborah S. Patz', ['production'], 'intermediate', 'Running the production office: budgets, schedules, paperwork.'],
+    ['clearance-copyright', 'Clearance & Copyright', 'Michael C. Donaldson & Lisa A. Callif', ['legal'], 'intermediate', 'What you need to clear for film and TV, and how.'],
+    ['dealmaking', 'Dealmaking in the Film & Television Industry', 'Mark Litwak', ['legal', 'funding'], 'advanced', 'Contracts, rights and money, explained by an entertainment lawyer.'],
+    ['film-finance-handbook', 'The Film Finance Handbook', 'Adam P. Davies & Nicol Wistreich', ['funding'], 'intermediate', 'How independent films are financed around the world.'],
+    ['outside-box-office', 'Think Outside the Box Office', 'Jon Reiss', ['marketing'], 'intermediate', 'A guide to marketing and distributing your own film.'],
   ] as const).map(([id, name, by, topics, level, desc]) => ({ id, name, by, url: `https://openlibrary.org/search?q=${encodeURIComponent(`${name} ${by}`)}`, type: 'book' as const, topics: [...topics], level, free: false, desc })),
 ];
 
