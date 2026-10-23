@@ -6,18 +6,18 @@ import { CHECKED, GUILDS, LEGAL_NOTE, type Guild } from './guilds';
 
 export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'crew' | 'guilds' | 'post';
 
-export const CATEGORIES: { id: RefCategory; label: string; icon: string }[] = [
-  { id: 'story', label: 'Story', icon: '✎' },
-  { id: 'camera', label: 'Camera', icon: '◉' },
-  { id: 'lenses', label: 'Lenses', icon: '◎' },
-  { id: 'lighting', label: 'Lighting', icon: '☀' },
-  { id: 'audio', label: 'Audio', icon: '♪' },
-  { id: 'video', label: 'Video & Data', icon: '▤' },
-  { id: 'grip', label: 'Grip & Support', icon: '⌖' },
-  { id: 'production', label: 'Production', icon: '☰' },
-  { id: 'crew', label: 'Crew & departments', icon: '☺' },
-  { id: 'guilds', label: 'Guilds & Unions', icon: '⚖' },
-  { id: 'post', label: 'Post', icon: '✂' },
+export const CATEGORIES: { id: RefCategory; label: string; icon: string; hint: string }[] = [
+  { id: 'story', label: 'Story', icon: '✎', hint: 'Structures, character arcs, script format' },
+  { id: 'camera', label: 'Camera', icon: '◉', hint: 'Sensors, frame rates, exposure, aspect ratios' },
+  { id: 'lenses', label: 'Lenses', icon: '◎', hint: 'Focal length, depth of field, stops, mounts' },
+  { id: 'lighting', label: 'Lighting', icon: '☀', hint: 'Colour temperature, setups, falloff' },
+  { id: 'audio', label: 'Audio', icon: '♪', hint: 'Levels, formats, microphones, on-set sound' },
+  { id: 'video', label: 'Video & Data', icon: '▤', hint: 'Codecs, storage, backups' },
+  { id: 'grip', label: 'Grip & Support', icon: '⌖', hint: 'Tripods, rigs, power' },
+  { id: 'production', label: 'Production', icon: '☰', hint: 'Scheduling, call sheets, budget terms, coverage' },
+  { id: 'crew', label: 'Crew & departments', icon: '☺', hint: 'Who does what on set' },
+  { id: 'guilds', label: 'Guilds & Unions', icon: '⚖', hint: 'What each union and society does, and their agreements' },
+  { id: 'post', label: 'Post', icon: '✂', hint: 'Editing, deliverables' },
 ];
 
 export type ToolId = 'dof' | 'fov' | 'crop' | 'exposure' | 'shutter' | 'kelvin' | 'falloff' | 'storage' | 'audio' | 'battery' | 'power' | 'phone' | 'frameworks' | 'arcs';

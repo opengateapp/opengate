@@ -245,17 +245,19 @@ export function App() {
                 </button>
                 {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
                 {x.id === 'reference' ? (
+                  // Categories only (the pages are in Reference's own sidebar); each opens its first page.
                   <div className="section-flyout ref-flyout" role="menu">
-                    {REF_CATEGORIES.map((c) => (
-                      <div key={c.id} className="ref-fly-col">
-                        <span className="ref-fly-cat">{c.icon} {c.label}</span>
-                        {REF_PAGES.filter((pg) => pg.category === c.id && (c.id !== 'guilds' || pg.group === 'Overview')).map((pg) => (
-                          <button key={pg.id} role="menuitem" onClick={(e) => { useRefFocus.setState({ page: pg.id }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>{pg.title}</button>
-                        ))}
-                        {c.id === 'guilds' && <button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'guild-sag-aftra' }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>Every union & society →</button>}
-                      </div>
-                    ))}
-                    <div className="ref-fly-col"><span className="ref-fly-cat">❖ More</span><button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library' }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>Learn-more library</button></div>
+                    {REF_CATEGORIES.map((c) => {
+                      const pages = REF_PAGES.filter((pg) => pg.category === c.id);
+                      return (
+                        <button key={c.id} role="menuitem" disabled={!pages.length} onClick={(e) => { useRefFocus.setState({ page: pages[0].id }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
+                          <b><span aria-hidden>{c.icon}</span> {c.label} <span className="muted small">{pages.length}</span></b><span>{c.hint}</span>
+                        </button>
+                      );
+                    })}
+                    <button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library' }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
+                      <b><span aria-hidden>❖</span> Learn-more library</b><span>Channels, sites, books, podcasts and free tools</span>
+                    </button>
                   </div>
                 ) : (
                 <div className="section-flyout" role="menu">
