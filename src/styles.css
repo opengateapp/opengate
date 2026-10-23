@@ -1838,3 +1838,16 @@ select.doc-status { padding: 2px 6px; border: 0; }
 }
 /* Long menus scroll; their rows keep their height instead of being squeezed (rows overlapped once items wrapped). */
 .more-menu > *, .menu > * { flex-shrink: 0; }
+
+/* ---------- Storyboard: brush size indicators ---------- */
+.size-control { gap: 6px; }
+.size-dot-box { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: #fff; flex: none; }
+.size-dot { display: block; border-radius: 50%; min-width: 1px; min-height: 1px; }
+.size-dot.eraser, .brush-preview-dot.eraser { background: #fff; border: 1.5px dashed #555; }
+.size-num { font-variant-numeric: tabular-nums; min-width: 46px; display: inline-block; }
+.brush-ring { position: absolute; left: 0; top: 0; border-radius: 50%; border: 1px solid rgba(0,0,0,.7); box-shadow: 0 0 0 1px rgba(255,255,255,.8); pointer-events: none; z-index: 3; }
+.brush-ring.eraser { border-style: dashed; }
+.brush-preview { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; pointer-events: none; z-index: 4; animation: brush-preview-in .12s ease-out; }
+.brush-preview-dot { display: block; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 0 3px rgba(0,0,0,.25); min-width: 2px; min-height: 2px; }
+.brush-preview-label { font-size: 12px; font-weight: 600; background: rgba(0,0,0,.72); color: #fff; padding: 2px 8px; border-radius: 999px; }
+@keyframes brush-preview-in { from { opacity: 0; } to { opacity: 1; } }

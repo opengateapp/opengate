@@ -57,6 +57,38 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const touch = useTouch();
   const drawing = useRef<{ start: Pt; last: Pt; points: Pt[]; snap: ImageData; erasing?: boolean } | null>(null);
   const penLayer = useRef<HTMLCanvasElement | null>(null);
+  // Size indicators: how wide the current tool draws, in canvas pixels and on screen.
+  const stackRef = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const [stackW, setStackW] = useState(FRAME_W);
+  const [sizing, setSizing] = useState(false);
+  const sizingTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    const el = stackRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setStackW(el.getBoundingClientRect().width || FRAME_W));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  /** Line width the tool draws with, in canvas pixels (brush and eraser are 2.5× the Size number). */
+  const toolWidth = tool === 'brush' || tool === 'eraser' ? size * 2.5 : size;
+  const screenWidth = Math.max(1, (toolWidth * stackW) / FRAME_W);
+  const sizedTool = tool === 'pen' || tool === 'brush' || tool === 'eraser';
+  // Shown while the slider is held or changing (keyboard too), then hidden shortly after.
+  const holding = useRef(false);
+  const hideSoon = () => { clearTimeout(sizingTimer.current); if (!holding.current) sizingTimer.current = setTimeout(() => setSizing(false), 900); };
+  const changeSize = (v: number) => { setSize(v); setSizing(true); hideSoon(); };
+  const holdSize = (on: boolean) => { holding.current = on; if (on) { clearTimeout(sizingTimer.current); setSizing(true); } else hideSoon(); };
+  const widthLabel = `${Math.round(toolWidth)} px`;
+  /** The outline that follows the pointer (mouse and pen, not fingers). */
+  const moveRing = (e: React.PointerEvent) => {
+    const ring = ringRef.current;
+    if (!ring) return;
+    if (!sizedTool || e.pointerType === 'touch') { ring.style.display = 'none'; return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    ring.style.display = 'block';
+    ring.style.transform = `translate(${e.clientX - r.left}px, ${e.clientY - r.top}px) translate(-50%, -50%)`;
+  };
 
   const ctx = () => drawRef.current!.getContext('2d', { willReadFrequently: true })!;
 
@@ -336,7 +368,9 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         <button onClick={doUndo} disabled={!undo.current.length} title="Undo (⌘Z)">↶</button>
         <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)">↷</button>
         <More label="Brush and frame options">
-        <label className="check small">Size <input type="range" min={1} max={40} value={size} onChange={(e) => setSize(Number(e.target.value))} /> {size}</label>
+        <label className="check small size-control" title={`${tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Line'} width: ${Math.round(toolWidth)} px on a ${FRAME_W}-px-wide frame`}>Size <input type="range" min={1} max={40} value={size} onChange={(e) => changeSize(Number(e.target.value))} onPointerDown={() => holdSize(true)} onPointerUp={() => holdSize(false)} onPointerCancel={() => holdSize(false)} onBlur={() => holdSize(false)} />
+          <span className="size-dot-box" aria-hidden><span className={`size-dot ${tool === 'eraser' ? 'eraser' : ''}`} style={{ width: Math.min(28, screenWidth), height: Math.min(28, screenWidth), background: tool === 'eraser' ? undefined : color, opacity: tool === 'brush' ? opacity * 0.6 : opacity }} /></span>
+          <span className="size-num">{widthLabel}</span></label>
         {(pen.seen || touch) && (
           <label className="check small" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
             <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
@@ -356,12 +390,22 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         </More>
       </div>
       <div className="frame-stage">
-        <div className="frame-stack" style={{ aspectRatio: `${FRAME_W} / ${FRAME_H}` }}>
+        <div ref={stackRef} className="frame-stack" style={{ aspectRatio: `${FRAME_W} / ${FRAME_H}` }}>
           <canvas ref={bgRef} width={FRAME_W} height={FRAME_H} />
           <canvas ref={onionRef} width={FRAME_W} height={FRAME_H} className="onion" />
           <canvas ref={drawRef} width={FRAME_W} height={FRAME_H} className={`draw tool-${tool}`}
-            onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
+            onPointerDown={down} onPointerMove={(e) => { moveRing(e); move(e); }} onPointerUp={up} onPointerCancel={up}
+            onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none'; }} />
           <canvas ref={gridRef} width={FRAME_W} height={FRAME_H} className="overlay" />
+          {/* Follows the pointer at the tool's real size. */}
+          <div ref={ringRef} className={`brush-ring ${tool === 'eraser' ? 'eraser' : ''}`} aria-hidden style={{ width: screenWidth, height: screenWidth, display: 'none' }} />
+          {/* While the Size slider moves: the stroke at its real size, in the middle of the frame. */}
+          {sizing && sizedTool && (
+            <div className="brush-preview" aria-live="polite">
+              <span className={`brush-preview-dot ${tool === 'eraser' ? 'eraser' : ''}`} style={{ width: screenWidth, height: screenWidth, background: tool === 'eraser' ? undefined : color, opacity: tool === 'brush' ? opacity * 0.6 : opacity }} />
+              <span className="brush-preview-label">{tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Pen'} · {widthLabel}</span>
+            </div>
+          )}
           {textAt && (
             <textarea autoFocus className="frame-text" style={{ left: textAt.cssX, top: textAt.cssY, color }} value={textVal} rows={1}
               onChange={(e) => setTextVal(e.target.value)} onBlur={commitText}
