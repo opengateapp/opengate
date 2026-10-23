@@ -3,6 +3,7 @@ import type { Project, StoryboardSettings } from '../model/types';
 import type { Derived } from '../script/derive';
 import { storyboardPanels, PANEL_SHOT_TYPES, shotTypeCodes, type Panel } from '../script/storyboard';
 import { clip } from './schedulePdf';
+import { formatOf } from '../tabs/storyboard/formats';
 
 // Storyboard PDF. 1–3 panels per page: portrait pages laid out like a classic storyboard
 // sheet (scene / shot # header, frame, set plan box, shot-type checkboxes, lens, description).
@@ -32,7 +33,7 @@ export function storyboardPdf(p: Project, d: Derived, images: Map<string, string
       const gap = 18;
       const w = (PW - 2 * M - gap * (cols - 1)) / cols;
       const h = (PH - 2 * M - 40 - gap * (rows - 1)) / rows;
-      list.forEach((panel, i) => gridPanel(doc, panel, images, M + (i % cols) * (w + gap), M + 40 + Math.floor(i / cols) * (h + gap), w, h));
+      list.forEach((panel, i) => gridPanel(doc, panel, images, M + (i % cols) * (w + gap), M + 40 + Math.floor(i / cols) * (h + gap), w, h, formatOf(settings).ratio));
     } else {
       const gap = per === 1 ? 0 : 26;
       const h = (PH - 2 * M - 46 - gap * (per - 1)) / per;
@@ -76,7 +77,9 @@ function shotLabel(panel: Panel) {
 /** Image fitted into a box (letterboxed on white). */
 function fit(doc: jsPDF, data: string | undefined, x: number, y: number, w: number, h: number) {
   if (!data) return;
-  const iw = 16, ih = 9;
+  // Frames come in the storyboard's format (9:16, 2.39…): fit by the image's own shape.
+  let iw = 16, ih = 9;
+  try { const pr = doc.getImageProperties(data); if (pr.width && pr.height) { iw = pr.width; ih = pr.height; } } catch { /* keep 16:9 */ }
   const s = Math.min(w / iw, h / ih);
   const dw = iw * s, dh = ih * s;
   try { doc.addImage(data, data.startsWith('data:image/png') ? 'PNG' : 'JPEG', x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); } catch { /* unreadable image */ }
@@ -169,9 +172,9 @@ function sheetPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: nu
   doc.setTextColor(0);
 }
 
-function gridPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: number, y: number, w: number, h: number) {
-  const ih = Math.min((w * 9) / 16, h - 58);
-  const iw = (ih * 16) / 9;
+function gridPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: number, y: number, w: number, h: number, ratio = 16 / 9) {
+  const ih = Math.min(w / ratio, h - 58);
+  const iw = ih * ratio;
   doc.setDrawColor(120);
   doc.rect(x, y, iw, ih);
   if (panel.frame) fit(doc, images.get(panel.frame.id), x + 1, y + 1, iw - 2, ih - 2);

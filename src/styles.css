@@ -1898,3 +1898,20 @@ select.doc-status { padding: 2px 6px; border: 0; }
   .fe-tools .more-btn { min-width: 34px; padding: 4px 6px; }
   .frame-editor > .toolbar:first-child .fe-undo button { min-width: 34px; min-height: 34px; padding: 2px 6px; }
 }
+
+/* Frame editor ⋯ menu: grid, format and frame guides */
+.fe-opt { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); min-width: 0; }
+.fe-opt-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.fe-opt-h kbd { font: 10px ui-monospace, monospace; border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; text-transform: none; }
+.fe-opt .seg button { flex: 1; }
+.fe-opt-row { display: flex; gap: 12px; }
+.fe-opt-row input[type=number] { width: 56px; }
+.fe-guides { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 8px; }
+.fe-guides .check { white-space: nowrap; }
+.more-menu .fe-opt select { width: 100%; }
+
+.guide-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.framing-btn { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.more-menu.framing-menu { width: 320px; }
+.more-menu.framing-menu.as-sheet { width: auto; }

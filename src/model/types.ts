@@ -386,6 +386,12 @@ export interface StoryboardSettings {
   /** Panels per page: 1, 2 or 3 stack full-width panels with a set-plan box; 4 and 6 are grids. */
   perPage: 1 | 2 | 3 | 4 | 6;
   showReference: boolean;
+  /** Framing the panels are drawn in: '16:9' (default), '9:16', '2.39', '1.43'… (tabs/storyboard/formats.ts). */
+  format?: string;
+  /** Extra frame guides drawn inside each panel, e.g. protect for '16:9' and '9:16'. */
+  guides?: string[];
+  /** Show the frame guides on the panels and in the PDF too (not only while drawing). Default on. */
+  guidesInPrint?: boolean;
 }
 
 // ---- Plan: contacts and tasks ----

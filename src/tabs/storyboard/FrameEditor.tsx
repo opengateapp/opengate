@@ -4,7 +4,9 @@ import { blobToImage, getMedia, putMedia } from '../../store/media';
 import { newId } from '../../model/ids';
 import { boardFrames } from '../../script/storyboard';
 import { SHOT_TYPES } from '../../model/defaults';
-import { FRAME_H, FRAME_W, drawContain } from './render';
+import { drawContain } from './render';
+import { drawGrid, drawGuides, drawLayer, formatOf, frameSize, loadGrid, saveGrid, type GridPrefs } from './formats';
+import { FramingControls } from './FramingControls';
 import { More, MoreMenu } from '../../components/More';
 import { ColorPicker, type ColorPickerHandle } from '../../components/ColorPicker';
 import { askConfirm } from '../../components/dialogs';
@@ -40,6 +42,11 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const cur = all[pos];
   const prev = pos > 0 ? all[pos - 1] : undefined;
   const next = all[pos + 1];
+  // The frame takes the storyboard's format (9:16, 2.39, IMAX…); the set plan box stays 16:9.
+  const settings = p.storyboardSettings;
+  const fmt = formatOf(settings);
+  const { w: FW, h: FH } = frameSize(layer === 'ref' ? 16 / 9 : fmt.ratio);
+  const guides = layer === 'ref' ? [] : (settings?.guides ?? []).filter((g) => g !== fmt.id);
 
   const bgRef = useRef<HTMLCanvasElement>(null);
   const onionRef = useRef<HTMLCanvasElement>(null);
@@ -53,7 +60,11 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const [color, setColor] = useState('#111111');
   const [size, setSize] = useState(4);
   const [opacity, setOpacity] = useState(1);
-  const [grid, setGrid] = useState(false);
+  const [gridPrefs, setGridPrefsState] = useState<GridPrefs>(loadGrid);
+  const setGridPrefs = (patch: Partial<GridPrefs>) => setGridPrefsState((g) => { const n = { ...g, ...patch }; saveGrid(n); return n; });
+  /** G: back to the last grid (rule of thirds by default), or off. */
+  const lastMode = useRef<GridPrefs['mode']>(gridPrefs.mode === 'off' ? 'thirds' : gridPrefs.mode);
+  const toggleGrid = () => { if (gridPrefs.mode !== 'off') { lastMode.current = gridPrefs.mode; setGridPrefs({ mode: 'off' }); } else setGridPrefs({ mode: lastMode.current }); };
   const [onion, setOnion] = useState(false);
   const [textAt, setTextAt] = useState<{ x: number; y: number; cssX: number; cssY: number } | null>(null);
   const [textVal, setTextVal] = useState('');
@@ -67,22 +78,23 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const touch = useTouch();
   const drawing = useRef<{ start: Pt; last: Pt; points: Pt[]; snap: ImageData; erasing?: boolean } | null>(null);
   const penLayer = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => { penLayer.current = null; }, [FW, FH]); // the pen's scratch layer matches the frame size
   // Size indicators: how wide the current tool draws, in canvas pixels and on screen.
   const stackRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const [stackW, setStackW] = useState(FRAME_W);
+  const [stackW, setStackW] = useState(FW);
   const [sizing, setSizing] = useState(false);
   const sizingTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     const el = stackRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setStackW(el.getBoundingClientRect().width || FRAME_W));
+    const ro = new ResizeObserver(() => setStackW(el.getBoundingClientRect().width || FW));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
   /** Line width the tool draws with, in canvas pixels (brush and eraser are 2.5× the Size number). */
   const toolWidth = tool === 'brush' || tool === 'eraser' ? size * 2.5 : size;
-  const screenWidth = Math.max(1, (toolWidth * stackW) / FRAME_W);
+  const screenWidth = Math.max(1, (toolWidth * stackW) / FW);
   const sizedTool = tool === 'pen' || tool === 'brush' || tool === 'eraser';
   // Shown while the slider is held or changing (keyboard too), then hidden shortly after.
   const holding = useRef(false);
@@ -110,41 +122,34 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     undo.current = []; redo.current = []; dirty.current = false;
     const bg = bgRef.current!.getContext('2d')!;
     bg.fillStyle = '#fff';
-    bg.fillRect(0, 0, FRAME_W, FRAME_H);
-    ctx().clearRect(0, 0, FRAME_W, FRAME_H);
+    bg.fillRect(0, 0, FW, FH);
+    ctx().clearRect(0, 0, FW, FH);
     void (async () => {
       if (f[IMG]) {
         const b = await getMedia(f[IMG]);
-        if (b && alive) drawContain(bg, await blobToImage(b));
+        if (b && alive) drawContain(bg, await blobToImage(b), FW, FH);
       }
       if (f[DRW]) {
         const b = await getMedia(f[DRW]);
-        if (b && alive) ctx().drawImage(await blobToImage(b), 0, 0, FRAME_W, FRAME_H);
+        if (b && alive) drawLayer(ctx(), await blobToImage(b), FW, FH);
       }
     })();
     return () => { alive = false; };
     // Reload only when switching frames or replacing the image (not on our own drawing saves).
-  }, [frameId, cur?.frame[IMG]]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [frameId, cur?.frame[IMG], FW, FH]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- Overlays ----
+  // ---- Overlays: grid (this device) and frame guides (the storyboard's) ----
   useEffect(() => {
     const g = gridRef.current!.getContext('2d')!;
-    g.clearRect(0, 0, FRAME_W, FRAME_H);
-    if (!grid) return;
-    g.strokeStyle = 'rgba(0,0,0,0.12)';
-    g.lineWidth = 1;
-    for (let x = 0; x < FRAME_W; x += 64) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, FRAME_H); g.stroke(); }
-    for (let y = 0; y < FRAME_H; y += 64) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(FRAME_W, y + 0.5); g.stroke(); }
-    g.strokeStyle = 'rgba(234,88,12,0.55)';
-    g.lineWidth = 2;
-    for (const x of [FRAME_W / 3, (2 * FRAME_W) / 3]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, FRAME_H); g.stroke(); }
-    for (const y of [FRAME_H / 3, (2 * FRAME_H) / 3]) { g.beginPath(); g.moveTo(0, y); g.lineTo(FRAME_W, y); g.stroke(); }
-  }, [grid]);
+    g.clearRect(0, 0, FW, FH);
+    drawGrid(g, FW, FH, gridPrefs);
+    if (guides.length) drawGuides(g, FW, FH, guides);
+  }, [gridPrefs, guides.join(','), FW, FH]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let alive = true;
     const o = onionRef.current!.getContext('2d')!;
-    o.clearRect(0, 0, FRAME_W, FRAME_H);
+    o.clearRect(0, 0, FW, FH);
     if (!onion || !prev) return;
     void (async () => {
       for (const id of [prev.frame[IMG], prev.frame[DRW]]) {
@@ -152,12 +157,12 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         const b = await getMedia(id);
         if (!b || !alive) continue;
         const img = await blobToImage(b);
-        if (id === prev.frame[DRW]) o.drawImage(img, 0, 0, FRAME_W, FRAME_H);
-        else drawContain(o, img);
+        if (id === prev.frame[DRW]) drawLayer(o, img, FW, FH);
+        else drawContain(o, img, FW, FH);
       }
     })();
     return () => { alive = false; };
-  }, [onion, prev?.frame.id, prev?.frame.rev]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onion, prev?.frame.id, prev?.frame.rev, FW, FH]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Saving the drawing layer ----
   const save = useCallback(async () => {
@@ -185,21 +190,21 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   useEffect(() => () => { void save(); }, [save]);
 
   const snapshot = () => {
-    undo.current.push(ctx().getImageData(0, 0, FRAME_W, FRAME_H));
+    undo.current.push(ctx().getImageData(0, 0, FW, FH));
     if (undo.current.length > 40) undo.current.shift();
     redo.current = [];
   };
   const doUndo = () => {
     const s = undo.current.pop();
     if (!s) return;
-    redo.current.push(ctx().getImageData(0, 0, FRAME_W, FRAME_H));
+    redo.current.push(ctx().getImageData(0, 0, FW, FH));
     ctx().putImageData(s, 0, 0);
     changed();
   };
   const doRedo = () => {
     const s = redo.current.pop();
     if (!s) return;
-    undo.current.push(ctx().getImageData(0, 0, FRAME_W, FRAME_H));
+    undo.current.push(ctx().getImageData(0, 0, FW, FH));
     ctx().putImageData(s, 0, 0);
     changed();
   };
@@ -218,7 +223,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       if (typing || mod) return;
       const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
       if (t) setTool(t.id);
-      if (e.key === 'g') setGrid((v) => !v);
+      if (e.key === 'g') toggleGrid();
       if (e.key === '[') changeSize(Math.max(1, size - 1));
       if (e.key === ']') changeSize(Math.min(40, size + 1));
       if (e.key === 'c') { e.preventDefault(); colorRef.current?.open(); }
@@ -233,7 +238,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   // ---- Drawing ----
   const at = (e: { clientX: number; clientY: number; pointerType: string; pressure: number }) => {
     const r = drawRef.current!.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) * FRAME_W) / r.width, y: ((e.clientY - r.top) * FRAME_H) / r.height, cssX: e.clientX - r.left, cssY: e.clientY - r.top, scale: FRAME_W / r.width, p: pressureOf(e) };
+    return { x: ((e.clientX - r.left) * FW) / r.width, y: ((e.clientY - r.top) * FH) / r.height, cssX: e.clientX - r.left, cssY: e.clientY - r.top, scale: FW / r.width, p: pressureOf(e) };
   };
   const strokeStyle = (c: CanvasRenderingContext2D) => {
     c.lineCap = 'round'; c.lineJoin = 'round';
@@ -253,7 +258,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     const c = ctx();
     if (tool === 'fill') { floodFill(c, Math.round(q.x), Math.round(q.y), color, opacity); changed(); return; }
     try { drawRef.current!.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
-    drawing.current = { start: q, last: q, points: [q], snap: c.getImageData(0, 0, FRAME_W, FRAME_H), erasing: penEraser };
+    drawing.current = { start: q, last: q, points: [q], snap: c.getImageData(0, 0, FW, FH), erasing: penEraser };
     if (tool === 'eraser' || penEraser) erase(q, q);
     else if (tool === 'pen' || tool === 'brush') { strokePath([q]); }
   };
@@ -271,9 +276,9 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     if (pts.some((q) => q.p != null)) {
       // Pen pressure: draw each piece at its own width on a scratch layer at full strength,
       // then lay the whole stroke down once, so opacity stays even where pieces overlap.
-      const layer = (penLayer.current ??= Object.assign(document.createElement('canvas'), { width: FRAME_W, height: FRAME_H }));
+      const layer = (penLayer.current ??= Object.assign(document.createElement('canvas'), { width: FW, height: FH }));
       const t = layer.getContext('2d')!;
-      t.clearRect(0, 0, FRAME_W, FRAME_H);
+      t.clearRect(0, 0, FW, FH);
       t.lineCap = 'round'; t.lineJoin = 'round'; t.strokeStyle = color; t.fillStyle = color;
       const base = tool === 'brush' ? size * 2.5 : size;
       if (pts.length === 1) { t.beginPath(); t.arc(pts[0].x, pts[0].y, widthFor(base, pts[0].p) / 2, 0, Math.PI * 2); t.fill(); }
@@ -371,7 +376,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     </span>
   );
   const sizeControl = (
-    <label className="check small size-control" title={`${tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Line'} width: ${Math.round(toolWidth)} px on a ${FRAME_W}-px-wide frame ([ and ] to change)`}>
+    <label className="check small size-control" title={`${tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Line'} width: ${Math.round(toolWidth)} px on a ${FW}-px-wide frame ([ and ] to change)`}>
       <span className="fe-ctl-lbl">Size</span>
       <input type="range" min={1} max={40} value={size} aria-label="Size" onChange={(e) => changeSize(Number(e.target.value))} onPointerDown={() => holdSize(true)} onPointerUp={() => holdSize(false)} onPointerCancel={() => holdSize(false)} onBlur={() => holdSize(false)} />
       <span className="size-dot-box" aria-hidden><span className={`size-dot ${tool === 'eraser' ? 'eraser' : ''}`} style={{ width: Math.min(28, screenWidth), height: Math.min(28, screenWidth), background: tool === 'eraser' ? undefined : color, opacity: tool === 'brush' ? opacity * 0.6 : opacity }} /></span>
@@ -428,7 +433,21 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         )}
         {!phone && undoRedo}
         <More label="Frame options" always>
-          <button className={grid ? 'active' : ''} onClick={() => setGrid(!grid)} title="Grid + rule of thirds (G)">Grid</button>
+          <div className="fe-opt keep-open">
+            <span className="fe-opt-h">Grid <kbd>G</kbd></span>
+            <div className="seg small" role="radiogroup" aria-label="Grid">
+              {(['off', 'thirds', 'grid'] as const).map((m) => <button key={m} role="radio" aria-checked={gridPrefs.mode === m} className={gridPrefs.mode === m ? 'active' : ''} onClick={() => setGridPrefs({ mode: m })}>{{ off: 'Off', thirds: 'Rule of thirds', grid: 'Grid' }[m]}</button>)}
+            </div>
+            {gridPrefs.mode === 'grid' && (
+              <div className="fe-opt-row">
+                <label className="check small">Columns <input type="number" min={2} max={24} value={gridPrefs.cols} onChange={(e) => setGridPrefs({ cols: Math.max(2, Math.min(24, Number(e.target.value) || 2)) })} /></label>
+                <label className="check small">Rows <input type="number" min={2} max={24} value={gridPrefs.rows} onChange={(e) => setGridPrefs({ rows: Math.max(2, Math.min(24, Number(e.target.value) || 2)) })} /></label>
+              </div>
+            )}
+            <label className="check small"><input type="checkbox" checked={gridPrefs.center} onChange={(e) => setGridPrefs({ center: e.target.checked })} /> Centre mark</label>
+            <label className="check small"><input type="checkbox" checked={gridPrefs.safe} onChange={(e) => setGridPrefs({ safe: e.target.checked })} /> Safe areas (action 93%, title 90%)</label>
+          </div>
+          {layer === 'frame' && <FramingControls beforeChange={save} />}
           <button className={onion ? 'active' : ''} disabled={!prev} onClick={() => setOnion(!onion)} title="Show the previous frame faintly (N)">Onion skin</button>
           {(pen.seen || touch) && (
             <label className="check small keep-open" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
@@ -442,17 +461,17 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
           <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
           {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
           <hr />
-          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image stays. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FRAME_W, FRAME_H); changed(); } }}>Clear drawing…</button>
+          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image stays. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FW, FH); changed(); } }}>Clear drawing…</button>
         </More>
       </div>
       <div className="frame-stage">
-        <div ref={stackRef} className="frame-stack" style={{ aspectRatio: `${FRAME_W} / ${FRAME_H}` }}>
-          <canvas ref={bgRef} width={FRAME_W} height={FRAME_H} />
-          <canvas ref={onionRef} width={FRAME_W} height={FRAME_H} className="onion" />
-          <canvas ref={drawRef} width={FRAME_W} height={FRAME_H} className={`draw tool-${tool}`}
+        <div ref={stackRef} className="frame-stack" style={{ aspectRatio: `${FW} / ${FH}`, width: `min(100%, calc((100vh - 240px) * ${(FW / FH).toFixed(4)}))` }}>
+          <canvas ref={bgRef} width={FW} height={FH} />
+          <canvas ref={onionRef} width={FW} height={FH} className="onion" />
+          <canvas ref={drawRef} width={FW} height={FH} className={`draw tool-${tool}`}
             onPointerDown={down} onPointerMove={(e) => { moveRing(e); move(e); }} onPointerUp={up} onPointerCancel={up}
             onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none'; }} />
-          <canvas ref={gridRef} width={FRAME_W} height={FRAME_H} className="overlay" />
+          <canvas ref={gridRef} width={FW} height={FH} className="overlay" />
           {/* Follows the pointer at the tool's real size. */}
           <div ref={ringRef} className={`brush-ring ${tool === 'eraser' ? 'eraser' : ''}`} aria-hidden style={{ width: screenWidth, height: screenWidth, display: 'none' }} />
           {/* While the Size slider moves: the stroke at its real size, in the middle of the frame. */}

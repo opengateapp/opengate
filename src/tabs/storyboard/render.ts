@@ -1,4 +1,5 @@
-import type { Project, StoryboardFrame } from '../../model/types';
+import type { Project, StoryboardFrame, StoryboardSettings } from '../../model/types';
+import { drawGuides, drawLayer, formatOf } from './formats';
 import { blobToImage, getMedia } from '../../store/media';
 import { getDerived } from '../../store/project';
 import { download, safeName } from '../../io/files';
@@ -15,10 +16,14 @@ export function drawContain(ctx: CanvasRenderingContext2D, img: CanvasImageSourc
 }
 
 /** Flattens a frame (white paper + image + drawing) to a JPEG data URL for the board PDF. */
-export async function renderFrame(f: StoryboardFrame, width = 960, layer: 'frame' | 'ref' = 'frame'): Promise<string> {
+export async function renderFrame(f: StoryboardFrame, size = 960, layer: 'frame' | 'ref' = 'frame', settings?: StoryboardSettings): Promise<string> {
   const imageId = layer === 'ref' ? f.refImageId : f.imageId;
   const drawingId = layer === 'ref' ? f.refDrawingId : f.drawingId;
-  const h = Math.round((width * 9) / 16);
+  // Frames take the storyboard's format (long side = size); set plans stay 16:9.
+  const fmt = formatOf(settings);
+  const ratio = layer === 'ref' ? 16 / 9 : fmt.ratio;
+  const width = ratio >= 1 ? size : Math.round(size * ratio);
+  const h = ratio >= 1 ? Math.round(size / ratio) : size;
   const c = document.createElement('canvas');
   c.width = width;
   c.height = h;
@@ -31,17 +36,19 @@ export async function renderFrame(f: StoryboardFrame, width = 960, layer: 'frame
     if (!b) continue;
     try {
       const img = await blobToImage(b);
-      if (id === drawingId) ctx.drawImage(img, 0, 0, width, h);
+      if (id === drawingId) drawLayer(ctx, img, width, h);
       else drawContain(ctx, img, width, h);
     } catch { /* skip unreadable */ }
   }
+  const guides = layer === 'frame' && settings?.guidesInPrint !== false ? (settings?.guides ?? []).filter((g) => g !== fmt.id) : [];
+  if (guides.length) drawGuides(ctx, width, h, guides);
   return c.toDataURL('image/jpeg', 0.85);
 }
 
 export async function exportStoryboardPdf(p: Project) {
   const images = new Map<string, string>();
   for (const f of p.storyboard) {
-    images.set(f.id, await renderFrame(f));
+    images.set(f.id, await renderFrame(f, 960, 'frame', p.storyboardSettings));
     if (f.refImageId || f.refDrawingId) images.set('ref:' + f.id, await renderFrame(f, 720, 'ref'));
   }
   const { storyboardPdf } = await import('../../pdf/storyboardPdf');
