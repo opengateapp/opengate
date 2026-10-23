@@ -1812,7 +1812,7 @@ select.doc-status { padding: 2px 6px; border: 0; }
 }
 .action-sheet > button > span:first-child, .more-menu > button > span:first-child { min-width: 0; }
 /* Hints under a title: up to two lines, then "…". */
-.section-flyout button span, .drawer-section > button span, .drawer-extra > button span {
+.section-flyout button > span, .drawer-section > button > span, .drawer-extra > button > span {
   white-space: normal; overflow: hidden; text-overflow: ellipsis;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
 }
@@ -1915,3 +1915,62 @@ select.doc-status { padding: 2px 6px; border: 0; }
 .framing-btn { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .more-menu.framing-menu { width: 320px; }
 .more-menu.framing-menu.as-sheet { width: auto; }
+
+/* Grid on the drawing toolbar: toggle + ▾ options (desktop); one # button opening a sheet (phone). */
+.fe-grid { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.fe-grid .more-btn.fe-caret { border: none; border-radius: 0; border-left: 1px solid var(--border); background: var(--panel); min-height: 40px; }
+.fe-grid .more-btn:not(.fe-caret) { border: none; border-radius: 0; background: var(--panel); min-width: 34px; min-height: 40px; padding: 3px 4px; }
+.fe-grid.active .more-btn:not(.fe-caret) { background: var(--accent-soft); color: var(--accent); }
+.fe-grid-menu { min-width: 260px; }
+@media (max-width: 480px) {
+  .fe-tools { padding: 6px; gap: 4px; }
+  .fe-seg button, .fe-shapes button:not(.fe-caret) { min-width: 32px; }
+  .fe-grid .more-btn:not(.fe-caret) { min-width: 32px; padding: 3px 2px; }
+  .fe-tools .more-btn { min-width: 32px; padding: 4px 2px; }
+}
+
+/* Reference flyout scrolls itself: the panel background must be the element's own (an absolutely
+   placed ::before would scroll away with the items). A transparent top border keeps the hover bridge. */
+.section-flyout.ref-flyout::before { content: none; }
+.section-wrap:hover .section-flyout.ref-flyout, .section-wrap:focus-within .section-flyout.ref-flyout {
+  background: var(--panel) padding-box; border: 1px solid var(--border); border-top: 6px solid transparent;
+  border-radius: 10px; box-shadow: var(--shadow); padding: 4px; max-height: calc(100vh - 70px); overflow-y: auto; overscroll-behavior: contain;
+}
+
+/* Location clearance (Plan → Locations), private like the budget. */
+.loc-clearance { margin: 4px 0 14px; padding: 8px 12px 10px; border: 1px solid var(--border); border-left: 4px solid var(--warn, #d97706); border-radius: 8px; }
+.loc-clearance.st-cleared, .loc-clearance.st-na { border-left-color: var(--ok, #16a34a); }
+.loc-clearance.st-replace { border-left-color: var(--danger, #dc2626); }
+.loc-clearance h4 { margin: 0 0 6px; }
+.loc-clearance .row { gap: 10px; align-items: center; }
+.clear-dot { width: 9px; height: 9px; border-radius: 2px; flex: none; background: #d97706; margin-right: 4px; }
+.clear-dot.c-requested { background: #2563eb; }
+.clear-dot.c-cleared, .clear-dot.c-na { background: #16a34a; }
+.clear-dot.c-replace { background: #dc2626; }
+
+/* Crew role: department dropdown, typed role when it's not listed, department tag. */
+.crew-role-picker { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; max-width: 100%; }
+.crew-role-picker select { max-width: 100%; }
+.crew-role-picker input { flex: 1 1 120px; min-width: 0; }
+.crew-dept { white-space: nowrap; }
+
+/* Contacts: company and type share the cell evenly (the company box used to collapse to a sliver). */
+table.contacts .contact-company { flex-wrap: wrap; gap: 4px; min-width: 0; }
+table.contacts .contact-company input { flex: 1 1 120px; min-width: 100px; }
+table.contacts .contact-company select { flex: 0 1 auto; min-width: 0; }
+table.contacts .crew-role-picker select { width: 100%; }
+@media (max-width: 480px) {
+  .fe-top { flex-wrap: nowrap; gap: 4px; }
+  .fe-top h3 { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .fe-top .spacer { min-width: 0; flex: 1 1 0; }
+  .fe-top > button, .fe-top .fe-undo button { min-width: 30px; padding: 4px 6px; }
+  .fe-top .fe-count { flex: none; }
+}
+/* Phone cards: skip cells that don't apply to the row (crew have no company or email here). */
+@media (max-width: 760px) { table.contacts.cards-on-phone tbody tr td.na { display: none; } }
+/* iPad: room for the grid button on one row. */
+@media (min-width: 481px) and (max-width: 900px) {
+  .fe-tools .size-control input[type=range] { width: 60px; }
+  .fe-tools .opacity-control input[type=range] { width: 50px; }
+  .fe-seg button, .fe-shapes button:not(.fe-caret) { min-width: 38px; }
+}

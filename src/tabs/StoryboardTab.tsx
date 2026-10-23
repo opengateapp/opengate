@@ -7,7 +7,7 @@ import { RichText } from '../components/RichText';
 import { LENSES, MOVES, SHOT_TYPES } from '../model/defaults';
 import { newId } from '../model/ids';
 import type { DerivedScene, Shot, StoryboardSettings } from '../model/types';
-import { storyboardPanels, PANEL_SHOT_TYPES, shotTypeCodes, type Panel } from '../script/storyboard';
+import { insertFrame, storyboardPanels, PANEL_SHOT_TYPES, shotTypeCodes, type Panel } from '../script/storyboard';
 import { addSceneToScript } from '../script/scenes';
 import { putMedia, useMediaUrl } from '../store/media';
 import { FramingControls, GuideOverlay } from './storyboard/FramingControls';
@@ -252,10 +252,7 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, c
     }, 'Delete panel');
     deletedToast(onlyFrame ? `panel and shot ${shot.shotNumber || ''}`.trim() : 'frame');
   };
-  const addFrame = () => update((dr) => {
-    const n = Math.max(-1, ...dr.storyboard.filter((f) => f.shotId === shot.id).map((f) => f.order)) + 1;
-    dr.storyboard.push({ id: newId(), shotId: shot.id, order: n, rev: 0, caption: '' });
-  }, 'Add frame');
+  const addFrame = () => update((dr) => { insertFrame(dr, shot.id); }, 'Add frame');
 
   return (
     <article className={`sb-panel ${compact ? 'compact' : ''}`}>

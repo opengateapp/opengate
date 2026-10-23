@@ -826,6 +826,8 @@ export interface Clearance {
   docId?: Id;
   fileId?: Id;
   notes?: string;
+  /** For a location clearance: the location in Plan → Locations. */
+  locationId?: Id;
 }
 
 export interface TimeCard {

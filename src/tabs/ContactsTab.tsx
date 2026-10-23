@@ -1,3 +1,4 @@
+import { CrewRolePicker } from '../components/CrewRolePicker';
 import { useState } from 'react';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
@@ -130,13 +131,13 @@ export function ContactsTab() {
             <tr key={r.key}>
               <td><span className={`pill g-${r.group}`}>{r.group === 'Contacts' ? KINDS.find((k) => k.id === r.kind)?.label ?? 'Other' : r.group}</span></td>
               <td><input value={r.name} placeholder={r.group === 'Cast' ? 'Actor name' : 'Name'} onChange={(e) => set(r, 'name', e.target.value)} /></td>
-              <td>{r.group === 'Cast' ? <span className="muted">{r.role}</span> : <input value={r.role} onChange={(e) => set(r, 'role', e.target.value)} />}</td>
-              <td>{r.group === 'Contacts'
-                ? <div className="row"><input value={r.company} placeholder="Company" onChange={(e) => set(r, 'company', e.target.value)} />
+              <td data-label="Role">{r.group === 'Cast' ? <span className="muted">{r.role}</span> : r.group === 'Crew' ? <CrewRolePicker value={r.role} onChange={(v) => set(r, 'role', v)} /> : <input value={r.role} placeholder="Role" onChange={(e) => set(r, 'role', e.target.value)} />}</td>
+              <td className={r.group === 'Contacts' ? undefined : 'na'}>{r.group === 'Contacts'
+                ? <div className="row contact-company"><input value={r.company} placeholder="Company" onChange={(e) => set(r, 'company', e.target.value)} />
                     <select value={r.kind} onChange={(e) => set(r, 'kind', e.target.value)}>{KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select></div>
                 : <span className="muted small">—</span>}</td>
               <td><input value={r.phone} onChange={(e) => set(r, 'phone', e.target.value)} />{r.phone && <a className="icon-link" href={`tel:${r.phone}`} title="Call">☎</a>}</td>
-              <td>{r.group === 'Crew' ? <span className="muted small">—</span> : <><input value={r.email} onChange={(e) => set(r, 'email', e.target.value)} />{r.email && <a className="icon-link" href={`mailto:${r.email}`} title="Email">✉</a>}</>}</td>
+              <td className={r.group === 'Crew' ? 'na' : undefined}>{r.group === 'Crew' ? <span className="muted small">—</span> : <><input value={r.email} onChange={(e) => set(r, 'email', e.target.value)} />{r.email && <a className="icon-link" href={`mailto:${r.email}`} title="Email">✉</a>}</>}</td>
               <td data-label="Union & societies" title={unionBadge(r)}><UnionPicker compact value={r} onChange={(patch) => setUnion(r, patch)} /><SocietiesPicker value={r} onChange={(patch) => setUnion(r, patch)} /></td>
               <td><button className="icon-btn" onClick={() => remove(r)}>×</button></td>
             </tr>

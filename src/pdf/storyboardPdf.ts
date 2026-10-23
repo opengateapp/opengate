@@ -37,7 +37,7 @@ export function storyboardPdf(p: Project, d: Derived, images: Map<string, string
     } else {
       const gap = per === 1 ? 0 : 26;
       const h = (PH - 2 * M - 46 - gap * (per - 1)) / per;
-      list.forEach((panel, i) => sheetPanel(doc, panel, images, M, M + 46 + i * (h + gap), PW - 2 * M, h, settings.showReference));
+      list.forEach((panel, i) => sheetPanel(doc, panel, images, M, M + 46 + i * (h + gap), PW - 2 * M, h, settings.showReference, formatOf(settings).ratio, per === 1));
     }
   }
   return doc;
@@ -113,17 +113,21 @@ function descriptionText(panel: Panel) {
   return (panel.shot.action || panel.frame?.caption || panel.shot.name || '').trim();
 }
 
-function sheetPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: number, y: number, w: number, h: number, showRef: boolean) {
-  const refW = showRef ? Math.round(w * 0.335) : 0;
-  const gap = showRef ? 18 : 0;
+function sheetPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: number, y: number, w: number, h: number, showRef: boolean, ratio = 16 / 9, single = false) {
+  // One per page: the frame spans the page width and the set plan sits under it. 2–3 per page:
+  // the set plan sits beside the frame. Either way the frame box keeps the format's shape.
+  const refW = showRef && !single ? Math.round(w * 0.335) : 0;
+  const gap = refW ? 18 : 0;
   const fw = w - refW - gap;
   const headH = 26;
-  const bottom = Math.min(118, h * 0.36);
-  const boxH = h - bottom;
+  const below = single ? (showRef ? 300 : 190) : Math.min(118, h * 0.36);
+  let iw = fw, ih = fw / ratio;
+  const maxH = h - below - headH;
+  if (ih > maxH) { ih = maxH; iw = ih * ratio; }
+  const ix = x + (fw - iw) / 2;
   doc.setDrawColor(150);
-  // Frame box with SCENE / SHOT # header.
-  doc.rect(x, y, fw, boxH);
-  doc.line(x, y + headH, x + fw, y + headH);
+  // SCENE / SHOT # header over the frame.
+  doc.rect(x, y, fw, headH);
   const shotW = Math.min(150, fw * 0.24);
   doc.line(x + fw - shotW, y, x + fw - shotW, y + headH);
   doc.setFont('times', 'normal'); doc.setFontSize(10); doc.setTextColor(60);
@@ -132,22 +136,25 @@ function sheetPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: nu
   doc.setTextColor(10);
   doc.text(clip(doc, sceneLabel(panel), fw - shotW - 62), x + 50, y + 17);
   doc.text(clip(doc, shotLabel(panel), shotW - 56), x + fw - shotW + 52, y + 17);
-  if (panel.frame) fit(doc, images.get(panel.frame.id), x + 1, y + headH + 1, fw - 2, boxH - headH - 2);
-  // Set plan / reference box.
-  if (showRef) {
+  // The frame, in the storyboard's format, centred under the header.
+  doc.rect(ix, y + headH, iw, ih);
+  if (panel.frame) fit(doc, images.get(panel.frame.id), ix + 1, y + headH + 1, iw - 2, ih - 2);
+  // Set plan / reference box beside the frame (16:9).
+  if (refW) {
     const rx = x + fw + gap;
+    const rh = Math.min(refW / (16 / 9), ih);
     doc.setDrawColor(150);
-    doc.rect(rx, y, refW, boxH);
-    doc.line(rx, y + headH, rx + refW, y + headH);
+    doc.rect(rx, y, refW, headH);
+    doc.rect(rx, y + headH, refW, rh);
     doc.setTextColor(60);
     doc.text('SET PLAN', rx + 8, y + 17);
     doc.setTextColor(0);
-    if (panel.frame) fit(doc, images.get('ref:' + panel.frame.id), rx + 1, y + headH + 1, refW - 2, boxH - headH - 2);
+    if (panel.frame) fit(doc, images.get('ref:' + panel.frame.id), rx + 1, y + headH + 1, refW - 2, rh - 2);
   }
   // Checkboxes, lens, description lines.
-  const cy = y + boxH + 22;
+  const cy = y + headH + ih + 22;
   checkboxes(doc, panel, x + 4, cy);
-  if (showRef) {
+  if (refW) {
     const lx = x + fw + gap;
     doc.setTextColor(60); doc.setFontSize(10);
     doc.text('LENS:', lx, cy - 1);
@@ -157,17 +164,30 @@ function sheetPanel(doc: jsPDF, panel: Panel, images: Map<string, string>, x: nu
     doc.line(lx + 34, cy + 1, lx + refW, cy + 1);
   } else if (panel.shot.lens) {
     doc.setTextColor(60); doc.setFontSize(10);
-    doc.text(`LENS: ${panel.shot.lens}`, x + fw, cy - 1, { align: 'right' });
+    doc.text(`LENS: ${panel.shot.lens}`, x + w, cy - 1, { align: 'right' });
   }
   const lineGap = 17;
-  const nLines = Math.max(1, Math.floor((bottom - 34) / lineGap));
+  let tx = x, tw = w, ty = cy + 16, nLines = Math.max(1, Math.floor((y + h - ty) / lineGap));
+  if (single && showRef) {
+    // Set plan under the frame on the left, description lines beside it.
+    const sw = Math.round(w * 0.42), sh = sw / (16 / 9), sy = cy + 14;
+    doc.setDrawColor(150);
+    doc.rect(x, sy, sw, headH);
+    doc.rect(x, sy + headH, sw, sh);
+    doc.setTextColor(60); doc.setFontSize(10);
+    doc.text('SET PLAN', x + 8, sy + 17);
+    doc.setTextColor(0);
+    if (panel.frame) fit(doc, images.get('ref:' + panel.frame.id), x + 1, sy + headH + 1, sw - 2, sh - 2);
+    tx = x + sw + 18; tw = w - sw - 18; ty = sy + 14;
+    nLines = Math.max(1, Math.floor((headH + sh) / lineGap));
+  } else if (single) nLines = Math.min(nLines, 8);
   doc.setFont('times', 'normal'); doc.setFontSize(10); doc.setTextColor(20);
-  const text = doc.splitTextToSize(descriptionText(panel), w - 8) as string[];
+  const text = doc.splitTextToSize(descriptionText(panel), tw - 8) as string[];
   for (let i = 0; i < nLines; i++) {
-    const ly = cy + 16 + i * lineGap;
+    const ly = ty + i * lineGap;
     doc.setDrawColor(170);
-    doc.line(x, ly + 4, x + w, ly + 4);
-    if (text[i]) doc.text(text[i], x + 2, ly);
+    doc.line(tx, ly + 4, tx + tw, ly + 4);
+    if (text[i]) doc.text(text[i], tx + 2, ly);
   }
   doc.setTextColor(0);
 }

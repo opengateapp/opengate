@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Clearance, ClearanceKind, ClearanceStatus, DealTerms, PaperDoc, PaperKind, PaperStatus, PersonRef, Project, TimeCard } from '../../model/types';
 import { newId } from '../../model/ids';
@@ -10,6 +11,7 @@ import {
   syncPaperworkLines, unionCounts, type Person,
 } from '../../paperwork/paperwork';
 import { CLEARANCE_KINDS, CLEARANCE_STATUSES, applyScan, clearanceLabel, clearanceReportCsv, newClearance, scanScript } from '../../paperwork/clearanceScan';
+import { openLocation } from '../LocationsTab';
 import { cardHours, cardsFromCallSheet, contractorCsv, payrollCsv, payrollRows, rulesOf, timecardsCsv } from '../../paperwork/timecards';
 import { taftHartleyNeeded, unionBadge } from '../../paperwork/unions';
 import { LAWYER_NOTE, builtInTemplate } from '../../paperwork/templates';
@@ -38,6 +40,13 @@ type View = 'people' | 'docs' | 'clearances' | 'time';
 const VIEWS: { id: View; label: string }[] = [{ id: 'people', label: 'People' }, { id: 'docs', label: 'Documents' }, { id: 'clearances', label: 'Clearances' }, { id: 'time', label: 'Time cards' }];
 const FILE_TYPES = /^(image\/|application\/pdf$|text\/|message\/)/;
 const okFiles = (files: File[]) => files.filter((f) => FILE_TYPES.test(f.type) || /\.(pdf|eml|txt|png|jpe?g|heic)$/i.test(f.name));
+
+/** Opens Paperwork at a view (and document) from another tab, e.g. a location's clearance. */
+const usePaperFocus = create<{ view?: View; doc?: string; n?: number }>(() => ({}));
+export function openPaperwork(view: View, doc?: string) {
+  usePaperFocus.setState({ view, doc, n: Date.now() });
+  window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'paperwork' }));
+}
 
 export function PaperworkTab() {
   const visible = useSync((s) => s.write === null || s.admin || s.budget);
@@ -76,8 +85,10 @@ function usePaperwork() {
 
 function PaperworkScreen() {
   const { p, ro } = usePaperwork();
-  const [view, setView] = useState<View>('people');
-  const [openDoc, setOpenDoc] = useState<string | null>(null);
+  const focus = usePaperFocus();
+  const [view, setView] = useState<View>(focus.view ?? 'people');
+  const [openDoc, setOpenDoc] = useState<string | null>(focus.doc ?? null);
+  useEffect(() => { if (focus.view) { setView(focus.view); setOpenDoc(focus.doc ?? null); } }, [focus.n]); // eslint-disable-line react-hooks/exhaustive-deps
   const goDoc = (id: string) => { setOpenDoc(id); setView('docs'); };
   return (
     <div className="paperwork-tab pad scroll">
@@ -381,7 +392,7 @@ function ClearancesView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
           <button onClick={() => clearanceReportPdf(p, d).save(`${safeName(p.title)} - script clearance report.pdf`)}>Clearance report (PDF)</button>
         </More>
       </div>
-      <p className="muted small"><Hint>{'Scan script looks for phone numbers, addresses, websites, brand names, full character names and tagged props, wardrobe and signage that may need clearing. It only suggests: you decide. E&O insurers usually ask for this report.'}</Hint></p>
+      <p className="muted small"><Hint>{'Scan script lists every location the script shoots at (one per script set or real location), and looks for phone numbers, addresses, websites, brand names, full character names and tagged props, wardrobe and signage that may need clearing. It only suggests: you decide. E&O insurers usually ask for this report.'}</Hint></p>
       <div className="clearance-list">
         {shown.map((c) => (
           <div key={c.id} className={`clearance-row st-${c.status}`}>
@@ -397,6 +408,8 @@ function ClearancesView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
               {docs.filter((x) => !isForm(x.kind)).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
             </select>
             {c.docId && <button className="link small" onClick={() => onOpenDoc(c.docId!)}>Open</button>}
+            {c.locationId && p.locations.some((l) => l.id === c.locationId) && <button className="link small" title="Open this location in Plan → Locations" onClick={() => openLocation(c.locationId!)}>📍 Location</button>}
+            {!ro && c.status !== 'cleared' && c.docId && docs.find((x) => x.id === c.docId)?.status === 'signed' && <button className="small" onClick={() => set(c.id, { status: 'cleared' }, 'Mark cleared')}>Mark cleared</button>}
             <input disabled={ro} className="clearance-notes" value={c.notes ?? ''} placeholder="Notes" aria-label="Notes" onChange={(e) => set(c.id, { notes: e.target.value || undefined })} />
             {c.fileId && <button className="small" onClick={() => void openFile(c.fileId!)}>📄</button>}
             {!ro && <label className="button-like small" title="Attach a permission letter or photo">📎<input type="file" hidden accept="application/pdf,image/*,.eml,.txt" onChange={async (e) => { const f = okFiles([...(e.target.files ?? [])])[0]; e.target.value = ''; if (f) set(c.id, { fileId: await putMedia(p.id, f) }, 'Attach clearance'); }} /></label>}

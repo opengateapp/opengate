@@ -13,7 +13,7 @@ import { breakdownFacts, linkedQty } from './budget/fromBreakdown';
 import { parseCsv } from './budget/expenses';
 import { missingFor, newDoc, people, syncPaperworkLines, unsignedOnDay, unionCounts } from './paperwork/paperwork';
 import { newCastMember, taftHartleyNeeded, unionBadge } from './paperwork/unions';
-import { applyScan, scanScript } from './paperwork/clearanceScan';
+import { applyScan, locationClearance, scanScript, setLocationClearance } from './paperwork/clearanceScan';
 import { DEFAULT_RULES, cardHours, cardsFromCallSheet, contractorCsv, payrollCsv, payrollRows } from './paperwork/timecards';
 import type { TimeCard } from './model/types';
 
@@ -151,6 +151,38 @@ She calls 212-555-0187 again.
     p = produce(p, (dr) => { expect(applyScan(dr, hits)).toBe(hits.length); });
     p = produce(p, (dr) => { expect(applyScan(dr, scanScript(p, d))).toBe(0); });
     expect(p.budget.clearances).toHaveLength(hits.length);
+  });
+});
+
+describe('location clearances', () => {
+  it('lists every script set, links real locations, and never duplicates', () => {
+    let p = produce(newProject('Loc'), (dr) => { applyImportedScript(dr, parseFountain(SAMPLE_FOUNTAIN)); });
+    const d = derive(p.scriptDoc);
+    expect(d.sets.length).toBeGreaterThan(1);
+    const set0 = d.sets[0];
+    // An older scan logged the first set by name; a real location is set up for it later.
+    p = produce(p, (dr) => { applyScan(dr, scanScript(dr as never, d).filter((h) => h.kind === 'location' && h.item === set0.name)); });
+    p = produce(p, (dr) => { dr.locations.push({ id: 'L1', setName: set0.name, realName: 'Rosa’s Diner', address: '' }); });
+    const locs = scanScript(p, d).filter((h) => h.kind === 'location');
+    expect(locs).toHaveLength(d.sets.length);
+    const linked = locs.find((h) => h.locationId === 'L1')!;
+    expect(linked.item).toContain('Rosa’s Diner');
+    expect(linked.sceneIds).toEqual(set0.sceneIds);
+    p = produce(p, (dr) => { applyScan(dr, scanScript(p, d)); });
+    p = produce(p, (dr) => { expect(applyScan(dr, scanScript(p, d))).toBe(0); });
+    const logged = p.budget.clearances!.filter((c) => c.kind === 'location');
+    expect(logged).toHaveLength(d.sets.length);
+    // The older by-name entry is the one now linked to the location.
+    expect(locationClearance(p.budget.clearances, p.locations[0])!.locationId).toBe('L1');
+  });
+
+  it('sets a location’s status from the Locations tab, creating one log entry', () => {
+    let p = produce(newProject('Loc'), (dr) => { dr.locations.push({ id: 'L2', setName: 'BARN', realName: 'Hill Farm', address: '' }); });
+    const loc = p.locations[0];
+    p = produce(p, (dr) => { setLocationClearance(dr, loc, ['s1'], { status: 'requested' }); });
+    p = produce(p, (dr) => { setLocationClearance(dr, loc, ['s1'], { status: 'cleared' }); });
+    expect(p.budget.clearances).toHaveLength(1);
+    expect(p.budget.clearances![0]).toMatchObject({ kind: 'location', locationId: 'L2', status: 'cleared', sceneIds: ['s1'] });
   });
 });
 

@@ -1,5 +1,5 @@
 import type { Draft } from 'immer';
-import type { Clearance, ClearanceKind, ClearanceStatus, Project } from '../model/types';
+import type { Clearance, ClearanceKind, ClearanceStatus, Location, Project } from '../model/types';
 import type { Derived } from '../script/derive';
 import { newId } from '../model/ids';
 import { csv } from '../io/reports';
@@ -37,7 +37,7 @@ const ADDRESS_RE = /\b\d{1,5}\s+(?:[A-Z][a-z]+\s){1,3}(?:Street|St|Avenue|Ave|Ro
 /** Props, wardrobe, vehicles, set dressing and the like: anything tagged here may carry a brand. */
 const CHECK_CATEGORIES = new Set(['props', 'vehicles', 'wardrobe', 'setDressing', 'misc']);
 
-export interface ScanHit { kind: ClearanceKind; item: string; sceneIds: string[]; why: string }
+export interface ScanHit { kind: ClearanceKind; item: string; sceneIds: string[]; why: string; locationId?: string }
 
 /** What in the script might need clearing, merged by item (a name in five scenes is one row). */
 export function scanScript(p: Project, d: Derived): ScanHit[] {
@@ -77,7 +77,41 @@ export function scanScript(p: Project, d: Derived): ScanHit[] {
     }
     BRAND_RE.lastIndex = 0;
   }
+  // Every place the script shoots needs permission: one location item per script set (or per
+  // real location, when one is set up in Plan → Locations).
+  const located = new Set<string>();
+  for (const loc of p.locations) {
+    const ids = locationSceneIds(p, d, loc);
+    if (!ids.length && !loc.realName) continue;
+    located.add(loc.setName.toLowerCase());
+    hits.set(`location:#${loc.id}`, { kind: 'location', item: locationItem(loc), sceneIds: ids, why: LOCATION_WHY, locationId: loc.id });
+  }
+  for (const s of d.sets) if (!located.has(s.name.toLowerCase())) hits.set(`location:${s.name.toLowerCase()}`, { kind: 'location', item: s.name, sceneIds: [...s.sceneIds], why: LOCATION_WHY });
   return [...hits.values()];
+}
+
+const LOCATION_WHY = 'Location release / permission to film';
+const locationItem = (l: Location) => l.realName && l.setName && l.realName.toLowerCase() !== l.setName.toLowerCase() ? `${l.realName} (${l.setName})` : l.realName || l.setName || 'Location';
+
+/** Scenes shot at a location: its script set, plus scenes pointed at it directly. */
+export function locationSceneIds(p: Project, d: Derived, loc: Location): string[] {
+  return d.scenes.filter((s) => (!!loc.setName && s.set === loc.setName) || p.sceneMeta[s.id]?.locationId === loc.id).map((s) => s.id);
+}
+
+/** The clearance log entry for a location: linked by id, or (from an older scan) named after its set or real name. */
+export function locationClearance(list: Clearance[] | undefined, loc: Location): Clearance | undefined {
+  const names = [loc.setName, loc.realName, locationItem(loc)].filter(Boolean).map((n) => n.trim().toLowerCase());
+  return (list ?? []).find((c) => c.locationId === loc.id)
+    ?? (list ?? []).find((c) => c.kind === 'location' && !c.locationId && names.includes(c.item.trim().toLowerCase()));
+}
+
+/** Sets a location's clearance, creating the log entry if there isn't one. */
+export function setLocationClearance(dr: Draft<Project>, loc: Location, sceneIds: string[], patch: Partial<Clearance>) {
+  dr.budget.clearances ??= [];
+  let c = locationClearance(dr.budget.clearances as Clearance[], loc);
+  if (!c) { c = { ...newClearance('location'), item: locationItem(loc), sceneIds: [...sceneIds], notes: LOCATION_WHY }; dr.budget.clearances.unshift(c); c = dr.budget.clearances[0]; }
+  c.locationId = loc.id;
+  Object.assign(c, patch);
 }
 
 function canonicalBrand(s: string): string {
@@ -90,9 +124,15 @@ export function applyScan(dr: Draft<Project>, hits: ScanHit[]): number {
   dr.budget.clearances ??= [];
   let n = 0;
   for (const h of hits) {
-    const have = dr.budget.clearances.find((c) => c.kind === h.kind && c.item.trim().toLowerCase() === h.item.toLowerCase());
-    if (have) { for (const id of h.sceneIds) if (!have.sceneIds.includes(id)) have.sceneIds.push(id); continue; }
-    dr.budget.clearances.push({ id: newId(), kind: h.kind, item: h.item, sceneIds: [...h.sceneIds], status: 'needed', source: 'scan', notes: h.why });
+    const loc = h.locationId ? dr.locations.find((l) => l.id === h.locationId) : undefined;
+    const have = loc ? locationClearance(dr.budget.clearances as Clearance[], loc as Location)
+      : dr.budget.clearances.find((c) => c.kind === h.kind && c.item.trim().toLowerCase() === h.item.toLowerCase());
+    if (have) {
+      for (const id of h.sceneIds) if (!have.sceneIds.includes(id)) have.sceneIds.push(id);
+      if (h.locationId) have.locationId ??= h.locationId;
+      continue;
+    }
+    dr.budget.clearances.push({ id: newId(), kind: h.kind, item: h.item, sceneIds: [...h.sceneIds], status: 'needed', source: 'scan', notes: h.why, ...(h.locationId ? { locationId: h.locationId } : {}) });
     n++;
   }
   return n;

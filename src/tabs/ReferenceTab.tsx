@@ -16,10 +16,13 @@ import { askConfirm } from '../components/dialogs';
 // story structures you can apply to your script, and a library of places to learn more.
 
 /** Which page the Reference tab shows; "?" links elsewhere set it. */
-export const useRefFocus = create<{ page: string }>(() => ({ page: 'frameworks' }));
+// `section` (a heading on the page) scrolls to it; `n` changes on every jump so repeat clicks still scroll.
+export const useRefFocus = create<{ page: string; section?: string; n?: number }>(() => ({ page: 'frameworks' }));
 
-export function openReference(page: string) {
-  useRefFocus.setState({ page });
+const sectionId = (h: string) => 'ref-sec-' + h.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+export function openReference(page: string, section?: string) {
+  useRefFocus.setState({ page, section, n: Date.now() });
   window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'reference' }));
 }
 
@@ -31,7 +34,28 @@ export function RefLink({ page, label }: { page: string; label?: string }) {
 
 export function ReferenceTab() {
   const page = useRefFocus((s) => s.page);
+  const section = useRefFocus((s) => s.section);
+  const jump = useRefFocus((s) => s.n);
   const [q, setQ] = useState('');
+  // Jump to: show the page in the sidebar (its category is open while it's current) and scroll
+  // the page to the top, or to the section asked for.
+  useEffect(() => {
+    if (!jump) return;
+    setQ('');
+    const raf = requestAnimationFrame(() => {
+      const link = document.querySelector<HTMLElement>('.reference-tab .ref-nav .side-link.active');
+      const side = link?.closest<HTMLElement>('.side');
+      if (link && side && side.scrollHeight > side.clientHeight) {
+        const r = link.getBoundingClientRect(), sr = side.getBoundingClientRect();
+        side.scrollTo({ top: side.scrollTop + r.top - sr.top - side.clientHeight / 2 + r.height / 2, behavior: 'smooth' });
+      }
+      const main = document.querySelector<HTMLElement>('.ref-main');
+      const target = section ? document.getElementById(sectionId(section)) : null;
+      if (main && target) main.scrollTo({ top: main.scrollTop + target.getBoundingClientRect().top - main.getBoundingClientRect().top - 8, behavior: 'smooth' });
+      else main?.scrollTo({ top: 0 });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [jump]); // eslint-disable-line react-hooks/exhaustive-deps
   const [collapsed, setCollapsedState] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('opengate.refCollapsed') ?? '[]'); } catch { return []; } });
   const setCollapsed = (c: string[]) => { setCollapsedState(c); try { localStorage.setItem('opengate.refCollapsed', JSON.stringify(c)); } catch { /* ignore */ } };
   const results = useMemo(() => {
@@ -39,7 +63,7 @@ export function ReferenceTab() {
     if (!t) return [];
     return PAGES.filter((p) => `${p.title} ${p.lead} ${p.keywords ?? ''} ${p.sections.map((s) => s.p).join(' ')}`.toLowerCase().includes(t));
   }, [q]);
-  const go = (id: string) => { useRefFocus.setState({ page: id }); setQ(''); document.querySelector('.ref-main')?.scrollTo({ top: 0 }); };
+  const go = (id: string) => { useRefFocus.setState({ page: id, section: undefined, n: Date.now() }); setQ(''); };
 
   return (
     <div className="with-side reference-tab">
@@ -87,7 +111,7 @@ function RefPageView({ page }: { page: RefPage }) {
       <span className="muted small">{CATEGORIES.find((c) => c.id === page.category)?.label}</span>
       <h2>{page.title}</h2>
       <p className="ref-lead">{page.lead}</p>
-      {page.sections.map((s, i) => <section key={i}>{s.h && <h4>{s.h}</h4>}<p className={s.p.includes('\n') ? 'pre-line' : ''}>{s.p}</p></section>)}
+      {page.sections.map((s, i) => <section key={i}>{s.h && <h4 id={sectionId(s.h)}>{s.h}</h4>}<p className={s.p.includes('\n') ? 'pre-line' : ''}>{s.p}</p></section>)}
       {tools.map((t) => {
         if (t === 'frameworks') return <Frameworks key={t} />;
         if (t === 'arcs') return <Arcs key={t} />;
@@ -117,7 +141,7 @@ function RefPageView({ page }: { page: RefPage }) {
       {more.length > 0 && page.category !== 'guilds' && (
         <div className="ref-more"><b className="small">Learn more</b>
           <ul className="res-list">{more.map((r) => <ResourceItem key={r.id} r={r} />)}</ul>
-          <button className="link small" onClick={() => useRefFocus.setState({ page: 'library' })}>The whole library →</button>
+          <button className="link small" onClick={() => useRefFocus.setState({ page: 'library', section: undefined, n: Date.now() })}>The whole library →</button>
         </div>
       )}
     </article>

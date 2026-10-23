@@ -250,12 +250,12 @@ export function App() {
                     {REF_CATEGORIES.map((c) => {
                       const pages = REF_PAGES.filter((pg) => pg.category === c.id);
                       return (
-                        <button key={c.id} role="menuitem" disabled={!pages.length} onClick={(e) => { useRefFocus.setState({ page: pages[0].id }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
+                        <button key={c.id} role="menuitem" disabled={!pages.length} onClick={(e) => { useRefFocus.setState({ page: pages[0].id, section: undefined, n: Date.now() }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
                           <b><span aria-hidden>{c.icon}</span> {c.label} <span className="muted small">{pages.length}</span></b><span>{c.hint}</span>
                         </button>
                       );
                     })}
-                    <button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library' }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
+                    <button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library', section: undefined, n: Date.now() }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
                       <b><span aria-hidden>❖</span> Learn-more library</b><span>Channels, sites, books, podcasts and free tools</span>
                     </button>
                   </div>

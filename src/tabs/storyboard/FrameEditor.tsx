@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDerived, useProject, useStore } from '../../store/project';
 import { blobToImage, getMedia, putMedia } from '../../store/media';
 import { newId } from '../../model/ids';
-import { boardFrames } from '../../script/storyboard';
+import { boardFrames, insertFrame } from '../../script/storyboard';
 import { SHOT_TYPES } from '../../model/defaults';
 import { drawContain } from './render';
 import { drawGrid, drawGuides, drawLayer, formatOf, frameSize, loadGrid, saveGrid, type GridPrefs } from './formats';
@@ -228,6 +228,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       if (e.key === ']') changeSize(Math.min(40, size + 1));
       if (e.key === 'c') { e.preventDefault(); colorRef.current?.open(); }
       if (e.key === 'n') setOnion((v) => !v);
+      if (e.key === 'N') addFrame();
       if (e.key === 'ArrowLeft' && prev) { void save(); onSelect(prev.frame.id); }
       if (e.key === 'ArrowRight' && next) { void save(); onSelect(next.frame.id); }
     };
@@ -367,6 +368,16 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const shot = cur.shot;
   const type = SHOT_TYPES.find((t) => t.code === shot.shotType)?.label;
   const close = () => { void save(); onClose(); };
+  /** Next frame of the same shot, blank, with this one ghosted underneath (onion skin). */
+  const addFrame = () => {
+    if (!cur) return;
+    void save();
+    let id = '';
+    update((dr) => { id = insertFrame(dr, cur.shot.id, cur.frame.id); }, 'Add frame');
+    if (!useStore.getState().project?.storyboard.some((f) => f.id === id)) return; // read-only
+    setOnion(true);
+    onSelect(id);
+  };
 
   // On a phone, undo / redo sit in the top bar so the drawing row fits without scrolling.
   const undoRedo = (
@@ -374,6 +385,22 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       <button onClick={doUndo} disabled={!undo.current.length} title="Undo (⌘Z)" aria-label="Undo">↶</button>
       <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)" aria-label="Redo">↷</button>
     </span>
+  );
+  const gridOptions = (
+    <div className="fe-opt keep-open">
+      <span className="fe-opt-h">Grid <kbd>G</kbd></span>
+      <div className="seg small" role="radiogroup" aria-label="Grid">
+        {(['off', 'thirds', 'grid'] as const).map((m) => <button key={m} role="radio" aria-checked={gridPrefs.mode === m} className={gridPrefs.mode === m ? 'active' : ''} onClick={() => setGridPrefs({ mode: m })}>{{ off: 'Off', thirds: 'Rule of thirds', grid: 'Grid' }[m]}</button>)}
+      </div>
+      {gridPrefs.mode === 'grid' && (
+        <div className="fe-opt-row">
+          <label className="check small">Columns <input type="number" min={2} max={24} value={gridPrefs.cols} onChange={(e) => setGridPrefs({ cols: Math.max(2, Math.min(24, Number(e.target.value) || 2)) })} /></label>
+          <label className="check small">Rows <input type="number" min={2} max={24} value={gridPrefs.rows} onChange={(e) => setGridPrefs({ rows: Math.max(2, Math.min(24, Number(e.target.value) || 2)) })} /></label>
+        </div>
+      )}
+      <label className="check small"><input type="checkbox" checked={gridPrefs.center} onChange={(e) => setGridPrefs({ center: e.target.checked })} /> Centre mark</label>
+      <label className="check small"><input type="checkbox" checked={gridPrefs.safe} onChange={(e) => setGridPrefs({ safe: e.target.checked })} /> Safe areas (action 93%, title 90%)</label>
+    </div>
   );
   const sizeControl = (
     <label className="check small size-control" title={`${tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Line'} width: ${Math.round(toolWidth)} px on a ${FW}-px-wide frame ([ and ] to change)`}>
@@ -392,13 +419,14 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   );
   return (
     <div className="frame-editor" role="dialog" aria-label="Storyboard frame">
-      <div className="toolbar">
+      <div className="toolbar fe-top">
         <h3 className="keep">{cur.scene ? `Sc ${cur.scene.number} · ` : ''}Shot {shot.shotNumber || '—'}{type ? ` · ${type}` : ''}{layer === 'ref' ? ' — Set plan / reference' : ''}</h3>
-        <span className="muted small">frame {pos + 1} of {all.length}</span>
+        <span className="muted small fe-count">{phone ? `${pos + 1}/${all.length}` : `frame ${pos + 1} of ${all.length}`}</span>
         <span className="spacer" />
         {phone && undoRedo}
         <button disabled={!prev} onClick={() => { void save(); onSelect(prev!.frame.id); }} title="Previous frame (←)">◀</button>
         <button disabled={!next} onClick={() => { void save(); onSelect(next!.frame.id); }} title="Next frame (→)">▶</button>
+        <button className="fe-add-frame" onClick={addFrame} aria-label="Add frame" title="Add the next frame for this shot, with this one showing through as an onion skin (Shift+N)">{phone ? '＋' : '+ Frame'}</button>
         <button className="primary" onClick={close}>Done</button>
       </div>
       <div className="toolbar tools fe-tools" role="toolbar" aria-label="Drawing tools">
@@ -421,6 +449,19 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
             </button>
           ); })()}
         </div>
+        {phone ? (
+          // Phone: one # button that opens the grid sheet.
+          <span className={`fe-shapes fe-grid ${gridPrefs.mode !== 'off' ? 'active' : ''}`}>
+            <MoreMenu sheet label="Grid" className="fe-grid-menu" icon={<span className="fe-ico" aria-hidden>#</span>}>{gridOptions}</MoreMenu>
+          </span>
+        ) : (
+          <span className={`fe-shapes fe-grid ${gridPrefs.mode !== 'off' ? 'active' : ''}`}>
+            <button className={gridPrefs.mode !== 'off' ? 'active' : ''} aria-pressed={gridPrefs.mode !== 'off'} aria-label="Grid" title="Grid on / off (G) — ▾ for rule of thirds, grid size, centre and safe areas" onClick={toggleGrid}>
+              <span className="fe-ico" aria-hidden>#</span><span className="fe-lbl">{gridPrefs.mode === 'thirds' ? 'Thirds' : gridPrefs.mode === 'grid' ? `${gridPrefs.cols}×${gridPrefs.rows}` : 'Grid'}</span>
+            </button>
+            <MoreMenu label="Grid options" icon="▾" className="fe-grid-menu" buttonClassName="fe-caret">{gridOptions}</MoreMenu>
+          </span>
+        )}
         <ColorPicker ref={colorRef} value={color} onChange={setColor} swatches={SWATCHES} />
         {phone ? (
           <MoreMenu sheet label={`Size ${widthLabel} and opacity`} className="fe-size-sheet"
@@ -433,20 +474,6 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         )}
         {!phone && undoRedo}
         <More label="Frame options" always>
-          <div className="fe-opt keep-open">
-            <span className="fe-opt-h">Grid <kbd>G</kbd></span>
-            <div className="seg small" role="radiogroup" aria-label="Grid">
-              {(['off', 'thirds', 'grid'] as const).map((m) => <button key={m} role="radio" aria-checked={gridPrefs.mode === m} className={gridPrefs.mode === m ? 'active' : ''} onClick={() => setGridPrefs({ mode: m })}>{{ off: 'Off', thirds: 'Rule of thirds', grid: 'Grid' }[m]}</button>)}
-            </div>
-            {gridPrefs.mode === 'grid' && (
-              <div className="fe-opt-row">
-                <label className="check small">Columns <input type="number" min={2} max={24} value={gridPrefs.cols} onChange={(e) => setGridPrefs({ cols: Math.max(2, Math.min(24, Number(e.target.value) || 2)) })} /></label>
-                <label className="check small">Rows <input type="number" min={2} max={24} value={gridPrefs.rows} onChange={(e) => setGridPrefs({ rows: Math.max(2, Math.min(24, Number(e.target.value) || 2)) })} /></label>
-              </div>
-            )}
-            <label className="check small"><input type="checkbox" checked={gridPrefs.center} onChange={(e) => setGridPrefs({ center: e.target.checked })} /> Centre mark</label>
-            <label className="check small"><input type="checkbox" checked={gridPrefs.safe} onChange={(e) => setGridPrefs({ safe: e.target.checked })} /> Safe areas (action 93%, title 90%)</label>
-          </div>
           {layer === 'frame' && <FramingControls beforeChange={save} />}
           <button className={onion ? 'active' : ''} disabled={!prev} onClick={() => setOnion(!onion)} title="Show the previous frame faintly (N)">Onion skin</button>
           {(pen.seen || touch) && (

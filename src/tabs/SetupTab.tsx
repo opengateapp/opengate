@@ -1,3 +1,4 @@
+import { CrewRolePicker } from '../components/CrewRolePicker';
 import { useEffect, useState } from 'react';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
@@ -164,7 +165,7 @@ export function SetupTab() {
                   const set = (fn: (x: typeof c) => void) => update((dr) => { fn(dr.crew.find((x) => x.id === c.id)!); }, null);
                   return (
                     <tr key={c.id}>
-                      <td><input value={c.role} onChange={(e) => set((x) => { x.role = e.target.value; })} /></td>
+                      <td><CrewRolePicker value={c.role} onChange={(v) => set((x) => { x.role = v; })} /></td>
                       <td><input value={c.name} onChange={(e) => set((x) => { x.name = e.target.value; })} /></td>
                       <td><input value={c.phone ?? ''} onChange={(e) => set((x) => { x.phone = e.target.value; })} /></td>
                       <td><UnionPicker compact value={c} onChange={(patch) => set((x) => { Object.assign(x, patch); })} /><SocietiesPicker value={c} onChange={(patch) => set((x) => { Object.assign(x, patch); })} /></td>

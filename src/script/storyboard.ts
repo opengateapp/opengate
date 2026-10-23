@@ -1,5 +1,6 @@
 import type { DerivedScene, Project, Shot, StoryboardFrame } from '../model/types';
 import type { Derived } from './derive';
+import { newId } from '../model/ids';
 
 // Storyboard order: scenes in script order → shots in shot-list order → frames in frame order.
 // A shot belongs to the scene its script anchor is in, else the scene it was created for.
@@ -42,3 +43,14 @@ export const PANEL_SHOT_TYPES: { code: string; label: string }[] = [
 ];
 
 export const shotTypeCodes = (v: string) => v.split('/').map((x) => x.trim()).filter(Boolean);
+
+/** Adds a blank frame for the same shot right after `afterId` (or at the end of the shot); returns its id. */
+export function insertFrame(dr: Project, shotId: string, afterId?: string): string {
+  const mine = dr.storyboard.filter((f) => f.shotId === shotId);
+  const after = mine.find((f) => f.id === afterId);
+  const order = after ? after.order + 1 : Math.max(-1, ...mine.map((f) => f.order)) + 1;
+  for (const f of mine) if (f.order >= order) f.order++;
+  const id = newId();
+  dr.storyboard.push({ id, shotId, order, rev: 0, caption: '' });
+  return id;
+}

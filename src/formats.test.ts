@@ -8,6 +8,7 @@ import { derive } from './script/derive';
 import { migrate } from './store/migrate';
 import { FORMATS, drawLayer, formatOf, frameSize, guideRect } from './tabs/storyboard/formats';
 import { storyboardPdf } from './pdf/storyboardPdf';
+import { insertFrame } from './script/storyboard';
 
 describe('storyboard formats', () => {
   it('sizes the frame canvas with a 1280 px long side', () => {
@@ -49,9 +50,21 @@ describe('storyboard formats', () => {
     const p = produce(newProject('F'), (d) => { applyImportedScript(d, parseFountain(SAMPLE_FOUNTAIN)); });
     const d = derive(p.scriptDoc);
     for (const format of ['9:16', '2.39'])
-      for (const perPage of [2, 4] as const) {
+      for (const perPage of [1, 2, 3, 4] as const) {
         const doc = storyboardPdf(p, d, new Map(), { perPage, showReference: true, format });
         expect(doc.getNumberOfPages()).toBeGreaterThan(0);
       }
+  });
+
+  it('inserts a new frame right after the current one in the same shot', () => {
+    let p = newProject('F');
+    let id = '';
+    p = produce(p, (dr) => { dr.storyboard.push({ id: 'a', shotId: 's', order: 0, rev: 0, caption: '' }, { id: 'b', shotId: 's', order: 1, rev: 0, caption: '' }, { id: 'x', shotId: 't', order: 0, rev: 0, caption: '' }); });
+    p = produce(p, (dr) => { id = insertFrame(dr, 's', 'a'); });
+    const order = p.storyboard.filter((f) => f.shotId === 's').sort((a, b) => a.order - b.order).map((f) => f.id);
+    expect(order).toEqual(['a', id, 'b']);
+    expect(p.storyboard.find((f) => f.id === 'x')!.order).toBe(0);
+    p = produce(p, (dr) => { id = insertFrame(dr, 's'); });
+    expect(p.storyboard.find((f) => f.id === id)!.order).toBe(3);
   });
 });
