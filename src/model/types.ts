@@ -577,7 +577,7 @@ export interface ShareInfo {
 export type BudgetGroup = 'atl' | 'btl' | 'post' | 'other';
 export type BudgetUnits = 'flat' | 'allow' | 'days' | 'weeks' | 'hours' | 'each' | 'rentdays';
 /** Where a linked line's quantity comes from. */
-export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear' | 'license' | 'kit';
+export type BudgetLinkKind = 'cast' | 'castHold' | 'crew' | 'location' | 'element' | 'shootDays' | 'headcount' | 'gear' | 'license' | 'kit' | 'festival' | 'festivalTravel';
 
 export interface BudgetAccount {
   id: Id;
@@ -764,6 +764,41 @@ export interface Budget {
   fundingSources?: FundingSource[];
   /** Funding settings: estimate pace, starter-rate level, crowdfunding plan. */
   funding?: FundingPlan;
+  /** Festivals you're aiming at: deadlines, fees and status (Budget → Festivals). */
+  festivals?: Festival[];
+}
+
+export type FestivalStatus = 'considering' | 'planned' | 'submitted' | 'accepted' | 'declined' | 'withdrawn';
+export type FestivalTier = 'top' | 'target' | 'local' | 'long-shot';
+export type PremiereRule = 'world' | 'international' | 'north-american' | 'national' | 'regional' | 'none';
+
+export interface FestivalDeadline { id: Id; label: string; date: ISODate; fee: number }
+
+/** A festival on your list. Typed or pasted in by you: Open Gate never fetches festival sites. */
+export interface Festival {
+  id: Id;
+  name: string;
+  url?: string;
+  platform: 'filmfreeway' | 'site' | 'other';
+  location?: string;
+  eventStart?: ISODate;
+  eventEnd?: ISODate;
+  tier: FestivalTier;
+  /** Premiere status the festival requires. */
+  premiere?: PremiereRule;
+  category?: string;
+  deadlines: FestivalDeadline[];
+  /** The deadline you plan to hit (its fee is what's budgeted). */
+  aim?: Id;
+  /** Fee waiver code or note: a waived festival budgets $0. */
+  waiver?: string;
+  status: FestivalStatus;
+  submittedOn?: ISODate;
+  feePaid?: number;
+  notifyDate?: ISODate;
+  attend?: boolean;
+  travel?: number;
+  notes?: string;
 }
 
 export type FundingKind = 'cash' | 'inkind' | 'deferral' | 'grant' | 'investor' | 'crowdfunding' | 'sponsor' | 'presale' | 'incentive' | 'loan' | 'other';

@@ -30,6 +30,7 @@ import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
 import { LicensesTab } from './tabs/budget/LicensesTab';
 import { FundingTab } from './tabs/budget/FundingTab';
+import { FestivalsTab } from './tabs/budget/FestivalsTab';
 import { PaperworkTab } from './tabs/budget/PaperworkTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
@@ -56,7 +57,7 @@ export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' 
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
-  | 'budget' | 'funding' | 'expenses' | 'gear' | 'licenses' | 'paperwork'
+  | 'budget' | 'funding' | 'festivals' | 'expenses' | 'gear' | 'licenses' | 'paperwork'
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
@@ -93,6 +94,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'budget', label: 'Budget', tabs: [
     { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
     { id: 'funding', label: 'Funding', hint: 'How much to raise: from your breakdown to a funding goal, crowdfunding with rewards' },
+    { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and fees, and where each submission stands' },
     { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
     { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
     { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
@@ -312,6 +314,7 @@ export function App() {
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}
         {tab === 'funding' && <FundingTab />}
+        {tab === 'festivals' && <FestivalsTab />}
         {tab === 'licenses' && <LicensesTab />}
         {tab === 'paperwork' && <PaperworkTab />}
         {tab === 'contacts' && <ContactsTab />}

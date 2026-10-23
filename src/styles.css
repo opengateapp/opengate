@@ -2023,3 +2023,44 @@ table.contacts .crew-role-picker select { width: 100%; }
   .ref-table.cards-on-phone tbody tr td:first-child { font-weight: 600; }
   .ref-table.cards-on-phone td { white-space: normal; }
 }
+
+/* Budget → Festivals */
+.festivals-tab { max-width: 1000px; }
+.festival-list { display: flex; flex-direction: column; gap: 12px; min-height: 60px; }
+.festival-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.festival-card.st-accepted { border-left: 4px solid var(--ok, #16a34a); }
+.festival-card.st-submitted { border-left: 4px solid #2563eb; }
+.festival-card.st-declined, .festival-card.st-withdrawn { opacity: .7; }
+.festival-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.festival-name { flex: 1 1 200px; min-width: 0; font-weight: 600; font-size: 15px; }
+.festival-fee { font-weight: 600; white-space: nowrap; }
+.festival-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.festival-meta .festival-loc, .festival-meta .festival-cat { flex: 1 1 140px; min-width: 0; }
+.festival-meta .festival-url, .festival-meta .festival-waiver { flex: 1 1 220px; min-width: 0; }
+.festival-notes { width: 100%; }
+.festival-meta input.num { width: 90px; }
+.festival-deadlines { width: auto; max-width: 100%; }
+.festival-deadlines input:not([type=radio]):not(.num) { min-width: 0; width: 100%; }
+.festival-deadlines td input.num { width: 80px; }
+.festival-deadlines tr.past { opacity: .5; }
+.festival-deadlines tr.next td { background: var(--accent-soft); }
+.fest-days { color: var(--accent); font-weight: 600; }
+.festival-paste { padding: 16px 18px; gap: 10px; overflow: auto; }
+.festival-paste textarea { width: 100%; font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
+.paste-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.modal-actions { gap: 8px; align-items: center; }
+@media (max-width: 760px) {
+  .festival-deadlines th:first-child, .festival-deadlines td:first-child { width: 28px; }
+  .festival-deadlines td input[type=date] { width: 132px; }
+}
+.cal-event.cal-fest { background: #7c3aed; cursor: pointer; }
+@media (max-width: 760px) {
+  .festival-meta label.check { flex-wrap: wrap; white-space: normal; }
+  .festival-meta input[type=date] { width: 132px; }
+  .festival-deadlines { font-size: 13px; }
+  .festival-deadlines th, .festival-deadlines td { padding: 4px 3px; }
+  .festival-card .festival-deadlines td input[type=date]:not(.num) { width: 118px; }
+  .festival-card .festival-deadlines td input.num { width: 56px; }
+  .festival-deadlines td input:not([type=radio]):not(.num):not([type=date]) { width: 68px; }
+  .fest-days { display: none; }
+}

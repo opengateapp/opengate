@@ -141,6 +141,7 @@ export function linkedQty(p: Project, f: BreakdownFacts, link: NonNullable<Budge
       return g ? gearLineQty(g, f.gearDays.get(g.id) ?? 0) : null;
     }
     case 'license': return (p.budget.licenses ?? []).some((l) => l.id === link.id) ? 1 : null;
+    case 'festival': case 'festivalTravel': return (p.budget.festivals ?? []).length ? 1 : null;
     case 'kit': {
       const doc = (p.budget.paperwork ?? []).find((x) => x.id === link.id);
       if (!doc?.deal?.kitFee) return null;
@@ -273,6 +274,8 @@ export const LINK_LABEL: Record<BudgetLinkKind, string> = {
   gear: 'Days the gear is needed, from the shot designer',
   license: 'A license from Budget → Licenses',
   kit: 'Kit fee from a deal memo (Plan → Paperwork), for the days this person works',
+  festival: 'Festival fees from Budget → Festivals (one item per festival you plan to enter)',
+  festivalTravel: 'Travel to the festivals you plan to attend (Budget → Festivals)',
 };
 
 /** Days each gear item is needed; filled in by the gear manifest (shot designer plans). */

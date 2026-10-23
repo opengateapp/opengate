@@ -24,7 +24,7 @@ export function migrate(input: unknown): Project {
   // v4: budget
   const b = p.budget as Partial<Project['budget']> | undefined;
   out.budget = b && typeof b === 'object'
-    ? { ...base.budget, ...b, accounts: b.accounts?.length ? b.accounts : base.budget.accounts, lines: b.lines ?? [], fringes: b.fringes ?? base.budget.fringes, scenarios: b.scenarios ?? [], expenses: b.expenses ?? [], licenses: b.licenses ?? [], paperwork: b.paperwork ?? [], clearances: b.clearances ?? [], timecards: b.timecards ?? [], agreements: b.agreements ?? [], fundingSources: b.fundingSources ?? [] }
+    ? { ...base.budget, ...b, accounts: b.accounts?.length ? b.accounts : base.budget.accounts, lines: b.lines ?? [], fringes: b.fringes ?? base.budget.fringes, scenarios: b.scenarios ?? [], expenses: b.expenses ?? [], licenses: b.licenses ?? [], paperwork: b.paperwork ?? [], clearances: b.clearances ?? [], timecards: b.timecards ?? [], agreements: b.agreements ?? [], fundingSources: b.fundingSources ?? [], festivals: b.festivals ?? [] }
     : base.budget;
   // v5: character profiles
   out.characters = Array.isArray(p.characters) ? p.characters : [];

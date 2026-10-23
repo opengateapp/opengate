@@ -1,5 +1,5 @@
 import { produce } from 'immer';
-import type { BoardItem, BudgetLine, CastMember, Clearance, CrewMember, DealTerms, PaperDoc, PaperKind, PersonRef, Project, Shot, StoryboardFrame } from './types';
+import type { BoardItem, BudgetLine, CastMember, Clearance, CrewMember, DealTerms, Festival, PaperDoc, PaperKind, PersonRef, Project, Shot, StoryboardFrame } from './types';
 import { newProject, SHOT_COLORS } from './defaults';
 import { newId } from './ids';
 import { addDays, todayISO, weekday } from './dates';
@@ -24,6 +24,7 @@ import { totals } from '../budget/calc';
 import { syncGearLines, syncPlanGear } from '../budget/gear';
 import { missingMarketingLines } from '../budget/templates';
 import { addMarketingTasks } from '../plan/marketingTasks';
+import { syncFestivalLines } from '../budget/festivals';
 
 // The sample production: "The Last Reel" filled in across every section, so each tab has something
 // real to show, with a few deliberate problems that make the warnings teach:
@@ -586,6 +587,23 @@ export function buildSampleProduction(): Project {
         ],
       },
     };
+
+    // Festivals (all fictional), timed from picture lock about 12 weeks after the shoot.
+    const lock = addDays(start, 7 + 84);
+    const fest = (name: string, tier: Festival['tier'], premiere: Festival['premiere'], eventIn: number, deadlines: [string, number, number][], extra: Partial<Festival> = {}): Festival => {
+      const dls = deadlines.map(([label, inDays, fee]) => ({ id: newId(), label, date: addDays(lock, inDays), fee }));
+      return { id: newId(), name, platform: 'filmfreeway', tier, premiere, status: 'planned', eventStart: addDays(lock, eventIn), eventEnd: addDays(lock, eventIn + 4), deadlines: dls, aim: dls[0].id, category: 'Narrative short', ...extra };
+    };
+    dr.budget.festivals = [
+      fest('Northern Lights International Film Festival (fictional)', 'top', 'world', 210, [['Earlybird', 30, 50], ['Regular', 60, 65], ['Late', 90, 80]], { location: 'Calgary, AB (fictional)', notes: 'Wants a world premiere: hold the film back from earlier festivals if we get in.' }),
+      fest('Prairie Light Film Festival (fictional)', 'local', 'none', 120, [['Earlybird', 21, 25], ['Regular', 50, 35]], { location: 'Billings, MT (fictional)', attend: true, travel: 250 }),
+      fest('Big Sky Indie Shorts (fictional)', 'target', 'regional', 160, [['Regular', 35, 40], ['Late', 70, 55]], { location: 'Missoula, MT (fictional)' }),
+      fest('Drive-In Shorts Night (fictional)', 'local', 'none', 140, [['Regular', 40, 0]], { location: 'Rapid City, SD (fictional)', notes: 'Free to enter.' }),
+      fest('Coastline Film Week (fictional)', 'target', 'national', 240, [['Earlybird', 45, 45], ['Regular', 80, 60]], { location: 'Portland, OR (fictional)', waiver: 'Fee waiver for first-time filmmakers (apply by email)' }),
+      fest('Silver Reel Awards (fictional)', 'long-shot', 'none', 200, [['Regular', 55, 75]], { status: 'considering', location: 'Online' }),
+      fest('Hometown Screens (fictional)', 'local', 'none', 100, [['Regular', 20, 20]], { status: 'considering', location: 'Ridgeview, MT (fictional)' }),
+    ];
+    syncFestivalLines(dr, todayISO());
 
     // Two versions to compare: as budgeted (Ultra Low, UPA) and Micro-Budget.
     const castLines = dr.budget.lines.filter((l) => l.link?.kind === 'cast');

@@ -62,6 +62,7 @@ export function newBudget(): Budget {
     timecards: [],
     agreements: [],
     fundingSources: [],
+    festivals: [],
   };
 }
 
