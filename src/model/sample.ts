@@ -1,4 +1,5 @@
-// A short original sample script used for "Try the sample project" and tests.
+// A short original sample script, used by the tests. (Home opens the full sample production:
+// model/sampleProduction.ts.)
 export const SAMPLE_FOUNTAIN = `Title: The Last Reel
 Credit: Written by
 Author: Sample Writer

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1 — 2026-10-23
+
+- **One sample:** Home now has a single **"Try the sample production"** button, which opens "The Last Reel" filled in across every section. The script-only sample is gone.
+
 ## v0.4.0 — 2026-10-23
 
 Paperwork and unions, funding and festivals, a filled-in sample production, and a storyboard toolbar made for artists.
