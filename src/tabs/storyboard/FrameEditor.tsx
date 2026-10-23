@@ -5,9 +5,12 @@ import { newId } from '../../model/ids';
 import { boardFrames } from '../../script/storyboard';
 import { SHOT_TYPES } from '../../model/defaults';
 import { FRAME_H, FRAME_W, drawContain } from './render';
-import { More } from '../../components/More';
+import { More, MoreMenu } from '../../components/More';
+import { ColorPicker, type ColorPickerHandle } from '../../components/ColorPicker';
+import { askConfirm } from '../../components/dialogs';
+import { openActions } from '../../components/ActionSheet';
 import { drawsWith, isPenEraser, notePointer, pressureOf, samplesOf, widthFor, usePen, type PenMode } from '../../ui/pen';
-import { useTouch } from '../../ui/responsive';
+import { usePhone, useTouch } from '../../ui/responsive';
 import { prepareImage } from './images';
 
 // Frame editor after DontPayForStoryboardingSoftware: pen / brush / eraser / fill / line /
@@ -15,11 +18,14 @@ import { prepareImage } from './images';
 // onion skin are separate overlay canvases, so they never get baked into the drawing.
 
 type Tool = 'pen' | 'brush' | 'eraser' | 'fill' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'text';
-const TOOLS: { id: Tool; label: string; key: string }[] = [
-  { id: 'pen', label: '✎ Pen', key: 'p' }, { id: 'brush', label: '🖌 Brush', key: 'b' }, { id: 'eraser', label: '⌫ Eraser', key: 'e' },
-  { id: 'fill', label: '◧ Fill', key: 'f' }, { id: 'line', label: '╱ Line', key: 'l' }, { id: 'arrow', label: '➝ Arrow', key: 'a' }, { id: 'rect', label: '▭ Rect', key: 'r' },
-  { id: 'ellipse', label: '◯ Ellipse', key: 'o' }, { id: 'text', label: 'T Text', key: 't' },
+const TOOLS: { id: Tool; icon: string; name: string; key: string }[] = [
+  { id: 'pen', icon: '✎', name: 'Pen', key: 'p' }, { id: 'brush', icon: '🖌', name: 'Brush', key: 'b' }, { id: 'eraser', icon: '⌫', name: 'Eraser', key: 'e' },
+  { id: 'fill', icon: '◧', name: 'Fill', key: 'f' }, { id: 'line', icon: '╱', name: 'Line', key: 'l' }, { id: 'arrow', icon: '➝', name: 'Arrow', key: 'a' }, { id: 'rect', icon: '▭', name: 'Rectangle', key: 'r' },
+  { id: 'ellipse', icon: '◯', name: 'Ellipse', key: 'o' }, { id: 'text', icon: 'T', name: 'Text', key: 't' },
 ];
+/** Line, arrow, rectangle and ellipse share one Shapes button (it shows the last one used). */
+const SHAPES: Tool[] = ['line', 'arrow', 'rect', 'ellipse'];
+const toolInfo = (t: Tool) => TOOLS.find((x) => x.id === t)!;
 const SWATCHES = ['#111111', '#555555', '#9ca3af', '#ffffff', '#dc2626', '#ea580c', '#facc15', '#16a34a', '#2563eb', '#7c3aed'];
 
 export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { frameId: string; onClose: () => void; onSelect: (id: string) => void; layer?: 'frame' | 'ref' }) {
@@ -39,7 +45,11 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const onionRef = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef<HTMLCanvasElement>(null);
   const gridRef = useRef<HTMLCanvasElement>(null);
-  const [tool, setTool] = useState<Tool>('pen');
+  const [tool, setToolState] = useState<Tool>('pen');
+  const [lastShape, setLastShape] = useState<Tool>('line');
+  const setTool = (t: Tool) => { setToolState(t); if (SHAPES.includes(t)) setLastShape(t); };
+  const colorRef = useRef<ColorPickerHandle>(null);
+  const phone = usePhone();
   const [color, setColor] = useState('#111111');
   const [size, setSize] = useState(4);
   const [opacity, setOpacity] = useState(1);
@@ -209,6 +219,9 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
       if (t) setTool(t.id);
       if (e.key === 'g') setGrid((v) => !v);
+      if (e.key === '[') changeSize(Math.max(1, size - 1));
+      if (e.key === ']') changeSize(Math.min(40, size + 1));
+      if (e.key === 'c') { e.preventDefault(); colorRef.current?.open(); }
       if (e.key === 'n') setOnion((v) => !v);
       if (e.key === 'ArrowLeft' && prev) { void save(); onSelect(prev.frame.id); }
       if (e.key === 'ArrowRight' && next) { void save(); onSelect(next.frame.id); }
@@ -350,43 +363,86 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const type = SHOT_TYPES.find((t) => t.code === shot.shotType)?.label;
   const close = () => { void save(); onClose(); };
 
+  // On a phone, undo / redo sit in the top bar so the drawing row fits without scrolling.
+  const undoRedo = (
+    <span className="fe-undo">
+      <button onClick={doUndo} disabled={!undo.current.length} title="Undo (⌘Z)" aria-label="Undo">↶</button>
+      <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)" aria-label="Redo">↷</button>
+    </span>
+  );
+  const sizeControl = (
+    <label className="check small size-control" title={`${tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Line'} width: ${Math.round(toolWidth)} px on a ${FRAME_W}-px-wide frame ([ and ] to change)`}>
+      <span className="fe-ctl-lbl">Size</span>
+      <input type="range" min={1} max={40} value={size} aria-label="Size" onChange={(e) => changeSize(Number(e.target.value))} onPointerDown={() => holdSize(true)} onPointerUp={() => holdSize(false)} onPointerCancel={() => holdSize(false)} onBlur={() => holdSize(false)} />
+      <span className="size-dot-box" aria-hidden><span className={`size-dot ${tool === 'eraser' ? 'eraser' : ''}`} style={{ width: Math.min(28, screenWidth), height: Math.min(28, screenWidth), background: tool === 'eraser' ? undefined : color, opacity: tool === 'brush' ? opacity * 0.6 : opacity }} /></span>
+      <span className="size-num">{widthLabel}</span>
+    </label>
+  );
+  const opacityControl = (
+    <label className="check small opacity-control" title="Opacity">
+      <span className="fe-ctl-lbl">Opacity</span>
+      <input type="range" min={0.05} max={1} step={0.05} value={opacity} aria-label="Opacity" onChange={(e) => setOpacity(Number(e.target.value))} />
+      <span className="size-num">{Math.round(opacity * 100)}%</span>
+    </label>
+  );
   return (
     <div className="frame-editor" role="dialog" aria-label="Storyboard frame">
       <div className="toolbar">
         <h3 className="keep">{cur.scene ? `Sc ${cur.scene.number} · ` : ''}Shot {shot.shotNumber || '—'}{type ? ` · ${type}` : ''}{layer === 'ref' ? ' — Set plan / reference' : ''}</h3>
         <span className="muted small">frame {pos + 1} of {all.length}</span>
         <span className="spacer" />
+        {phone && undoRedo}
         <button disabled={!prev} onClick={() => { void save(); onSelect(prev!.frame.id); }} title="Previous frame (←)">◀</button>
         <button disabled={!next} onClick={() => { void save(); onSelect(next!.frame.id); }} title="Next frame (→)">▶</button>
         <button className="primary" onClick={close}>Done</button>
       </div>
-      <div className="toolbar tools">
-        {TOOLS.map((t) => <button key={t.id} className={tool === t.id ? 'active' : ''} onClick={() => setTool(t.id)} title={`${t.label.slice(2)} (${t.key.toUpperCase()})`}>{t.label}</button>)}
-        <span className="sep" />
-        {SWATCHES.map((c) => <button key={c} className={`swatch ${color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />)}
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} title="Custom color" />
-        <button onClick={doUndo} disabled={!undo.current.length} title="Undo (⌘Z)">↶</button>
-        <button onClick={doRedo} disabled={!redo.current.length} title="Redo (⇧⌘Z)">↷</button>
-        <More label="Brush and frame options">
-        <label className="check small size-control" title={`${tool === 'eraser' ? 'Eraser' : tool === 'brush' ? 'Brush' : 'Line'} width: ${Math.round(toolWidth)} px on a ${FRAME_W}-px-wide frame`}>Size <input type="range" min={1} max={40} value={size} onChange={(e) => changeSize(Number(e.target.value))} onPointerDown={() => holdSize(true)} onPointerUp={() => holdSize(false)} onPointerCancel={() => holdSize(false)} onBlur={() => holdSize(false)} />
-          <span className="size-dot-box" aria-hidden><span className={`size-dot ${tool === 'eraser' ? 'eraser' : ''}`} style={{ width: Math.min(28, screenWidth), height: Math.min(28, screenWidth), background: tool === 'eraser' ? undefined : color, opacity: tool === 'brush' ? opacity * 0.6 : opacity }} /></span>
-          <span className="size-num">{widthLabel}</span></label>
-        {(pen.seen || touch) && (
-          <label className="check small" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
-            <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
-              <option value="auto">Auto</option>
-              <option value="pen">Pencil only</option>
-              <option value="any">Pencil &amp; fingers</option>
-            </select>
-          </label>
+      <div className="toolbar tools fe-tools" role="toolbar" aria-label="Drawing tools">
+        <div className="fe-seg">
+          {(['pen', 'brush', 'eraser', 'fill'] as Tool[]).map((id) => { const t = toolInfo(id); return (
+            <button key={id} className={tool === id ? 'active' : ''} aria-pressed={tool === id} aria-label={t.name} title={`${t.name} (${t.key.toUpperCase()})`} onClick={() => setTool(id)}>
+              <span className="fe-ico" aria-hidden>{t.icon}</span><span className="fe-lbl">{t.name}</span>
+            </button>
+          ); })}
+          <span className={`fe-shapes ${SHAPES.includes(tool) ? 'active' : ''}`}>
+            <button className={SHAPES.includes(tool) ? 'active' : ''} aria-pressed={SHAPES.includes(tool)} aria-label={`Shapes: ${toolInfo(lastShape).name}`} title={`${toolInfo(lastShape).name} (${toolInfo(lastShape).key.toUpperCase()}) — ▾ for other shapes`} onClick={() => setTool(lastShape)}>
+              <span className="fe-ico" aria-hidden>{toolInfo(lastShape).icon}</span><span className="fe-lbl">{toolInfo(lastShape).name}</span>
+            </button>
+            <button className="fe-caret" aria-label="Other shapes" title="Line, arrow, rectangle, ellipse"
+              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); openActions('Shapes', SHAPES.map((id) => ({ label: `${toolInfo(id).icon}  ${toolInfo(id).name} (${toolInfo(id).key.toUpperCase()})`, current: tool === id, run: () => setTool(id) })), { x: r.left, y: r.bottom }); }}>▾</button>
+          </span>
+          {(() => { const t = toolInfo('text'); return (
+            <button className={tool === 'text' ? 'active' : ''} aria-pressed={tool === 'text'} aria-label={t.name} title={`${t.name} (T)`} onClick={() => setTool('text')}>
+              <span className="fe-ico" aria-hidden>{t.icon}</span><span className="fe-lbl">{t.name}</span>
+            </button>
+          ); })()}
+        </div>
+        <ColorPicker ref={colorRef} value={color} onChange={setColor} swatches={SWATCHES} />
+        {phone ? (
+          <MoreMenu sheet label={`Size ${widthLabel} and opacity`} className="fe-size-sheet"
+            icon={<span className="size-dot-box" aria-hidden><span className={`size-dot ${tool === 'eraser' ? 'eraser' : ''}`} style={{ width: Math.min(24, screenWidth), height: Math.min(24, screenWidth), background: tool === 'eraser' ? undefined : color }} /></span>}>
+            {sizeControl}
+            {opacityControl}
+          </MoreMenu>
+        ) : (
+          <>{sizeControl}{opacityControl}</>
         )}
-        <label className="check small">Opacity <input type="range" min={0.05} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} /> {Math.round(opacity * 100)}%</label>
-        <span className="sep" />
-        <button className={grid ? 'active' : ''} onClick={() => setGrid(!grid)} title="Grid + rule of thirds (G)">Grid</button>
-        <button className={onion ? 'active' : ''} disabled={!prev} onClick={() => setOnion(!onion)} title="Show the previous frame faintly (N)">Onion skin</button>
-        <button onClick={() => { snapshot(); ctx().clearRect(0, 0, FRAME_W, FRAME_H); changed(); }}>Clear drawing</button>
-        <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
-        {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
+        {!phone && undoRedo}
+        <More label="Frame options" always>
+          <button className={grid ? 'active' : ''} onClick={() => setGrid(!grid)} title="Grid + rule of thirds (G)">Grid</button>
+          <button className={onion ? 'active' : ''} disabled={!prev} onClick={() => setOnion(!onion)} title="Show the previous frame faintly (N)">Onion skin</button>
+          {(pen.seen || touch) && (
+            <label className="check small keep-open" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
+              <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
+                <option value="auto">Auto</option>
+                <option value="pen">Pencil only</option>
+                <option value="any">Pencil &amp; fingers</option>
+              </select>
+            </label>
+          )}
+          <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
+          {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
+          <hr />
+          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image stays. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FRAME_W, FRAME_H); changed(); } }}>Clear drawing…</button>
         </More>
       </div>
       <div className="frame-stage">
