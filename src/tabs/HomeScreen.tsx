@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { produce } from 'immer';
 import { listProjects, loadProject, deleteProject } from '../store/db';
 import { useStore } from '../store/project';
 import { newProject } from '../model/defaults';
@@ -7,9 +6,6 @@ import { ImportDialog } from '../components/ImportDialog';
 import { pickFile, readProjectFile, PROJECT_ACCEPT } from '../io/files';
 import { openProjectFilePicker, rememberFile, fileAccessSupported } from '../io/fileSave';
 import { isCineSchedProject, importCineSched } from '../io/cinesched';
-import { parseFountain } from '../io/fountain';
-import { applyImportedScript } from '../io/applyImport';
-import { SAMPLE_FOUNTAIN } from '../model/sample';
 import { session } from '../script/session';
 import { toast } from '../components/common';
 import { askConfirm, DialogHost } from '../components/dialogs';
@@ -54,11 +50,7 @@ export function HomeScreen() {
     }
   };
 
-  const sample = () => {
-    const parsed = parseFountain(SAMPLE_FOUNTAIN);
-    open(produce(newProject('The Last Reel'), (d) => { applyImportedScript(d, parsed); }), true);
-  };
-  // The full sample: every section filled in, with a few problems to fix. A fresh copy each time.
+  // The sample production: every section filled in, with a few problems to fix. A fresh copy each time.
   const [building, setBuilding] = useState(false);
   const sampleProduction = async () => {
     setBuilding(true);
@@ -81,11 +73,7 @@ export function HomeScreen() {
           <button className="primary" onClick={() => open(newProject(), true)}>New screenplay</button>
           <button onClick={() => setImporting(true)}>Import a screenplay…</button>
           <button onClick={openFile}>Open project file…</button>
-        </div>
-        <div className="home-samples">
-          <span className="muted small">Try a sample:</span>
-          <button onClick={sample} title="The short sample script, for writing">Sample script</button>
-          <button onClick={() => void sampleProduction()} disabled={building} title="A filled-in short film: every section, with a few problems to fix">{building ? 'Building…' : 'Sample production'}</button>
+          <button onClick={() => void sampleProduction()} disabled={building} title="A filled-in short film: script, storyboards, breakdown, schedule, budget, paperwork and festivals, with a few problems to fix">{building ? 'Building the sample…' : 'Try the sample production'}</button>
         </div>
         <h2>Recent projects</h2>
         {projects.length === 0 && <p className="muted">No projects yet. Projects are saved in this browser automatically.</p>}
