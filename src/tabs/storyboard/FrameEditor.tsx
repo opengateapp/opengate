@@ -53,8 +53,6 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const bgRef = useRef<HTMLCanvasElement>(null);
   const onionRef = useRef<HTMLCanvasElement>(null);
   const ghostRef = useRef<HTMLCanvasElement>(null);
-  /** Bumped to reload the drawing layer from storage (after swapping it with a ghost pose). */
-  const [reload, setReload] = useState(0);
   const drawRef = useRef<HTMLCanvasElement>(null);
   const gridRef = useRef<HTMLCanvasElement>(null);
   const [tool, setToolState] = useState<Tool>('pen');
@@ -73,8 +71,12 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const [onion, setOnion] = useState(false);
   const [textAt, setTextAt] = useState<{ x: number; y: number; cssX: number; cssY: number } | null>(null);
   const [textVal, setTextVal] = useState('');
-  const undo = useRef<ImageData[]>([]);
-  const redo = useRef<ImageData[]>([]);
+  // Undo steps hold the canvas, and for onion-skin actions also the frame's ghost poses and drawing,
+  // so undoing "Merge ghosts" or "Ghost pose" brings the poses back too.
+  type FrameLayers = { ghosts: { id: string; drawingId: string }[]; drawingId?: string };
+  type Step = { img: ImageData; layers?: FrameLayers };
+  const undo = useRef<Step[]>([]);
+  const redo = useRef<Step[]>([]);
   const [, force] = useState(0);
   const dirty = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -141,7 +143,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     })();
     return () => { alive = false; };
     // Reload only when switching frames or replacing the image (not on our own drawing saves).
-  }, [frameId, cur?.frame[IMG], FW, FH, reload]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [frameId, cur?.frame[IMG], FW, FH]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Onion skin inside this frame: earlier poses, faded, oldest faintest ----
   const ghosts = layer === 'frame' ? cur?.frame.ghosts ?? [] : [];
@@ -211,25 +213,33 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   };
   useEffect(() => () => { void save(); }, [save]);
 
-  const snapshot = () => {
-    undo.current.push(ctx().getImageData(0, 0, FW, FH));
+  /** The frame's ghost poses and drawing id as stored now. */
+  const layersNow = (): FrameLayers => {
+    const f = useStore.getState().project?.storyboard.find((x) => x.id === frameId);
+    return { ghosts: [...(f?.ghosts ?? [])], drawingId: f?.[DRW] };
+  };
+  /** Remembers the canvas (and, for onion-skin actions, the ghosts) before a change. */
+  const snapshot = (withLayers = false) => {
+    undo.current.push({ img: ctx().getImageData(0, 0, FW, FH), layers: withLayers ? layersNow() : undefined });
     if (undo.current.length > 40) undo.current.shift();
     redo.current = [];
   };
-  const doUndo = () => {
-    const s = undo.current.pop();
-    if (!s) return;
-    redo.current.push(ctx().getImageData(0, 0, FW, FH));
-    ctx().putImageData(s, 0, 0);
+  const restore = (s: Step) => {
+    ctx().putImageData(s.img, 0, 0);
+    if (s.layers) {
+      const l = s.layers;
+      update((dr) => { const x = dr.storyboard.find((y) => y.id === frameId); if (x) { x.ghosts = l.ghosts; x[DRW] = l.drawingId; x.rev++; } }, null);
+    }
     changed();
   };
-  const doRedo = () => {
-    const s = redo.current.pop();
+  const step = (from: React.MutableRefObject<Step[]>, to: React.MutableRefObject<Step[]>) => {
+    const s = from.current.pop();
     if (!s) return;
-    undo.current.push(ctx().getImageData(0, 0, FW, FH));
-    ctx().putImageData(s, 0, 0);
-    changed();
+    to.current.push({ img: ctx().getImageData(0, 0, FW, FH), layers: s.layers ? layersNow() : undefined });
+    restore(s);
   };
+  const doUndo = () => step(undo, redo);
+  const doRedo = () => step(redo, undo);
 
   // Editor shortcuts; captured so ⌘Z doesn't reach the project-level undo.
   useEffect(() => {
@@ -400,9 +410,10 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     await save();
     const d0 = useStore.getState().project?.storyboard.find((x) => x.id === cur.frame.id)?.drawingId;
     if (!d0) return;
+    snapshot(true);
     setFrame((x) => { x.ghosts = [...(x.ghosts ?? []), { id: newId(), drawingId: d0 }]; x.drawingId = undefined; }, 'Add ghost pose');
     ctx().clearRect(0, 0, FW, FH);
-    undo.current = []; redo.current = [];
+    force((n) => n + 1);
   };
   /** Brings a ghost back as the drawing to change it; the current drawing takes its place. */
   const editGhost = async (gid: string) => {
@@ -411,6 +422,8 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     const fr = useStore.getState().project?.storyboard.find((x) => x.id === cur.frame.id);
     const g = fr?.ghosts?.find((x) => x.id === gid);
     if (!fr || !g) return;
+    const blob = await getMedia(g.drawingId);
+    snapshot(true);
     setFrame((x) => {
       const list = x.ghosts ?? [];
       const i = list.findIndex((y) => y.id === gid);
@@ -418,16 +431,18 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       x.drawingId = g.drawingId;
       x.ghosts = was ? list.map((y, k) => (k === i ? { id: newId(), drawingId: was } : y)) : list.filter((y) => y.id !== gid);
     }, 'Edit ghost pose');
-    setReload((n) => n + 1);
+    ctx().clearRect(0, 0, FW, FH);
+    if (blob) drawLayer(ctx(), await blobToImage(blob), FW, FH);
+    force((n) => n + 1);
   };
-  const deleteGhost = (gid: string) => setFrame((x) => { x.ghosts = (x.ghosts ?? []).filter((y) => y.id !== gid); }, 'Delete ghost pose');
+  const deleteGhost = (gid: string) => { snapshot(true); setFrame((x) => { x.ghosts = (x.ghosts ?? []).filter((y) => y.id !== gid); }, 'Delete ghost pose'); force((n) => n + 1); };
   /** Bakes the ghosts (at their fade) into the drawing, under what's drawn now. */
   const mergeGhosts = async () => {
     const c = document.createElement('canvas'); c.width = FW; c.height = FH;
     const g = c.getContext('2d')!;
     g.drawImage(ghostRef.current!, 0, 0);
     g.drawImage(drawRef.current!, 0, 0);
-    snapshot();
+    snapshot(true);
     ctx().clearRect(0, 0, FW, FH);
     ctx().drawImage(c, 0, 0);
     dirty.current = true;
