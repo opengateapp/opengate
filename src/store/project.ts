@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { setMoneyFormat } from '../budget/calc';
+import { unitsOf } from '../model/units';
 import { enablePatches, produceWithPatches, applyPatches, type Patch, type Draft } from 'immer';
 import type { Project } from '../model/types';
 import { derive, type Derived } from '../script/derive';
@@ -136,4 +138,19 @@ export async function editProjectHere(): Promise<void> {
   await takeOver(id);
   const p = await loadProject(id);
   if (p) { lastSaved = p; useStore.setState({ project: p, past: [], future: [], saveState: 'saved' }); }
+}
+
+/** Money everywhere follows the open project's currency, number format and symbol style (before screens re-render). */
+export function startMoneyFormat(): () => void {
+  let last: unknown;
+  const apply = (p: Project | null) => {
+    const key = p ? `${p.units?.currency}|${p.units?.locale}|${p.units?.symbolStyle}|${p.budget.currency}` : null;
+    if (key === last) return;
+    last = key;
+    if (!p) { setMoneyFormat(null); return; }
+    const u = unitsOf(p);
+    setMoneyFormat({ currency: u.currency, locale: u.locale, display: u.symbolStyle === 'clear' ? 'symbol' : 'narrowSymbol' });
+  };
+  apply(useStore.getState().project);
+  return useStore.subscribe((s) => apply(s.project));
 }

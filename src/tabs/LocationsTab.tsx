@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MoneyInput } from '../components/NumberInput';
 import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
@@ -72,7 +73,7 @@ export function LocationsTab() {
           ))}
         </ul>
         {!p.locations.length && <p className="muted small pad"><Hint>{'Double-click here to add a location.'}</Hint></p>}
-        {p.locations.length > 0 && <button className="small full" onClick={() => download(`${safeName(p.title)} locations.csv`, csv([['Real location', 'Script set', 'Address', 'Status', 'Contact', 'Phone', 'Email', 'Permit', 'Parking', 'Power', 'Restrooms', 'Hospital', 'Fee', 'Notes'], ...p.locations.map((l) => [l.realName, l.setName, l.address, l.status ?? '', l.contactName ?? '', l.contactPhone ?? '', l.contactEmail ?? '', l.permit ?? '', l.parking ?? '', l.power ?? '', l.restrooms ?? '', l.nearestHospital ?? '', l.fee ?? '', l.notes ?? ''])]), 'text/csv')}>Export CSV</button>}
+        {p.locations.length > 0 && <button className="small full" onClick={() => download(`${safeName(p.title)} locations.csv`, csv([['Real location', 'Script set', 'Address', 'Status', 'Contact', 'Phone', 'Email', 'Permit', 'Parking', 'Power', 'Restrooms', 'Hospital', 'Fee', 'Notes'], ...p.locations.map((l) => [l.realName, l.setName, l.address, l.status ?? '', l.contactName ?? '', l.contactPhone ?? '', l.contactEmail ?? '', l.permit ?? '', l.parking ?? '', l.power ?? '', l.restrooms ?? '', l.nearestHospital ?? '', [l.feeAmount != null ? `${l.feeAmount} ${l.feePer === 'flat' ? 'flat' : 'per day'}` : '', l.fee ?? ''].filter(Boolean).join(' · '), l.notes ?? ''])]), 'text/csv')}>Export CSV</button>}
       </aside>
       {loc ? <LocationDetail loc={loc} /> : <Empty title="No locations yet"><p className="muted">Add the places you'll shoot, or pull the sets from your script.</p><button className="primary" onClick={() => add()}>Add location</button></Empty>}
     </div>
@@ -128,7 +129,13 @@ function LocationDetail({ loc }: { loc: Location }) {
         {text('contactName', 'Contact')}
         {text('contactPhone', 'Contact phone')}
         {text('contactEmail', 'Contact email')}
-        {text('fee', 'Fee / rate')}
+        <Field label="Fee">
+          <span className="row nowrap">
+            <MoneyInput value={loc.feeAmount} placeholder="0" onChange={(n) => set({ feeAmount: n })} />
+            <select value={loc.feePer ?? 'day'} aria-label="Fee per" onChange={(e) => set({ feePer: e.target.value as 'day' | 'flat' }, 'Fee per')}><option value="day">per day</option><option value="flat">flat</option></select>
+          </span>
+        </Field>
+        {text('fee', 'Fee notes', false, 'e.g. includes power; half rate on hold days')}
         {text('permit', 'Permit', false, 'Status, number, dates')}
         {text('parking', 'Parking / basecamp')}
         {text('power', 'Power')}

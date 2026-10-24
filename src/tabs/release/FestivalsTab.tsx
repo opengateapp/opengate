@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { MoneyInput } from '../../components/NumberInput';
 import { useProject, useStore } from '../../store/project';
 import type { Festival, FestivalDeadline, FestivalStatus, FestivalTier, PremiereRule } from '../../model/types';
 import { money } from '../../budget/calc';
@@ -182,7 +183,7 @@ function Deadlines({ f, ro, today, h }: { f: Festival; ro: boolean; today: strin
                 <td><input disabled={ro} type="radio" name={`aim-${f.id}`} checked={f.aim === d.id} aria-label={`Aim for the ${d.label} deadline`} onChange={() => h.set({ aim: d.id }, 'Aim for deadline')} /></td>
                 <td><input disabled={ro} value={d.label} aria-label="Deadline name" onChange={(e) => h.setDl(d.id, { label: e.target.value })} /></td>
                 <td><input disabled={ro} type="date" value={d.date} aria-label="Deadline date" onChange={(e) => h.setDl(d.id, { date: e.target.value })} />{days !== null && !past && days <= 30 && <span className="small fest-days"> {days === 0 ? 'today' : `${days}d`}</span>}</td>
-                {h.m.show && <td className="num"><input disabled={ro || !h.m.write} className="num" type="number" min={0} step={1} value={d.fee || ''} placeholder="0" aria-label="Fee" onChange={(e) => h.setDl(d.id, { fee: Number(e.target.value) || 0 })} /></td>}
+                {h.m.show && <td className="num"><MoneyInput disabled={ro || !h.m.write} className="num" min={0} value={d.fee || undefined} placeholder="0" aria-label="Fee" onChange={(n) => h.setDl(d.id, { fee: n ?? 0 })} /></td>}
                 <td>{!ro && <button className="icon-btn" aria-label="Delete deadline" onClick={() => h.set({ deadlines: f.deadlines.filter((x) => x.id !== d.id), aim: f.aim === d.id ? undefined : f.aim }, 'Delete deadline')}>×</button>}</td>
               </tr>
             );
@@ -202,10 +203,10 @@ function Extras({ f, ro, h }: { f: Festival; ro: boolean; h: ReturnType<typeof u
       <div className="festival-meta">
         {m.show && <input disabled={mro} className="festival-waiver" value={f.waiver ?? ''} placeholder="Fee waiver code / note" aria-label="Fee waiver" onChange={(e) => set({ waiver: e.target.value || undefined })} />}
         <label className="check small"><input disabled={ro} type="checkbox" checked={!!f.attend} onChange={(e) => set({ attend: e.target.checked }, 'Attend festival')} /> Attend</label>
-        {m.show && f.attend && <label className="check small">Travel <input disabled={mro} className="num" type="number" min={0} step={50} value={f.travel ?? ''} placeholder="0" aria-label="Travel budget" onChange={(e) => set({ travel: Number(e.target.value) || 0 })} /></label>}
+        {m.show && f.attend && <label className="check small">Travel <MoneyInput disabled={mro} className="num" min={0} value={f.travel} placeholder="0" aria-label="Travel budget" onChange={(n) => set({ travel: n ?? 0 })} /></label>}
         {(f.status !== 'considering' && f.status !== 'planned') && <>
           <label className="check small">Submitted <input disabled={ro} type="date" value={f.submittedOn ?? ''} onChange={(e) => set({ submittedOn: e.target.value || undefined })} /></label>
-          {m.show && <label className="check small">Fee paid <input disabled={mro} className="num" type="number" min={0} value={f.feePaid ?? ''} placeholder="0" aria-label="Fee paid" onChange={(e) => set({ feePaid: e.target.value === '' ? undefined : Number(e.target.value) || 0 })} /></label>}
+          {m.show && <label className="check small">Fee paid <MoneyInput disabled={mro} className="num" min={0} value={f.feePaid} placeholder="0" aria-label="Fee paid" onChange={(n) => set({ feePaid: n })} /></label>}
         </>}
         {f.status === 'accepted' && <label className="check small">Laurel <input disabled={ro} className="festival-laurel" list="laurel-kinds" value={f.laurel ?? ''} placeholder="Official Selection" aria-label="Laurel" onChange={(e) => set({ laurel: e.target.value || undefined })} /></label>}
         <label className="check small">Notified by <input disabled={ro} type="date" value={f.notifyDate ?? ''} onChange={(e) => set({ notifyDate: e.target.value || undefined })} /></label>
@@ -347,7 +348,7 @@ function PasteDialog({ onClose, onAdd }: { onClose: () => void; onAdd: (f: Festi
                 <tr key={d.id} className={d.date && d.date < today ? 'past' : ''}>
                   <td><input value={d.label} onChange={(e) => setDl(d.id, { label: e.target.value })} /></td>
                   <td><input type="date" value={d.date} onChange={(e) => setDl(d.id, { date: e.target.value })} /></td>
-                  {m.write && <td className="num"><input className="num" type="number" min={0} value={d.fee || ''} onChange={(e) => setDl(d.id, { fee: Number(e.target.value) || 0 })} /></td>}
+                  {m.write && <td className="num"><MoneyInput className="num" min={0} value={d.fee || undefined} placeholder="0" aria-label="Fee" onChange={(n) => setDl(d.id, { fee: n ?? 0 })} /></td>}
                 </tr>
               ))}</tbody>
             </table>

@@ -89,7 +89,8 @@ const textDoc = (lines: string[]) => ({
 
 export function buildSampleProduction(): Project {
   const parsed = parseFountain(SAMPLE_PRODUCTION_FOUNTAIN);
-  let p = produce(newProject('The Last Reel'), (dr) => { applyImportedScript(dr, parsed); });
+  // The sample's rates are US figures (SAG-AFTRA, US crew): it stays in US dollars and feet wherever it's opened.
+  let p = produce(newProject('The Last Reel'), (dr) => { applyImportedScript(dr, parsed); dr.units = { currency: 'USD', symbolStyle: 'narrow', distance: 'ft', locale: 'en-US' }; dr.budget.currency = 'USD'; });
   const d0 = derive(p.scriptDoc, p.sceneNumbersLocked);
   /** Scene id by scene number (1–22, in script order). */
   const sc = (n: number) => d0.scenes[n - 1].id;
@@ -270,10 +271,10 @@ export function buildSampleProduction(): Project {
     );
 
     const loc = (key: string, l: Omit<Project['locations'][number], 'id'>) => { const id = newId(); dr.locations.push({ id, ...l }); ids[key] = id; return id; };
-    const driveIn = loc('loc:drive-in', { setName: 'DRIVE-IN THEATER', realName: 'Ridgeview Drive-In (closed)', address: '4400 Old Highway 12, Ridgeview, MT', status: 'confirmed', contactName: 'Gary Hollis', contactPhone: '(406) 555-0142', fee: '$200/day', permit: 'County film permit + public-gathering permit (Sc 18–21)', parking: 'Basecamp by the snack bar', power: 'None: bring the generator', restrooms: 'Rent two portable toilets', nearestHospital: 'Ridgeview General, 12 min', photoIds: [] });
-    const road = loc('loc:road', { setName: 'COUNTY ROAD', realName: 'Mill Creek Road (County Rd 12)', address: 'County Rd 12 between mile 3 and 4', status: 'hold', fee: '$150 flat', permit: 'Road-use permit and closure for the swerve (Sc 12): requested', parking: 'Gravel pull-out at mile 3', nearestHospital: 'Ridgeview General, 18 min', photoIds: [] });
-    loc('loc:kitchen', { setName: 'THEO\'S KITCHEN', realName: 'The producer\'s aunt\'s house', address: '17 Birch Lane, Ridgeview', status: 'confirmed', fee: 'Free (a thank-you credit)', permit: 'Not needed (private home)', photoIds: [] });
-    loc('loc:diner', { setName: 'ROSIE\'S DINER', realName: 'Rosie\'s Diner', address: '210 Main St, Ridgeview', status: 'hold', contactName: 'Rosie Albers', contactPhone: '(406) 555-0150', fee: '$250/day', permit: 'Not needed (private business)', notes: 'Added in the production draft: a 4th location and a pickup day.', photoIds: [] });
+    const driveIn = loc('loc:drive-in', { setName: 'DRIVE-IN THEATER', realName: 'Ridgeview Drive-In (closed)', address: '4400 Old Highway 12, Ridgeview, MT', status: 'confirmed', contactName: 'Gary Hollis', contactPhone: '(406) 555-0142', feeAmount: 200, feePer: 'day', permit: 'County film permit + public-gathering permit (Sc 18–21)', parking: 'Basecamp by the snack bar', power: 'None: bring the generator', restrooms: 'Rent two portable toilets', nearestHospital: 'Ridgeview General, 12 min', photoIds: [] });
+    const road = loc('loc:road', { setName: 'COUNTY ROAD', realName: 'Mill Creek Road (County Rd 12)', address: 'County Rd 12 between mile 3 and 4', status: 'hold', feeAmount: 150, feePer: 'flat', permit: 'Road-use permit and closure for the swerve (Sc 12): requested', parking: 'Gravel pull-out at mile 3', nearestHospital: 'Ridgeview General, 18 min', photoIds: [] });
+    loc('loc:kitchen', { setName: 'THEO\'S KITCHEN', realName: 'The producer\'s aunt\'s house', address: '17 Birch Lane, Ridgeview', status: 'confirmed', feeAmount: 0, feePer: 'flat', fee: 'Free (a thank-you credit)', permit: 'Not needed (private home)', photoIds: [] });
+    loc('loc:diner', { setName: 'ROSIE\'S DINER', realName: 'Rosie\'s Diner', address: '210 Main St, Ridgeview', status: 'hold', contactName: 'Rosie Albers', contactPhone: '(406) 555-0150', feeAmount: 250, feePer: 'day', permit: 'Not needed (private business)', notes: 'Added in the production draft: a 4th location and a pickup day.', photoIds: [] });
     // Scenes at the drive-in and on the road that use other set names (the booth, the truck).
     for (const n of [4, 5, 6, 7, 8, 16, 17, 18, 19]) dr.sceneMeta[sc(n)] = { ...dr.sceneMeta[sc(n)], locationId: driveIn };
     for (const n of [2, 11, 13]) dr.sceneMeta[sc(n)] = { ...dr.sceneMeta[sc(n)], locationId: road };

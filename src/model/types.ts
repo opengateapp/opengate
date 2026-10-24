@@ -133,7 +133,11 @@ export interface Location {
   power?: string;
   restrooms?: string;
   nearestHospital?: string;
+  /** The fee as typed before v0.6 ("$200/day"), now kept as a note next to `feeAmount`. */
   fee?: string;
+  /** The location fee, in the project currency, per day or flat. */
+  feeAmount?: number;
+  feePer?: 'day' | 'flat';
   photoIds?: Id[];
 }
 
@@ -1258,6 +1262,8 @@ export interface Project {
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
   /** "Start from a budget": the money, what you have, and the limits to write within (Write → Limits). */
+  /** Currency and measurements (Settings → Project → Units & currency). Shared with everyone on the project. */
+  units?: ProjectUnits;
   writingPlan?: WritingPlan;
   /** Release → Festivals (their money is in budget.festivalCosts). */
   festivals?: FestivalInfo[];
@@ -1387,4 +1393,17 @@ export interface Outlet {
   contact?: string;
   url?: string;
   notes?: string;
+}
+
+// ---------------------------------------------------------------- units & currency
+
+export interface ProjectUnits {
+  /** ISO 4217 code. Amounts are never converted when it changes. */
+  currency: string;
+  /** "$" (narrow) or "CA$" (clear, for when "$" is ambiguous). */
+  symbolStyle: 'narrow' | 'clear';
+  /** Distances are stored in feet and shown in this unit. */
+  distance: 'ft' | 'm';
+  /** Number format (1,234.50 vs 1.234,50) and where the currency symbol goes. */
+  locale: string;
 }

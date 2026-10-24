@@ -1,6 +1,7 @@
 import type { Project } from '../model/types';
 import { SCHEMA_VERSION, newProject } from '../model/defaults';
 import { moveLegacyFestivals } from '../budget/festivals';
+import { parseFeeText } from '../model/units';
 
 /** Upgrades older saved projects and fills fields added since they were written. */
 export function migrate(input: unknown): Project {
@@ -36,6 +37,12 @@ export function migrate(input: unknown): Project {
     (out as unknown as Record<string, unknown>)[k] = Array.isArray(p[k]) ? p[k] : [];
   }
   if (!p.share) moveLegacyFestivals(out);
+  // v0.6: location fees typed as text become an amount (per day or flat); other words stay as a note.
+  out.locations = out.locations.map((l) => {
+    if (l.feeAmount != null || !l.fee?.trim()) return l;
+    const f = parseFeeText(l.fee);
+    return f ? { ...l, feeAmount: f.amount, feePer: f.per, fee: f.note } : l;
+  });
   // Licenses: older budgets get the Licensing & Clearances account.
   if (!out.budget.accounts.some((a) => a.code === '4600')) {
     const acc = { id: 'acc-4600', code: '4600', name: 'Licensing & Clearances', group: 'post' as const };

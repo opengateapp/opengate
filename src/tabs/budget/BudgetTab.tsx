@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { MoneyInput, NumberInput, type Per } from '../../components/NumberInput';
 import type { Draft } from 'immer';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Budget, BudgetAccount, BudgetGroup, BudgetLine, BudgetUnits, Project } from '../../model/types';
@@ -55,13 +56,17 @@ const UNITS: { id: BudgetUnits; label: string }[] = [
   { id: 'each', label: 'Each' }, { id: 'flat', label: 'Flat' }, { id: 'allow', label: 'Allow' },
   { id: 'rentdays', label: 'Rental days' },
 ];
-const CURRENCIES = ['USD', 'CAD', 'EUR', 'GBP', 'AUD', 'NZD', 'JPY', 'INR', 'MXN', 'BRL', 'ZAR'];
 
 const num = (v: string) => (v.trim() === '' ? 0 : Number(v));
 
-function NumIn({ value, onChange, disabled, className, title }: { value: number; onChange: (n: number) => void; disabled?: boolean; className?: string; title?: string }) {
-  return <input type="number" step="any" className={className} title={title} disabled={disabled} value={Number.isFinite(value) ? round2(value) : ''} onChange={(e) => { const n = num(e.target.value); if (Number.isFinite(n)) onChange(n); }} />;
+/** A number box with its unit locked inside; `money` shows the project currency ("$ [387] /day"). */
+function NumIn({ value, onChange, disabled, className, title, money: isMoney, per, suffix }: { value: number; onChange: (n: number) => void; disabled?: boolean; className?: string; title?: string; money?: boolean; per?: Per; suffix?: string }) {
+  const props = { value: Number.isFinite(value) ? value : 0, onChange: (n?: number) => onChange(n ?? 0), disabled, className, title };
+  return isMoney ? <MoneyInput {...props} per={per} suffix={suffix} /> : <NumberInput {...props} suffix={suffix} />;
 }
+
+/** What a line's rate is per: "$ [387] /day". */
+const PER: Partial<Record<BudgetUnits, Per>> = { days: 'day', weeks: 'week', hours: 'hour', each: 'each', flat: 'flat', rentdays: 'day' };
 
 /** Asks for a name and adds a budget version (a copy of `fromId`, or empty = the base budget). */
 async function createVersion(fromId: string | undefined, select: (id: string) => void) {
@@ -354,7 +359,7 @@ function BudgetScreen() {
                             {mode === 'build' && <td className="num">{est ? <>{$(est)} <span className="pct">{Math.round((est / (view.t.subtotal || 1)) * 100)}%</span></> : '—'}</td>}
                             {mode === 'target' && <>
                               <td className="num" onClick={(e) => e.stopPropagation()}>
-                                <NumIn className="cell-num" disabled={ro} value={a.target ?? 0} onChange={(n) => ub((bd) => { const x = bd.accounts.find((y) => y.id === a.id)!; if (n) x.target = n; else delete x.target; }, null)} />
+                                <NumIn money className="cell-num" disabled={ro} value={a.target ?? 0} onChange={(n) => ub((bd) => { const x = bd.accounts.find((y) => y.id === a.id)!; if (n) x.target = n; else delete x.target; }, null)} />
                               </td>
                               <td className="num">{est ? $(est) : '—'}</td>
                               <td className="num"><Room target={a.target} est={est} $={$} /></td>
@@ -467,7 +472,7 @@ function TargetHeader({ ro, subtotal, estimates }: { ro: boolean; subtotal: numb
   return (
     <div className="target-head">
       <label className="field"><span>Target total (all-in)</span>
-        <NumIn disabled={ro} value={b.targetTotal ?? 0} onChange={(n) => update((dr) => { if (n > 0) dr.budget.targetTotal = n; else delete dr.budget.targetTotal; }, null)} />
+        <NumIn money disabled={ro} value={b.targetTotal ?? 0} onChange={(n) => update((dr) => { if (n > 0) dr.budget.targetTotal = n; else delete dr.budget.targetTotal; }, null)} />
       </label>
       {!!b.targetTotal && (
         <div className="target-facts small">
@@ -611,7 +616,7 @@ function AccountLines({ account, view, scenarioId, ro, mode, highlight }: { acco
                   </td>
                   <td className="num"><ExprIn className="cell-num small" disabled={ro} value={l.x} expr={base(l).xExpr} vars={view.vars}
                     onNumber={(n) => set(l, { x: n, xExpr: undefined })} onExpr={(x) => set(l, { xExpr: x })} title="How many people or things (or a word like CREW: however many crew are in Contacts)" /></td>
-                  <td className="num"><NumIn className="cell-num" disabled={ro || !!l.items?.length} value={l.rate} onChange={(n) => set(l, { rate: n })} title={l.items?.length ? 'Adds up the sub-items (open ▸ details)' : undefined} /></td>
+                  <td className="num"><NumIn money per={PER[l.units]} className="cell-num" disabled={ro || !!l.items?.length} value={l.rate} onChange={(n) => set(l, { rate: n })} title={l.items?.length ? 'Adds up the sub-items (open ▸ details)' : undefined} /></td>
                   {b.fringes.length > 0 && (
                     <td className="fringe-cell">
                       {b.fringes.map((f) => (
@@ -633,13 +638,13 @@ function AccountLines({ account, view, scenarioId, ro, mode, highlight }: { acco
                     <td colSpan={b.fringes.length > 0 ? 9 : 8}>
                       <div className="line-details-grid">
                         {linked?.auto && (linked.kind === 'crew' || linked.kind === 'location' || linked.kind === 'cast' || linked.kind === 'shootDays') && <>
-                          <label className="field"><span>Prep days</span><NumIn disabled={ro} value={l.prepDays ?? 0} title="Paid days before the shoot (added to the linked days)" onChange={(n) => set(l, { prepDays: n > 0 ? n : undefined })} /></label>
-                          <label className="field"><span>Wrap days</span><NumIn disabled={ro} value={l.wrapDays ?? 0} title="Paid days after the shoot (strike, returns)" onChange={(n) => set(l, { wrapDays: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>Prep days</span><NumIn suffix="days" disabled={ro} value={l.prepDays ?? 0} title="Paid days before the shoot (added to the linked days)" onChange={(n) => set(l, { prepDays: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>Wrap days</span><NumIn suffix="days" disabled={ro} value={l.wrapDays ?? 0} title="Paid days after the shoot (strike, returns)" onChange={(n) => set(l, { wrapDays: n > 0 ? n : undefined })} /></label>
                         </>}
                         {l.units === 'days' && <>
-                          <label className="field"><span>Overtime hours (total)</span><NumIn disabled={ro} value={l.otHours ?? 0} title={`Paid at ${b.otMult ?? 1.5}× the hourly rate (day rate ÷ ${b.dayHours ?? 10} h)`} onChange={(n) => set(l, { otHours: n > 0 ? n : undefined })} /></label>
-                          <label className="field"><span>6th days</span><NumIn disabled={ro} value={l.sixthDays ?? 0} title={`Days paid at ${b.sixthMult ?? 1.5}×`} onChange={(n) => set(l, { sixthDays: n > 0 ? n : undefined })} /></label>
-                          <label className="field"><span>7th days</span><NumIn disabled={ro} value={l.seventhDays ?? 0} title={`Days paid at ${b.seventhMult ?? 2}×`} onChange={(n) => set(l, { seventhDays: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>Overtime hours (total)</span><NumIn suffix="h" disabled={ro} value={l.otHours ?? 0} title={`Paid at ${b.otMult ?? 1.5}× the hourly rate (day rate ÷ ${b.dayHours ?? 10} h)`} onChange={(n) => set(l, { otHours: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>6th days</span><NumIn suffix="days" disabled={ro} value={l.sixthDays ?? 0} title={`Days paid at ${b.sixthMult ?? 1.5}×`} onChange={(n) => set(l, { sixthDays: n > 0 ? n : undefined })} /></label>
+                          <label className="field"><span>7th days</span><NumIn suffix="days" disabled={ro} value={l.seventhDays ?? 0} title={`Days paid at ${b.seventhMult ?? 2}×`} onChange={(n) => set(l, { seventhDays: n > 0 ? n : undefined })} /></label>
                         </>}
                         {l.units === 'rentdays' && <p className="muted small">Rental week: every 7 days are billed as {b.rentalWeekDays ?? 3} days ({l.qty} days → {billedQty(l, b)} billed). Change it in budget Settings.</p>}
                         <div className="sub-items">
@@ -648,7 +653,7 @@ function AccountLines({ account, view, scenarioId, ro, mode, highlight }: { acco
                             <div key={it.id} className="row">
                               <input disabled={ro} value={it.description} placeholder="Item" onChange={(e) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.description = e.target.value; }, null)} />
                               <NumIn className="cell-num small" disabled={ro} value={it.qty} title="How many" onChange={(n) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.qty = n; }, null)} /> ×
-                              <NumIn className="cell-num" disabled={ro} value={it.rate} title="Rate each" onChange={(n) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.rate = n; }, null)} />
+                              <NumIn money per="each" className="cell-num" disabled={ro} value={it.rate} title="Rate each" onChange={(n) => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); const x = t?.items?.find((y) => y.id === it.id); if (x) x.rate = n; }, null)} />
                               {!ro && <button className="icon-btn" title="Remove" onClick={() => update((dr) => { const t = dr.budget.lines.find((y) => y.id === l.id) ?? dr.budget.scenarios.flatMap((s2) => s2.added).find((y) => y.id === l.id); if (t?.items) { t.items = t.items.filter((y) => y.id !== it.id); if (!t.items.length) delete t.items; } }, 'Remove sub-item')}>×</button>}
                             </div>
                           ))}
@@ -748,14 +753,12 @@ function BudgetSettings({ ro, vars }: { ro: boolean; vars: Vars }) {
       <label className="field budget-notes"><span>Notes &amp; assumptions</span>
         <textarea disabled={ro} rows={4} value={b.notes ?? ''} placeholder="Union / non-union, rates as of…, what's excluded — printed after the top sheet" onChange={(e) => update((dr) => { dr.budget.notes = e.target.value || undefined; }, null)} />
       </label>
-      <label className="field"><span>Currency</span>
-        <select disabled={ro} value={b.currency} onChange={(e) => update((dr) => { dr.budget.currency = e.target.value; }, 'Budget currency')}>
-          {[...new Set([b.currency, ...CURRENCIES])].map((c) => <option key={c}>{c}</option>)}
-        </select>
-      </label>
+      <div className="field"><span>Currency</span>
+        <span className="small">{b.currency} · set for the whole project in <button className="link small" onClick={() => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'setup' }))}>Settings → Units & currency</button></span>
+      </div>
       <div className="field"><span>Contingency</span>
         <div className="row">
-          <NumIn className="cell-num" disabled={ro} value={b.contingencyPct} onChange={(n) => update((dr) => { dr.budget.contingencyPct = Math.max(0, n); }, null)} /> % of
+          <NumIn suffix="%" className="cell-num" disabled={ro} value={b.contingencyPct} onChange={(n) => update((dr) => { dr.budget.contingencyPct = Math.max(0, n); }, null)} /> of
           <GroupPicks ro={ro} value={b.contingencyAppliesTo} onChange={(v) => update((dr) => { dr.budget.contingencyAppliesTo = v; }, 'Contingency applies to')} />
         </div>
         <p className="muted small">Usually charged on below-the-line and post only.</p>
@@ -765,7 +768,7 @@ function BudgetSettings({ ro, vars }: { ro: boolean; vars: Vars }) {
           {(b.applied ?? []).map((a) => (
             <div key={a.id} className="row applied-row">
               <input disabled={ro} value={a.name} onChange={(e) => update((dr) => { const x = dr.budget.applied!.find((y) => y.id === a.id)!; x.name = e.target.value; }, null)} />
-              <NumIn disabled={ro} className="cell-num small" value={a.pct} onChange={(n) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.pct = n; }, null)} /> %
+              <NumIn suffix="%" disabled={ro} className="cell-num small" value={a.pct} onChange={(n) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.pct = n; }, null)} />
               <label className="check small" title="Comes off the total (a rebate or tax credit)"><input type="checkbox" disabled={ro} checked={!!a.credit} onChange={(e) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.credit = e.target.checked; }, 'Edit budget')} /> Credit</label>
               <span className="muted small">of</span>
               <GroupPicks ro={ro} value={a.appliesTo} onChange={(v) => update((dr) => { dr.budget.applied!.find((y) => y.id === a.id)!.appliesTo = v ?? GROUPS.map((g) => g.id); }, 'Edit budget')} />
@@ -783,14 +786,14 @@ function BudgetSettings({ ro, vars }: { ro: boolean; vars: Vars }) {
         </div>
       </div>
       <div className="field"><span>Rental week</span>
-        <div className="row"><NumIn className="cell-num small" disabled={ro} value={b.rentalWeekDays ?? 3} onChange={(n) => update((dr) => { dr.budget.rentalWeekDays = Math.min(7, Math.max(1, n)); }, null)} /> billed days per 7 (for lines in Rental days)</div>
+        <div className="row">a 7-day rental is billed as <NumIn suffix="days" className="cell-num small" disabled={ro} value={b.rentalWeekDays ?? 3} onChange={(n) => update((dr) => { dr.budget.rentalWeekDays = Math.min(7, Math.max(1, n)); }, null)} /> (for lines in Rental days)</div>
       </div>
       <div className="field"><span>Overtime</span>
         <div className="row">
-          <NumIn className="cell-num small" disabled={ro} value={b.dayHours ?? 10} onChange={(n) => update((dr) => { dr.budget.dayHours = Math.max(1, n); }, null)} /> h day ·
-          OT <NumIn className="cell-num small" disabled={ro} value={b.otMult ?? 1.5} onChange={(n) => update((dr) => { dr.budget.otMult = n; }, null)} />× ·
-          6th <NumIn className="cell-num small" disabled={ro} value={b.sixthMult ?? 1.5} onChange={(n) => update((dr) => { dr.budget.sixthMult = n; }, null)} />× ·
-          7th <NumIn className="cell-num small" disabled={ro} value={b.seventhMult ?? 2} onChange={(n) => update((dr) => { dr.budget.seventhMult = n; }, null)} />×
+          Day <NumIn suffix="h" className="cell-num small" disabled={ro} value={b.dayHours ?? 10} onChange={(n) => update((dr) => { dr.budget.dayHours = Math.max(1, n); }, null)} /> ·
+          OT <NumIn suffix="×" className="cell-num small" disabled={ro} value={b.otMult ?? 1.5} onChange={(n) => update((dr) => { dr.budget.otMult = n; }, null)} /> ·
+          6th <NumIn suffix="×" className="cell-num small" disabled={ro} value={b.sixthMult ?? 1.5} onChange={(n) => update((dr) => { dr.budget.sixthMult = n; }, null)} /> ·
+          7th <NumIn suffix="×" className="cell-num small" disabled={ro} value={b.seventhMult ?? 2} onChange={(n) => update((dr) => { dr.budget.seventhMult = n; }, null)} />
         </div>
       </div>
       <div className="field"><span>Fringes</span>
@@ -798,12 +801,12 @@ function BudgetSettings({ ro, vars }: { ro: boolean; vars: Vars }) {
           {b.fringes.map((f) => (
             <div key={f.id} className="row">
               <input disabled={ro} value={f.name} onChange={(e) => update((dr) => { dr.budget.fringes.find((x) => x.id === f.id)!.name = e.target.value; }, null)} />
-              <NumIn disabled={ro} className="cell-num" value={f.pct} onChange={(n) => update((dr) => { dr.budget.fringes.find((x) => x.id === f.id)!.pct = n; }, null)} /> %
+              <NumIn suffix="%" disabled={ro} className="cell-num" value={f.pct} onChange={(n) => update((dr) => { dr.budget.fringes.find((x) => x.id === f.id)!.pct = n; }, null)} />
               <span className="muted small">up to</span>
-              <NumIn disabled={ro} className="cell-num" value={f.cap ?? 0} title="Most of the wages it applies to (0 = no cap)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.cap = n; else delete x.cap; }, null)} />
+              <NumIn money disabled={ro} className="cell-num" value={f.cap ?? 0} title="Most of the wages it applies to (0 = no cap)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.cap = n; else delete x.cap; }, null)} />
               {!!f.cap && <label className="check small" title="The cap counts all lines for the same cast or crew member, across the whole show"><input type="checkbox" disabled={ro} checked={!!f.capPerPerson} onChange={(e) => update((dr) => { dr.budget.fringes.find((y) => y.id === f.id)!.capPerPerson = e.target.checked || undefined; }, 'Edit fringe')} /> per person</label>}
               <span className="muted small">+</span>
-              <NumIn disabled={ro} className="cell-num small" value={f.flat ?? 0} title="A flat amount on top (e.g. a union contribution per day)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.flat = n; else delete x.flat; }, null)} />
+              <NumIn money disabled={ro} className="cell-num small" value={f.flat ?? 0} title="A flat amount on top (e.g. a union contribution per day)" onChange={(n) => update((dr) => { const x = dr.budget.fringes.find((y) => y.id === f.id)!; if (n > 0) x.flat = n; else delete x.flat; }, null)} />
               <select disabled={ro} value={f.flatPer ?? 'day'} onChange={(e) => update((dr) => { dr.budget.fringes.find((y) => y.id === f.id)!.flatPer = e.target.value as 'day' | 'week' | 'line'; }, 'Edit fringe')}>
                 <option value="day">per day</option><option value="week">per week</option><option value="line">per line</option>
               </select>
@@ -870,7 +873,7 @@ function ScenariosView({ scenarioId, setScenarioId, ro }: { scenarioId?: string;
               {cols.map((c) => (
                 <td key={c.id ?? 'base'} className="num">
                   {c.id && !ro
-                    ? <NumIn className="cell-num" value={c.shootDays} title="Per-day lines (crew, catering…) follow this" onChange={(n) => update((dr) => { const s = dr.budget.scenarios.find((x) => x.id === c.id)!; if (n > 0 && n !== facts.shootDays) s.shootDays = n; else delete s.shootDays; }, null)} />
+                    ? <NumIn suffix="days" className="cell-num" value={c.shootDays} title="Per-day lines (crew, catering…) follow this" onChange={(n) => update((dr) => { const s = dr.budget.scenarios.find((x) => x.id === c.id)!; if (n > 0 && n !== facts.shootDays) s.shootDays = n; else delete s.shootDays; }, null)} />
                     : c.shootDays}
                 </td>
               ))}

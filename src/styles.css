@@ -2270,3 +2270,17 @@ button.explain { padding: 0; background: none; font-family: inherit; }
 .social-row-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .social-row-add { margin-top: 8px; }
 .access-banner.tab-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Number boxes with a locked unit: "$ [387] /day" */
+.num-in { display: inline-flex; align-items: stretch; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; max-width: 100%; vertical-align: middle; }
+.num-in:focus-within { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: -1px; }
+.num-in > input { border: 0; background: transparent; outline: none; min-width: 3.4em; flex: 1 1 auto; }
+.num-in > input:focus { outline: none; }
+.num-in.disabled { opacity: .7; }
+.num-affix { display: inline-flex; align-items: center; color: var(--muted); font-size: .92em; white-space: nowrap; cursor: text; user-select: none; }
+.num-affix.pre { padding-left: 8px; margin-right: -4px; }
+.num-affix.suf { padding-right: 8px; margin-left: -4px; }
+.num-in > input.cell-num { padding-left: 6px; padding-right: 6px; }
+table.cards-on-phone .num-in { width: 100%; }
+.budget-bar .inline-field { min-width: 0; max-width: 100%; }
+.budget-bar .inline-field select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }

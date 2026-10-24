@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { NumberInput } from '../../components/NumberInput';
 import { getDerived, useDerived, useProject, useStore } from '../../store/project';
 import type { CreditStyle, CreditsSettings } from '../../model/types';
 import { buildCredits, creditWarnings, creditsOf, defaultCredits, newCustomBlock, rollLines, suggestedRuntime, visibleBlocks, type CreditBlock } from '../../credits/credits';
@@ -99,8 +100,8 @@ export function CreditsView({ onBack }: { onBack?: () => void }) {
               <b className="small">Roll</b>
               <div className="form-grid tight">
                 <label className="field"><span>Cast order</span><select disabled={ro} value={c.castOrder} onChange={(e) => set((x) => { x.castOrder = e.target.value as CreditsSettings['castOrder']; }, 'Cast order')}><option value="number">Cast number</option><option value="appearance">Order of appearance</option><option value="alpha">Alphabetical</option></select></label>
-                <label className="field"><span>Speed (seconds per screen)</span><input type="number" min={3} max={30} disabled={ro} value={c.secondsPerScreen} onChange={(e) => set((x) => { x.secondsPerScreen = Math.max(3, Number(e.target.value) || 8); }, null)} /></label>
-                <label className="field"><span>Runtime (seconds)</span><input type="number" min={5} disabled={ro} value={c.runtime ?? ''} placeholder={`${suggestedRuntime(blocks, c.secondsPerScreen)} (auto)`} onChange={(e) => set((x) => { x.runtime = e.target.value ? Math.max(5, Number(e.target.value)) : undefined; }, null)} /></label>
+                <label className="field"><span>Speed</span><NumberInput suffix="s/screen" min={3} max={30} decimals={1} disabled={ro} value={c.secondsPerScreen} onChange={(n) => set((x) => { x.secondsPerScreen = Math.max(3, n ?? 8); }, null)} /></label>
+                <label className="field"><span>Runtime</span><NumberInput suffix="s" min={5} decimals={0} disabled={ro} value={c.runtime} placeholder={`${suggestedRuntime(blocks, c.secondsPerScreen)} (auto)`} onChange={(n) => set((x) => { x.runtime = n ? Math.max(5, n) : undefined; }, null)} /></label>
                 <label className="field"><span>Copyright line</span><input disabled={ro} value={c.copyright ?? ''} placeholder={`© ${new Date().getFullYear()} ${p.production.company || p.title}. All rights reserved.`} onChange={(e) => set((x) => { x.copyright = e.target.value || undefined; }, null)} /></label>
               </div>
               <label className="field wide"><span>Special thanks (one per line)</span><textarea rows={4} disabled={ro} value={c.thanks} onChange={(e) => set((x) => { x.thanks = e.target.value; }, null)} /></label>

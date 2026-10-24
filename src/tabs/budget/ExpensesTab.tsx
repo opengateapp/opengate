@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { MoneyInput } from '../../components/NumberInput';
 import { useProject, useStore } from '../../store/project';
 import type { BudgetExpense } from '../../model/types';
 import { newId } from '../../model/ids';
@@ -169,7 +170,7 @@ function ExpensesScreen() {
                         {lines.map((l) => <option key={l.id} value={l.id}>{l.description || 'Untitled line'}</option>)}
                       </select>
                     </td>
-                    <td className="num"><input type="number" step="0.01" className="cell-num" disabled={ro} value={e.amount || ''} placeholder="0.00" onChange={(ev) => set(e.id, { amount: Number(ev.target.value) || 0 })} /></td>
+                    <td className="num"><MoneyInput className="cell-num" disabled={ro} value={e.amount || undefined} placeholder="0.00" onChange={(n) => set(e.id, { amount: n ?? 0 })} /></td>
                     <td><input type="checkbox" disabled={ro} checked={e.paid} onChange={(ev) => set(e.id, { paid: ev.target.checked }, 'Edit expense')} /></td>
                     <td
                       onDragOver={(ev) => { if (!ro && ev.dataTransfer.types.includes('Files')) { ev.preventDefault(); ev.stopPropagation(); } }}

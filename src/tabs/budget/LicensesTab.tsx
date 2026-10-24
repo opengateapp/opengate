@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MoneyInput } from '../../components/NumberInput';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { License, LicenseKind, LicenseStatus } from '../../model/types';
 import { money } from '../../budget/calc';
@@ -149,7 +150,7 @@ function LicenseCard({ l, ro, open, onToggle, set, onRemove, onAttach, onOpenFil
             {text('term', 'Term', { placeholder: 'Perpetual, 5 years…' })}
             <label className="field"><span>Starts</span><input type="date" disabled={ro} value={l.start ?? ''} onChange={(e) => set({ start: e.target.value || undefined })} /></label>
             <label className="field"><span>Expires</span><input type="date" disabled={ro} value={l.expires ?? ''} onChange={(e) => set({ expires: e.target.value || undefined })} /></label>
-            <label className="field"><span>Fee</span><input type="number" min={0} disabled={ro} value={l.fee} onChange={(e) => set({ fee: Math.max(0, Number(e.target.value) || 0) })} /></label>
+            <label className="field"><span>Fee</span><MoneyInput min={0} disabled={ro} value={l.fee} onChange={(n) => set({ fee: n ?? 0 })} /></label>
             {music && text('useType', 'Use', { list: 'lic-use' })}
             {text('tcIn', 'Timecode in', { placeholder: '01:02:03:00' })}
             {text('tcOut', 'Timecode out')}

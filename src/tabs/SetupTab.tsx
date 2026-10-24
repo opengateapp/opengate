@@ -11,18 +11,20 @@ import { AppearanceSettings } from '../components/AppearanceSettings';
 import { PhoneLayoutSettings } from '../ui/PhoneLayoutSettings';
 import { CharacterSettings } from '../components/CharacterSettings';
 import { UnionSettings } from '../components/UnionSettings';
+import { UnitsSettings } from '../components/UnitsSettings';
+import { NumberInput } from '../components/NumberInput';
 import { UnionPicker } from '../components/UnionPicker';
 import { SocietiesPicker } from '../components/SocietiesPicker';
 import { newCastMember } from '../paperwork/unions';
 import { AccessibilityPrefs, DataPrefs, FormatPrefs, ProfilePrefs, ShortcutsPrefs } from '../components/AppPreferences';
 
-type Section = 'production' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'unions' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
+type Section = 'production' | 'units' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'unions' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
 const GROUPS: { label: string; hint: string; items: Section[] }[] = [
-  { label: 'This project', hint: 'Saved in the project and shared with collaborators', items: ['production', 'cast', 'locations', 'crew', 'categories', 'colors', 'characters', 'unions'] },
+  { label: 'This project', hint: 'Saved in the project and shared with collaborators', items: ['production', 'units', 'cast', 'locations', 'crew', 'categories', 'colors', 'characters', 'unions'] },
   { label: 'This device', hint: 'Only on this device, for you', items: ['appearance', 'formats', 'profile', 'access', 'phone', 'data', 'shortcuts'] },
 ];
 const LABELS: Record<Section, string> = {
-  production: 'Production', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder', unions: 'Unions & societies',
+  production: 'Production', units: 'Units & currency', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder', unions: 'Unions & societies',
   appearance: 'Appearance', formats: 'Dates & units', profile: 'You & sharing', access: 'Accessibility', phone: 'Phone layout', data: 'Data & backups', shortcuts: 'Keyboard shortcuts',
 };
 
@@ -61,6 +63,7 @@ export function SetupTab() {
         {section === 'phone' && <PhoneLayoutSettings />}
         {section === 'characters' && <CharacterSettings />}
         {section === 'unions' && <UnionSettings />}
+        {section === 'units' && <UnitsSettings />}
         {section === 'formats' && <FormatPrefs />}
         {section === 'profile' && <ProfilePrefs />}
         {section === 'access' && <AccessibilityPrefs />}
@@ -75,9 +78,9 @@ export function SetupTab() {
             ))}
             <Field label="Default crew call"><input type="time" value={p.production.defaultCall} onChange={(e) => update((dr) => { dr.production.defaultCall = e.target.value; }, null)} /></Field>
             <Field label="Default lunch"><input type="time" value={p.production.defaultLunch} onChange={(e) => update((dr) => { dr.production.defaultLunch = e.target.value; }, null)} /></Field>
-            <Field label="Shooting time per ⅛ page (minutes)"><input type="number" min={1} max={120} value={p.production.minutesPerEighth ?? 15} onChange={(e) => update((dr) => { dr.production.minutesPerEighth = Math.max(1, Number(e.target.value) || 15); }, 'Minutes per eighth')} /></Field>
-            <Field label="Currency"><select value={p.budget.currency} onChange={(e) => update((dr) => { dr.budget.currency = e.target.value; }, 'Currency')}>{['USD', 'CAD', 'GBP', 'EUR', 'AUD', 'NZD', 'JPY', 'INR', 'MXN', 'BRL', 'ZAR', 'SEK', 'NOK', 'DKK', 'CHF'].map((c) => <option key={c}>{c}</option>)}</select></Field>
-            <Field label="Contingency (%)"><input type="number" min={0} max={50} value={p.budget.contingencyPct} onChange={(e) => update((dr) => { dr.budget.contingencyPct = Math.max(0, Number(e.target.value) || 0); }, 'Contingency')} /></Field>
+            <Field label="Shooting time per ⅛ page"><NumberInput suffix="min" min={1} max={120} decimals={0} value={p.production.minutesPerEighth ?? 15} onChange={(n) => update((dr) => { dr.production.minutesPerEighth = Math.max(1, n ?? 15); }, null)} /></Field>
+            <Field label="Currency"><button className="link" onClick={() => setSection('units')}>{p.units?.currency ?? p.budget.currency} · Units & currency →</button></Field>
+            <Field label="Contingency"><NumberInput suffix="%" min={0} max={50} value={p.budget.contingencyPct} onChange={(n) => update((dr) => { dr.budget.contingencyPct = Math.max(0, n ?? 0); }, null)} /></Field>
             <p className="muted small wide">Shared with everyone on this project. Scene time estimates use the minutes per eighth ({(p.production.minutesPerEighth ?? 15) * 8 / 60} h per page) unless a scene has its own estimate.</p>
           </div>
         )}

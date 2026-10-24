@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { MoneyInput, NumberInput } from '../../components/NumberInput';
 import { useDerived, useProject, useStore } from '../../store/project';
 import { money, totals } from '../../budget/calc';
 import { budgetView } from '../../budget/pipeline';
@@ -37,7 +38,6 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
     if (added.length) edit((dr) => { dr.budget.lines.push(...added); });
     toast(added.length ? `Added ${added.length} line${added.length === 1 ? '' : 's'} from the breakdown` : 'Everything in the breakdown is already in the budget');
   };
-  const num = (v: string) => Math.max(0, Number(v.replace(/[^0-9.]/g, '')) || 0);
   const ag = p.production.agreement;
   const isSag = /sag/i.test(ag?.union ?? '');
   const cap = b.targetTotal ?? 0;
@@ -48,7 +48,7 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
         <>
           <p>How much money do you have for this film, all in? This becomes your <b>cap</b>: every Budget screen shows how close you are.</p>
           <label className="field"><span>Your money</span>
-            <input inputMode="decimal" placeholder="e.g. 10000" defaultValue={b.targetTotal ?? ''} onChange={(e) => { const n = num(e.target.value); edit((dr) => { if (n > 0) dr.budget.targetTotal = n; else delete dr.budget.targetTotal; }, null); }} />
+            <MoneyInput placeholder="e.g. 10,000" value={b.targetTotal} onChange={(n) => edit((dr) => { if (n && n > 0) dr.budget.targetTotal = n; else delete dr.budget.targetTotal; }, null)} />
           </label>
           <p className="muted small">Not sure yet? Skip it: you can set it later in Target view.</p>
         </>
@@ -73,7 +73,7 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
           {scheduled ? <p>Your stripboard has <b>{scheduled} shoot day{scheduled === 1 ? '' : 's'}</b>. The budget uses those.</p> : (
             <>
               <label className="field"><span>Shoot days for now</span>
-                <input inputMode="numeric" placeholder="e.g. 3" defaultValue={b.funding?.plannedDays ?? ''} onChange={(e) => { const n = Math.round(num(e.target.value)); edit((dr) => { if (n > 0) dr.budget.funding = { ...dr.budget.funding, plannedDays: n }; else if (dr.budget.funding) delete dr.budget.funding.plannedDays; }, null); }} />
+                <NumberInput suffix="days" decimals={0} placeholder="e.g. 3" value={b.funding?.plannedDays} onChange={(v) => { const n = Math.round(v ?? 0); edit((dr) => { if (n > 0) dr.budget.funding = { ...dr.budget.funding, plannedDays: n }; else if (dr.budget.funding) delete dr.budget.funding.plannedDays; }, null); }} />
               </label>
               <p className="muted small">A rough guide: 3 to 5 script pages a day on a small shoot. Once you schedule the Stripboard, the budget uses the real days.</p>
             </>
@@ -97,7 +97,7 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
           {lines('cast').length > 0 ? (
             <>
               <p className="small">A day rate for each actor (the cost of one day):</p>
-              <RateList rows={lines('cast').map((l) => ({ id: l.id, label: l.description, rate: l.rate }))} onRate={setRate} cur={b.currency} />
+              <RateList rows={lines('cast').map((l) => ({ id: l.id, label: l.description, rate: l.rate }))} onRate={setRate} />
             </>
           ) : <p className="small">No cast lines yet. <button className="link small" onClick={fromBreakdown}>⛓ Add the cast from the breakdown</button></p>}
         </>
@@ -106,7 +106,7 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
         <>
           <p>Who’s on the crew, and what does each get a day? Type 0 for someone helping for free.</p>
           {lines('crew').length > 0
-            ? <RateList rows={lines('crew').map((l) => ({ id: l.id, label: l.description, rate: l.rate }))} onRate={setRate} cur={b.currency} />
+            ? <RateList rows={lines('crew').map((l) => ({ id: l.id, label: l.description, rate: l.rate }))} onRate={setRate} />
             : <p className="small">No crew lines yet. Add people to Contacts as crew, then <button className="link small" onClick={fromBreakdown}>⛓ add them from the breakdown</button>.</p>}
           <p className="muted small">Someone who brings their own gear often charges a <Term k="kit">kit fee</Term> on top.</p>
         </>
@@ -137,8 +137,8 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
       case 7: return (
         <>
           <p>Something always goes wrong. A <Term k="contingency">contingency</Term> keeps money aside for it: 10% is usual.</p>
-          <label className="field"><span>Contingency %</span>
-            <input inputMode="decimal" defaultValue={b.contingencyPct} onChange={(e) => { const n = num(e.target.value); edit((dr) => { dr.budget.contingencyPct = Math.min(50, n); }, null); }} />
+          <label className="field"><span>Contingency</span>
+            <NumberInput suffix="%" min={0} max={50} decimals={1} value={b.contingencyPct} onChange={(n) => edit((dr) => { dr.budget.contingencyPct = Math.min(50, n ?? 0); }, null)} />
           </label>
         </>
       );
@@ -167,15 +167,13 @@ export function BudgetGuide({ onClose }: { onClose: () => void }) {
   );
 }
 
-function RateList({ rows, onRate, cur }: { rows: { id: string; label: string; rate: number }[]; onRate: (id: string, n: number) => void; cur: string }) {
+function RateList({ rows, onRate }: { rows: { id: string; label: string; rate: number }[]; onRate: (id: string, n: number) => void }) {
   return (
     <div className="guide-rates">
       {rows.map((r) => (
         <label key={r.id} className="row">
           <span className="guide-rate-name">{r.label}</span>
-          <span className="muted small">{money(0, cur).replace(/[0.,\s]/g, '')}</span>
-          <input inputMode="decimal" defaultValue={r.rate || ''} placeholder="0" onChange={(e) => onRate(r.id, Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, '')) || 0))} />
-          <span className="muted small">a day</span>
+          <MoneyInput per="day" min={0} value={r.rate || undefined} placeholder="0" aria-label={`${r.label}: rate`} onChange={(n) => onRate(r.id, n ?? 0)} />
         </label>
       ))}
     </div>

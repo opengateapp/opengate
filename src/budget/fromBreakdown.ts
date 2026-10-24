@@ -1,4 +1,5 @@
 import type { BudgetLine, BudgetLinkKind, BudgetUnits, Project } from '../model/types';
+import { parseFeeText } from '../model/units';
 import { festivalLineItems, joinFestivals } from './festivals';
 import { newId } from '../model/ids';
 import type { Derived } from '../script/derive';
@@ -266,7 +267,11 @@ export function breakdownCandidates(p: Project, f: BreakdownFacts): BudgetLine[]
     if (c.hold > 0) out.push(line('1400', `${c.label} — hold days`, 'days', { kind: 'castHold', id: c.key }));
   }
   for (const c of p.crew) out.push(line(crewAccount(c.role), [c.role, c.name].filter(Boolean).join(' — ') || 'Crew', 'days', { kind: 'crew', id: c.id }));
-  for (const l of p.locations) out.push(line('2900', `Location fee — ${l.realName || l.setName || 'Location'}`, 'days', { kind: 'location', id: l.id }, parseFee(l.fee)));
+  for (const l of p.locations) {
+    // The amount (or, from an older copy, the fee text), per day or flat.
+    const flat = l.feeAmount != null ? l.feePer === 'flat' : parseFeeText(l.fee)?.per === 'flat';
+    out.push(line('2900', `Location fee — ${l.realName || l.setName || 'Location'}`, flat ? 'flat' : 'days', { kind: 'location', id: l.id }, l.feeAmount ?? parseFee(l.fee)));
+  }
   for (const e of p.elements) {
     const m = CATEGORY_ACCOUNT[e.categoryId];
     if (!m || e.categoryId === 'cast' || e.categoryId === 'notes') continue;
