@@ -1334,10 +1334,12 @@ export interface PressKit {
   /** Tech specs; empty ones are filled from the project when shown. */
   specs: { runtime?: string; aspect?: string; camera?: string; sound?: string; color?: string; language?: string; country?: string; year?: string; genre?: string };
   contact: { name?: string; email?: string; phone?: string };
-  /** Contacts left out of the cast & crew list. */
-  hidden?: Id[];
-  /** Short bios written for the press kit, by contact id. */
-  bios?: Record<Id, string>;
+  /** People (by key) left out of the press kit. */
+  hidden?: string[];
+  /** Short bios written for the press kit, by person key (`cast:<id>` / `crew:<id>`). */
+  bios?: Record<string, string>;
+  /** Headshots (media ids), by person key. */
+  photos?: Record<string, Id>;
 }
 
 export type SocialStatus = 'idea' | 'drafted' | 'scheduled' | 'posted';
