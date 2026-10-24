@@ -1,4 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { LAUREL_KINDS, emptyPressKit } from '../../release/pressKit';
+import { prepareLaurel } from '../../release/pressKitExport';
+import { putMedia } from '../../store/media';
 import { MoneyInput } from '../../components/NumberInput';
 import { useProject, useStore } from '../../store/project';
 import type { Festival, FestivalDeadline, FestivalStatus, FestivalTier, PremiereRule } from '../../model/types';
@@ -123,7 +126,7 @@ function FestivalsScreen() {
           : shown.length > 0 && <FestivalTable list={shown} ro={ro} today={today} edit={edit} sort={sort} setSort={(c) => setSort(c)} />}
         {!list.length && <p className="muted pad"><Hint>{'No festivals yet. Add one, paste a festival’s dates and fees from FilmFreeway or its website, or import a spreadsheet. Double-click here to add one.'}</Hint></p>}
       </div>
-      <datalist id="laurel-kinds">{['Official Selection', 'Semi-Finalist', 'Finalist', 'Nominee', 'Winner: Best Short', 'Audience Award', 'Jury Prize', 'Honorable Mention'].map((x) => <option key={x} value={x} />)}</datalist>
+      <datalist id="laurel-kinds">{LAUREL_KINDS.map((x) => <option key={x} value={x} />)}</datalist>
       {paste && <PasteDialog onClose={() => setPaste(false)} onAdd={(f) => { add(f, 'Paste festival'); setPaste(false); toast(`Added ${f.name || 'the festival'} with ${f.deadlines.length} deadline${f.deadlines.length === 1 ? '' : 's'}.`); }} />}
     </div>
   );
@@ -209,11 +212,34 @@ function Extras({ f, ro, h }: { f: Festival; ro: boolean; h: ReturnType<typeof u
           {m.show && <label className="check small">Fee paid <MoneyInput disabled={mro} className="num" min={0} value={f.feePaid} placeholder="0" aria-label="Fee paid" onChange={(n) => set({ feePaid: n })} /></label>}
         </>}
         {f.status === 'accepted' && <label className="check small">Laurel <input disabled={ro} className="festival-laurel" list="laurel-kinds" value={f.laurel ?? ''} placeholder="Official Selection" aria-label="Laurel" onChange={(e) => set({ laurel: e.target.value || undefined })} /></label>}
+        {f.status === 'accepted' && !ro && <LaurelImageButton f={f} />}
         <label className="check small">Notified by <input disabled={ro} type="date" value={f.notifyDate ?? ''} onChange={(e) => set({ notifyDate: e.target.value || undefined })} /></label>
       </div>
       <input disabled={ro} className="festival-notes" value={f.notes ?? ''} placeholder="Notes (screening format, DCP, contact…)" aria-label="Notes" onChange={(e) => set({ notes: e.target.value || undefined })} />
     </>
   );
+}
+
+/** "Add laurel image": saves the festival's wreath into Release → Press kit → Laurels. */
+function LaurelImageButton({ f }: { f: Festival }) {
+  const p = useProject();
+  const update = useStore((s) => s.update);
+  const has = (p.pressKit?.laurels ?? []).some((l) => l.festivalId === f.id && l.imageId);
+  const add = async (file?: File) => {
+    if (!file) return;
+    try {
+      const id = await putMedia(p.id, await prepareLaurel(file));
+      update((dr) => {
+        dr.pressKit ??= emptyPressKit();
+        const l = (dr.pressKit.laurels ??= []);
+        const same = l.find((x) => x.festivalId === f.id);
+        if (same) same.imageId = id;
+        else l.push({ id: newId(), imageId: id, festivalId: f.id, festival: f.name.replace(/\s*\(fictional\)\s*$/i, ''), text: f.laurel || 'Official Selection', year: f.eventStart?.slice(0, 4), include: true });
+      }, 'Add laurel image');
+      toast('Saved to Press kit → Laurels.');
+    } catch (e) { toast((e as Error).message); }
+  };
+  return <label className="link small" title="The wreath the festival sent (PNG or SVG); it goes to Press kit → Laurels">{has ? '✓ Laurel image · replace' : '＋ Add laurel image'}<input type="file" accept="image/*" hidden onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ''; }} /></label>;
 }
 
 const datesInputs = (f: Festival, ro: boolean, set: (p: Partial<Festival>) => void) => (

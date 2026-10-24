@@ -109,3 +109,36 @@ describe('release data', () => {
     expect([m.festivals, m.socialPosts, m.deliverables, m.outlets]).toEqual([[], [], [], []]);
   });
 });
+
+describe('press kit laurels', () => {
+  const accepted = produce(p, (dr) => {
+    const l = joinFestivals(dr);
+    l[0].status = 'accepted'; l[0].laurel = 'Winner: Best Short';
+    l[1].status = 'accepted';
+    writeFestivals(dr, l, true);
+    dr.pressKit!.laurels = [
+      { id: 'a', imageId: 'img-a', darkImageId: 'img-a-dark', festivalId: l[1].id, festival: '', text: '', include: true },
+      { id: 'b', imageId: 'img-b', festival: 'Not on the list Fest', text: 'Finalist', year: '2027', include: false },
+    ];
+  });
+  it('uses your images first, in your order, then accepted festivals without one as text', () => {
+    const l = laurels(accepted);
+    expect(l.map((x) => [x.festival, x.text, !!x.imageId])).toEqual([
+      ['Prairie Light Film Festival', 'Official Selection', true],
+      ['Northern Lights International Film Festival', 'Winner: Best Short', false],
+    ]);
+  });
+  it('keeps laurel images with the project file', () => {
+    expect(releaseMediaIds(accepted)).toEqual(expect.arrayContaining(['img-a', 'img-a-dark', 'img-b']));
+  });
+  it('puts the images on the web page (with the dark version) and in the PDF', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const imgs = new Map([['img-a', png], ['img-a-dark', png]]);
+    const v = pressKitView(accepted, d);
+    const html = pressKitHtml(v, imgs);
+    expect(html).toContain('prefers-color-scheme: dark');
+    expect(html).toContain('class="laurel"');
+    expect(html).toContain('Winner: Best Short');
+    expect(pressKitPdf(v, imgs).getNumberOfPages()).toBeGreaterThan(0);
+  });
+});

@@ -35,7 +35,24 @@ export function pressKitPdf(v: PressKitView, images: Map<string, string>): jsPDF
   text(v.title, 28, true, 20, tw, tx);
   y += 4;
   if (v.logline) text(v.logline, 13, false, 40, tw, tx);
-  if (v.laurels.length) { y += 6; for (const l of v.laurels) text(`★ ${l.text} — ${l.festival}${l.year ? ` ${l.year}` : ''}`, 10, true, 60, tw, tx); }
+  if (v.laurels.length) {
+    // A row of laurel images (they wrap), then any without an image as text.
+    y += 6;
+    const withImg = v.laurels.filter((l) => l.imageId && images.has(l.imageId) && !images.get(l.imageId)!.startsWith('data:image/svg'));
+    let lx = tx;
+    const lh = 54;
+    for (const l of withImg) {
+      const data = images.get(l.imageId!)!;
+      let w = lh * 1.4;
+      try { const pr = doc.getImageProperties(data); w = (pr.width / pr.height) * lh; } catch { /* keep the guess */ }
+      if (lx + w > tx + tw) { lx = tx; y += lh + 6; }
+      need(lh + 6);
+      try { doc.addImage(data, data.startsWith('data:image/png') ? 'PNG' : 'JPEG', lx, y, w, lh); } catch { /* unreadable */ }
+      lx += w + 8;
+    }
+    if (withImg.length) y += lh + 10;
+    for (const l of v.laurels.filter((x) => !withImg.includes(x))) text(`★ ${l.text} — ${l.festival}${l.year ? ` ${l.year}` : ''}`, 10, true, 60, tw, tx);
+  }
   if (v.trailerUrl) { y += 6; text(`Trailer: ${v.trailerUrl}`, 10, false, 60, tw, tx); }
   if (v.shortSynopsis) { y += 8; for (const p of v.shortSynopsis.split(/\n+/).filter((x) => x.trim())) { text(p.trim(), 11, false, 20, tw, tx); y += 4; } }
   y = Math.max(y, top + posterH + 10);

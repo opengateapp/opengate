@@ -2284,3 +2284,16 @@ button.explain { padding: 0; background: none; font-family: inherit; }
 table.cards-on-phone .num-in { width: 100%; }
 .budget-bar .inline-field { min-width: 0; max-width: 100%; }
 .budget-bar .inline-field select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+/* Press kit laurels */
+.laurels-section { margin-top: 8px; }
+.laurel-missing { display: inline-flex; margin: 0 6px 6px 0; }
+.laurel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; padding: 8px; border: 1px dashed var(--border); border-radius: 8px; min-height: 60px; background: #f6f6f4; }
+.laurel-grid.dark { background: #161616; }
+.laurel-card { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); cursor: grab; }
+.laurel-card input { width: 100%; min-width: 0; }
+.laurel-card .row > input { flex: 1; }
+.laurel-year { flex: 0 0 64px !important; width: 64px; }
+.laurel-img { height: 84px; display: grid; place-items: center; border-radius: 4px; background: transparent; }
+.laurel-grid.dark .laurel-img { background: #161616; }
+.laurel-grid:not(.dark) .laurel-img { background: #f6f6f4; }
+.laurel-img img { max-height: 80px; max-width: 100%; object-fit: contain; }

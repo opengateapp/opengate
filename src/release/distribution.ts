@@ -34,6 +34,7 @@ export const DELIVERABLE_TEMPLATE: { name: string; group: Deliverable['group']; 
   { name: 'Trailer', group: 'marketing', notes: 'Usually 1–2 minutes. Check your music licences cover trailers.' },
   { name: 'Production stills', group: 'marketing', notes: 'High-resolution, captioned, with releases from everyone in them.', tab: 'presskit' },
   { name: 'Press kit (EPK)', group: 'marketing', notes: 'Release → Press kit makes it.', tab: 'presskit' },
+  { name: 'Laurels', group: 'marketing', notes: 'The official laurel files from each festival (PNG/SVG, light and dark), kept in Release → Press kit → Laurels.', tab: 'presskit' },
 ];
 
 export const newDeliverable = (patch: Partial<Deliverable> = {}): Deliverable => ({ id: newId(), name: '', group: 'other', status: 'todo', ...patch });

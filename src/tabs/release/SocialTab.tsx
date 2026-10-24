@@ -154,6 +154,7 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
         {x.mediaIds.map((id, i) => <Thumb key={id} id={id} ro={ro} onRemove={() => set({ mediaIds: x.mediaIds.filter((_, k) => k !== i) }, 'Remove photo')} />)}
         {!ro && <label className="social-add" title="Add photos or clips (or drop them on the post)">＋<input type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { addMedia(media(e.target.files)); e.target.value = ''; }} /></label>}
         {!ro && (p.pressKit?.stills.length ?? 0) > 0 && <button className="small" onClick={() => set({ mediaIds: [...new Set([...x.mediaIds, ...p.pressKit!.stills])] }, 'Add press stills')} title="Add the press kit’s stills">＋ Press stills</button>}
+        {!ro && (p.pressKit?.laurels ?? []).some((l) => l.include && l.imageId) && <button className="small" onClick={() => set({ mediaIds: [...new Set([...x.mediaIds, ...p.pressKit!.laurels!.filter((l) => l.include && l.imageId).map((l) => l.imageId!)])] }, 'Add laurels')} title="Add the laurel images from the press kit">＋ Laurels</button>}
       </div>
       <div className="row wrap social-people">
         <span className="muted small">In it:</span>

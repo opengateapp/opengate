@@ -1346,6 +1346,22 @@ export interface PressKit {
   bios?: Record<string, string>;
   /** Headshots (media ids), by person key. */
   photos?: Record<string, Id>;
+  /** Laurel images festivals send (the wreaths), in display order. */
+  laurels?: PressLaurel[];
+}
+
+/** A laurel image: PNG or SVG kept as sent, with a version for dark backgrounds if there is one. */
+export interface PressLaurel {
+  id: Id;
+  imageId?: Id;
+  darkImageId?: Id;
+  /** The festival on Release → Festivals, when it's there. */
+  festivalId?: Id;
+  festival: string;
+  /** "Official Selection", "Winner: Best Short"… */
+  text: string;
+  year?: string;
+  include: boolean;
 }
 
 export type SocialStatus = 'idea' | 'drafted' | 'scheduled' | 'posted';

@@ -44,13 +44,36 @@ export function pressPeople(p: Project): PressPerson[] {
 
 const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-/** Laurels earned at accepted festivals, newest first: "Official Selection — Prairie Light Film Festival 2027". */
-export function laurels(p: Project): { text: string; festival: string; year?: string }[] {
-  return joinFestivals(p)
-    .filter((f) => f.status === 'accepted')
+export interface Laurel { text: string; festival: string; year?: string; imageId?: string; darkImageId?: string; festivalId?: string; laurelId?: string }
+
+const festivalName = (n: string) => n.replace(/\s*\(fictional\)\s*$/i, '');
+
+/**
+ * Laurels for the press kit: the laurel images you added (in your order, the ones you included),
+ * then accepted festivals that don't have an image yet, as text, newest first.
+ */
+export function laurels(p: Project): Laurel[] {
+  const kit = pressKitOf(p);
+  const fests = joinFestivals(p);
+  const added = (kit.laurels ?? []).filter((l) => l.include).map((l) => {
+    const f = l.festivalId ? fests.find((x) => x.id === l.festivalId) : undefined;
+    return { text: l.text || f?.laurel || 'Official Selection', festival: festivalName(l.festival || f?.name || ''), year: l.year || f?.eventStart?.slice(0, 4), imageId: l.imageId, darkImageId: l.darkImageId, festivalId: l.festivalId, laurelId: l.id };
+  });
+  const linked = new Set((kit.laurels ?? []).map((l) => l.festivalId).filter(Boolean));
+  const fromFestivals = fests.filter((f) => f.status === 'accepted' && !linked.has(f.id))
     .sort((a, b) => (b.eventStart ?? '').localeCompare(a.eventStart ?? ''))
-    .map((f) => ({ text: f.laurel || 'Official Selection', festival: f.name.replace(/\s*\(fictional\)\s*$/i, ''), year: f.eventStart?.slice(0, 4) }));
+    .map((f) => ({ text: f.laurel || 'Official Selection', festival: festivalName(f.name), year: f.eventStart?.slice(0, 4), festivalId: f.id }));
+  return [...added, ...fromFestivals];
 }
+
+/** Accepted festivals with no laurel image yet ("＋ Add the laurel image from …"). */
+export function laurelsMissingImages(p: Project) {
+  const kit = pressKitOf(p);
+  return joinFestivals(p).filter((f) => f.status === 'accepted' && !(kit.laurels ?? []).some((l) => l.festivalId === f.id && l.imageId));
+}
+
+/** The shared laurel wording suggestions (Festivals and the Press kit). */
+export const LAUREL_KINDS = ['Official Selection', 'Semi-Finalist', 'Finalist', 'Nominee', 'Winner: Best Short', 'Audience Award', 'Jury Prize', 'Honorable Mention'];
 
 /** Tech specs: what you typed, else what the project knows (marked auto). */
 export function pressSpecs(p: Project, d: Derived): PressSpec[] {
@@ -146,7 +169,7 @@ export function pressKitHtml(v: PressKitView, images: Map<string, string>): stri
 main{max-width:920px;margin:0 auto;padding:32px 16px 64px}h1{font-size:clamp(32px,6vw,56px);line-height:1.05;margin:0 0 8px}
 h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:40px 0 12px;border-top:1px solid var(--line);padding-top:16px}
 .logline{font-size:20px;margin:0 0 16px}.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:24px;align-items:start}
-.hero img{width:100%;border-radius:6px}.laurels{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.laurels span{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px}
+.hero img{width:100%;border-radius:6px}.laurels{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.laurels{align-items:center}.laurels img.laurel{height:96px;width:auto}.laurels span{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px}
 .stills{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}.stills img{width:100%;border-radius:4px}
 .person{display:flex;gap:12px;margin:0 0 16px}.person img{width:72px;height:72px;object-fit:cover;border-radius:50%}.person span{display:block;color:var(--muted);font-size:14px}.person p{margin:4px 0 0;font-size:15px}
 dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}dt{color:var(--muted)}dd{margin:0}a{color:var(--accent)}
@@ -156,7 +179,7 @@ footer{margin-top:48px;color:var(--muted);font-size:13px}
 <div class="hero">${poster ? `<img src="${poster}" alt="Poster: ${esc(v.title)}">` : '<div></div>'}<div>
 <h1>${esc(v.title)}</h1>
 ${v.logline ? `<p class="logline">${esc(v.logline)}</p>` : ''}
-${v.laurels.length ? `<div class="laurels">${v.laurels.map((l) => `<span>${esc(l.text)} · ${esc(l.festival)}${l.year ? ` ${l.year}` : ''}</span>`).join('')}</div>` : ''}
+${v.laurels.length ? `<div class="laurels">${v.laurels.map((l) => img(l.imageId) ? `<picture>${img(l.darkImageId) ? `<source srcset="${img(l.darkImageId)}" media="(prefers-color-scheme: dark)">` : ''}<img class="laurel" src="${img(l.imageId)}" alt="${esc(`${l.text}, ${l.festival}${l.year ? ` ${l.year}` : ''}`)}"></picture>` : `<span>${esc(l.text)} · ${esc(l.festival)}${l.year ? ` ${l.year}` : ''}</span>`).join('')}</div>` : ''}
 ${trailer ? `<p><a href="${esc(trailer)}" rel="noopener">▶ Watch the trailer</a></p>` : ''}
 ${v.shortSynopsis ? paras(v.shortSynopsis) : ''}
 </div></div>

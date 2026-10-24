@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
+import { LaurelsSection } from './LaurelsSection';
 import type { Draft } from 'immer';
 import type { PressKit } from '../../model/types';
 import { useDerived, useProject, useStore } from '../../store/project';
 import { putMedia, useMediaUrl } from '../../store/media';
 import { canEdit, useSync } from '../../sync/state';
 import { prepareImage } from '../storyboard/images';
-import { emptyPressKit, laurels, pressKitOf, pressKitView, pressPeople, pressSpecs } from '../../release/pressKit';
+import { emptyPressKit, pressKitOf, pressKitView, pressPeople, pressSpecs } from '../../release/pressKit';
 import { exportPressKit } from '../../release/pressKitExport';
 import { Modal, toast } from '../../components/common';
 import { Hint } from '../../components/Hint';
@@ -27,7 +28,6 @@ export function PressKitTab() {
   const view = useMemo(() => pressKitView(p, d), [p, d]);
   const people = useMemo(() => pressPeople(p), [p]);
   const specs = useMemo(() => pressSpecs(p, d), [p, d]);
-  const won = useMemo(() => laurels(p), [p]);
   const [pick, setPick] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -74,6 +74,8 @@ export function PressKitTab() {
           {txt('longSynopsis', 'Long synopsis', 7, p.bible?.synopsis || undefined, 'a few paragraphs')}
           {txt('directorStatement', 'Director’s statement', 6, undefined, 'why you made it')}
 
+          <LaurelsSection ro={ro} set={set} />
+
           <h4>Stills <span className="muted small">{kit.stills.length}</span></h4>
           <div className="presskit-stills" {...fileDrop((f) => void addStills(f))} onDoubleClick={(e) => { if (!ro && e.target === e.currentTarget) document.getElementById('pk-stills')?.click(); }}>
             {kit.stills.map((id, i) => <Still key={id} id={id} ro={ro} onRemove={() => set((k) => { k.stills.splice(i, 1); }, 'Remove still')} onPoster={() => set((k) => { k.posterId = id; }, 'Poster')} />)}
@@ -93,9 +95,6 @@ export function PressKitTab() {
           <label className="field"><span>Trailer link</span><input disabled={ro} value={kit.trailerUrl ?? ''} placeholder="https://vimeo.com/…" onChange={(e) => set((k) => { k.trailerUrl = e.target.value || undefined; })} /></label>
           <label className="field"><span>Website</span><input disabled={ro} value={kit.website ?? ''} placeholder="https://…" onChange={(e) => set((k) => { k.website = e.target.value || undefined; })} /></label>
 
-          <h4>Laurels</h4>
-          {won.length ? <ul className="presskit-laurels">{won.map((l, i) => <li key={i}>🏆 {l.text} · {l.festival}{l.year ? ` ${l.year}` : ''}</li>)}</ul>
-            : <p className="muted small">None yet. Accepted festivals in <button className="link small" onClick={() => goto('festivals')}>Festivals</button> show here, with the laurel you give them.</p>}
 
           <h4>Technical details</h4>
           <div className="presskit-specs">
