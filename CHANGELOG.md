@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.1 — 2026-10-24
+
+- **Release tabs on desktop:** wider screens now get desktop layouts instead of stretched phone ones.
+  - **Press Kit:** the film's text, its pictures and the details side by side.
+  - **Distribution:** summary cards, deliverables as a table, and the sales & distribution list beside it.
+  - **Festivals:** sort, filter and CSV import in the toolbar.
+  - **Social & BTS:** the post beside its details in the editor.
+- Phones and iPads in portrait keep the cards.
+
 ## v0.6.0 — 2026-10-24
 
 A new Release section, money and units in every number box, help built in, and a tour of the sample.
