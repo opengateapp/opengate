@@ -114,3 +114,9 @@ export function drawLayer(ctx: CanvasRenderingContext2D, img: CanvasImageSource 
   const s = Math.min(w / img.width, h / img.height);
   ctx.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s);
 }
+
+/** Ghost poses' opacity, oldest (i = 0) faintest, newest at `fade`. */
+export const DEFAULT_GHOST_FADE = 0.35;
+export function ghostAlpha(i: number, n: number, fade = DEFAULT_GHOST_FADE): number {
+  return n <= 1 ? fade : fade * (0.45 + 0.55 * (i / (n - 1)));
+}

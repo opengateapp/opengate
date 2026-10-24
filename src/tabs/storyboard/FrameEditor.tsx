@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDerived, useProject, useStore } from '../../store/project';
-import { blobToImage, getMedia, putMedia } from '../../store/media';
+import { blobToImage, getMedia, putMedia, useMediaUrl } from '../../store/media';
+import type { StoryboardFrame } from '../../model/types';
+import { toast } from '../../components/common';
 import { newId } from '../../model/ids';
-import { boardFrames, insertFrame } from '../../script/storyboard';
+import { boardFrames } from '../../script/storyboard';
 import { SHOT_TYPES } from '../../model/defaults';
 import { drawContain } from './render';
-import { drawGrid, drawGuides, drawLayer, formatOf, frameSize, loadGrid, saveGrid, type GridPrefs } from './formats';
+import { DEFAULT_GHOST_FADE, drawGrid, drawGuides, drawLayer, formatOf, frameSize, ghostAlpha, loadGrid, saveGrid, type GridPrefs } from './formats';
 import { FramingControls } from './FramingControls';
 import { More, MoreMenu } from '../../components/More';
 import { ColorPicker, type ColorPickerHandle } from '../../components/ColorPicker';
@@ -50,6 +52,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
 
   const bgRef = useRef<HTMLCanvasElement>(null);
   const onionRef = useRef<HTMLCanvasElement>(null);
+  const ghostRef = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef<HTMLCanvasElement>(null);
   const gridRef = useRef<HTMLCanvasElement>(null);
   const [tool, setToolState] = useState<Tool>('pen');
@@ -68,8 +71,12 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const [onion, setOnion] = useState(false);
   const [textAt, setTextAt] = useState<{ x: number; y: number; cssX: number; cssY: number } | null>(null);
   const [textVal, setTextVal] = useState('');
-  const undo = useRef<ImageData[]>([]);
-  const redo = useRef<ImageData[]>([]);
+  // Undo steps hold the canvas, and for onion-skin actions also the frame's ghost poses and drawing,
+  // so undoing "Merge ghosts" or "Ghost pose" brings the poses back too.
+  type FrameLayers = { ghosts: { id: string; drawingId: string }[]; drawingId?: string };
+  type Step = { img: ImageData; layers?: FrameLayers };
+  const undo = useRef<Step[]>([]);
+  const redo = useRef<Step[]>([]);
   const [, force] = useState(0);
   const dirty = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -138,6 +145,23 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
     // Reload only when switching frames or replacing the image (not on our own drawing saves).
   }, [frameId, cur?.frame[IMG], FW, FH]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---- Onion skin inside this frame: earlier poses, faded, oldest faintest ----
+  const ghosts = layer === 'frame' ? cur?.frame.ghosts ?? [] : [];
+  const fade = cur?.frame.ghostFade ?? DEFAULT_GHOST_FADE;
+  useEffect(() => {
+    let alive = true;
+    const g = ghostRef.current!.getContext('2d')!;
+    g.clearRect(0, 0, FW, FH);
+    void (async () => {
+      const imgs = await Promise.all(ghosts.map(async (x) => { const b = await getMedia(x.drawingId); return b ? blobToImage(b) : null; }));
+      if (!alive) return;
+      g.clearRect(0, 0, FW, FH);
+      imgs.forEach((img, i) => { if (!img) return; g.globalAlpha = ghostAlpha(i, ghosts.length, fade); drawLayer(g, img, FW, FH); });
+      g.globalAlpha = 1;
+    })();
+    return () => { alive = false; };
+  }, [ghosts.map((x) => x.drawingId).join(','), fade, FW, FH]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- Overlays: grid (this device) and frame guides (the storyboard's) ----
   useEffect(() => {
     const g = gridRef.current!.getContext('2d')!;
@@ -189,25 +213,33 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   };
   useEffect(() => () => { void save(); }, [save]);
 
-  const snapshot = () => {
-    undo.current.push(ctx().getImageData(0, 0, FW, FH));
+  /** The frame's ghost poses and drawing id as stored now. */
+  const layersNow = (): FrameLayers => {
+    const f = useStore.getState().project?.storyboard.find((x) => x.id === frameId);
+    return { ghosts: [...(f?.ghosts ?? [])], drawingId: f?.[DRW] };
+  };
+  /** Remembers the canvas (and, for onion-skin actions, the ghosts) before a change. */
+  const snapshot = (withLayers = false) => {
+    undo.current.push({ img: ctx().getImageData(0, 0, FW, FH), layers: withLayers ? layersNow() : undefined });
     if (undo.current.length > 40) undo.current.shift();
     redo.current = [];
   };
-  const doUndo = () => {
-    const s = undo.current.pop();
-    if (!s) return;
-    redo.current.push(ctx().getImageData(0, 0, FW, FH));
-    ctx().putImageData(s, 0, 0);
+  const restore = (s: Step) => {
+    ctx().putImageData(s.img, 0, 0);
+    if (s.layers) {
+      const l = s.layers;
+      update((dr) => { const x = dr.storyboard.find((y) => y.id === frameId); if (x) { x.ghosts = l.ghosts; x[DRW] = l.drawingId; x.rev++; } }, null);
+    }
     changed();
   };
-  const doRedo = () => {
-    const s = redo.current.pop();
+  const step = (from: React.MutableRefObject<Step[]>, to: React.MutableRefObject<Step[]>) => {
+    const s = from.current.pop();
     if (!s) return;
-    undo.current.push(ctx().getImageData(0, 0, FW, FH));
-    ctx().putImageData(s, 0, 0);
-    changed();
+    to.current.push({ img: ctx().getImageData(0, 0, FW, FH), layers: s.layers ? layersNow() : undefined });
+    restore(s);
   };
+  const doUndo = () => step(undo, redo);
+  const doRedo = () => step(redo, undo);
 
   // Editor shortcuts; captured so ⌘Z doesn't reach the project-level undo.
   useEffect(() => {
@@ -228,7 +260,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       if (e.key === ']') changeSize(Math.min(40, size + 1));
       if (e.key === 'c') { e.preventDefault(); colorRef.current?.open(); }
       if (e.key === 'n') setOnion((v) => !v);
-      if (e.key === 'N') addFrame();
+      if (e.key === 'O' && layer === 'frame') void addGhost();
       if (e.key === 'ArrowLeft' && prev) { void save(); onSelect(prev.frame.id); }
       if (e.key === 'ArrowRight' && next) { void save(); onSelect(next.frame.id); }
     };
@@ -368,16 +400,77 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const shot = cur.shot;
   const type = SHOT_TYPES.find((t) => t.code === shot.shotType)?.label;
   const close = () => { void save(); onClose(); };
-  /** Next frame of the same shot, blank, with this one ghosted underneath (onion skin). */
-  const addFrame = () => {
-    if (!cur) return;
-    void save();
-    let id = '';
-    update((dr) => { id = insertFrame(dr, cur.shot.id, cur.frame.id); }, 'Add frame');
-    if (!useStore.getState().project?.storyboard.some((f) => f.id === id)) return; // read-only
-    setOnion(true);
-    onSelect(id);
+  const setFrame = (fn: (x: StoryboardFrame) => void, label: string | null) => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { fn(x as StoryboardFrame); x.rev++; } }, label);
+  const isBlank = () => { const d = ctx().getImageData(0, 0, FW, FH).data; for (let i = 3; i < d.length; i += 16) if (d[i]) return false; return true; };
+  /** The drawing becomes a ghost pose; the canvas clears for the next position. */
+  const addGhost = async () => {
+    if (layer !== 'frame') return;
+    if (isBlank()) { toast('Draw the first pose, then add the next one on top of it.'); return; }
+    dirty.current = true;
+    await save();
+    const d0 = useStore.getState().project?.storyboard.find((x) => x.id === cur.frame.id)?.drawingId;
+    if (!d0) return;
+    snapshot(true);
+    setFrame((x) => { x.ghosts = [...(x.ghosts ?? []), { id: newId(), drawingId: d0 }]; x.drawingId = undefined; }, 'Add ghost pose');
+    ctx().clearRect(0, 0, FW, FH);
+    force((n) => n + 1);
   };
+  /** Brings a ghost back as the drawing to change it; the current drawing takes its place. */
+  const editGhost = async (gid: string) => {
+    dirty.current = !isBlank();
+    await save();
+    const fr = useStore.getState().project?.storyboard.find((x) => x.id === cur.frame.id);
+    const g = fr?.ghosts?.find((x) => x.id === gid);
+    if (!fr || !g) return;
+    const blob = await getMedia(g.drawingId);
+    snapshot(true);
+    setFrame((x) => {
+      const list = x.ghosts ?? [];
+      const i = list.findIndex((y) => y.id === gid);
+      const was = x.drawingId;
+      x.drawingId = g.drawingId;
+      x.ghosts = was ? list.map((y, k) => (k === i ? { id: newId(), drawingId: was } : y)) : list.filter((y) => y.id !== gid);
+    }, 'Edit ghost pose');
+    ctx().clearRect(0, 0, FW, FH);
+    if (blob) drawLayer(ctx(), await blobToImage(blob), FW, FH);
+    force((n) => n + 1);
+  };
+  const deleteGhost = (gid: string) => { snapshot(true); setFrame((x) => { x.ghosts = (x.ghosts ?? []).filter((y) => y.id !== gid); }, 'Delete ghost pose'); force((n) => n + 1); };
+  /** Bakes the ghosts (at their fade) into the drawing, under what's drawn now. */
+  const mergeGhosts = async () => {
+    const c = document.createElement('canvas'); c.width = FW; c.height = FH;
+    const g = c.getContext('2d')!;
+    g.drawImage(ghostRef.current!, 0, 0);
+    g.drawImage(drawRef.current!, 0, 0);
+    snapshot(true);
+    ctx().clearRect(0, 0, FW, FH);
+    ctx().drawImage(c, 0, 0);
+    dirty.current = true;
+    await save();
+    setFrame((x) => { x.ghosts = []; }, 'Merge ghost poses');
+  };
+  const ghostMenu = layer === 'frame' && (
+    <div className="fe-opt keep-open fe-ghosts">
+      <span className="fe-opt-h">Onion skin: motion in this frame</span>
+      <span className="muted small">Draw a pose, press <b>＋ Ghost pose</b> (⇧O), draw the next position. Earlier poses stay faded in the finished frame.</span>
+      {ghosts.length > 0 && (
+        <ol className="fe-ghost-list">
+          {ghosts.map((g, i) => (
+            <li key={g.id}><GhostThumb id={g.drawingId} /><span>Pose {i + 1}</span>
+              <button className="small" onClick={() => void editGhost(g.id)} title="Bring this pose back to change it">Edit</button>
+              <button className="icon-btn" aria-label={`Delete pose ${i + 1}`} onClick={() => deleteGhost(g.id)}>×</button>
+            </li>
+          ))}
+        </ol>
+      )}
+      {ghosts.length > 0 && (
+        <label className="check small">Fade <input type="range" min={0.1} max={0.8} step={0.05} value={fade} aria-label="Ghost fade" onChange={(e) => setFrame((x) => { x.ghostFade = Number(e.target.value); }, null)} /> {Math.round(fade * 100)}%</label>
+      )}
+      {ghosts.length > 0 && <button className="small" onClick={() => void mergeGhosts()} title="Flatten the ghosts into the drawing (you can undo)">Merge ghosts into the drawing</button>}
+      <hr />
+      <label className="check small" title="Show the previous storyboard frame faintly, for continuity (N)"><input type="checkbox" checked={onion} disabled={!prev} onChange={(e) => setOnion(e.target.checked)} /> Show the previous frame (N)</label>
+    </div>
+  );
 
   // On a phone, undo / redo sit in the top bar so the drawing row fits without scrolling.
   const undoRedo = (
@@ -426,7 +519,6 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
         {phone && undoRedo}
         <button disabled={!prev} onClick={() => { void save(); onSelect(prev!.frame.id); }} title="Previous frame (←)">◀</button>
         <button disabled={!next} onClick={() => { void save(); onSelect(next!.frame.id); }} title="Next frame (→)">▶</button>
-        <button className="fe-add-frame" onClick={addFrame} aria-label="Add frame" title="Add the next frame for this shot, with this one showing through as an onion skin (Shift+N)">{phone ? '＋' : '+ Frame'}</button>
         <button className="primary" onClick={close}>Done</button>
       </div>
       <div className="toolbar tools fe-tools" role="toolbar" aria-label="Drawing tools">
@@ -473,9 +565,33 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
           <>{sizeControl}{opacityControl}</>
         )}
         {!phone && undoRedo}
+        {/* Desktop: the frame options sit on the toolbar; narrower, they fold into ⋯ (container query). */}
+        <span className="fe-wide">
+          {layer === 'frame' && (
+            <span className={`fe-shapes fe-grid fe-onion ${ghosts.length || onion ? 'active' : ''}`}>
+              <button className={`fe-ghost-add ${ghosts.length ? 'active' : ''}`} onClick={() => void addGhost()} title="Onion skin: keep this pose faded and draw the next position on top (⇧O)"><span className="fe-ico" aria-hidden>◌</span><span className="fe-lbl">Ghost pose{ghosts.length ? ` · ${ghosts.length}` : ''}</span></button>
+              <MoreMenu label="Onion skin options" icon="▾" className="fe-ghost-menu" buttonClassName="fe-caret">{ghostMenu}</MoreMenu>
+            </span>
+          )}
+          {layer === 'frame' && <MoreMenu label="Format and frame guides" className="fe-framing-menu" buttonClassName="fe-framing-btn" icon={<span>▭ {fmt.short}{guides.length ? ` +${guides.length}` : ''} ▾</span>}><FramingControls beforeChange={save} /></MoreMenu>}
+          <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
+          {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
+          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image and any ghost poses stay. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FW, FH); changed(); } }}>Clear drawing…</button>
+          {(pen.seen || touch) && <More label="Pencil" always>{(pen.seen || touch) && (
+            <label className="check small keep-open" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
+              <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
+                <option value="auto">Auto</option>
+                <option value="pen">Pencil only</option>
+                <option value="any">Pencil &amp; fingers</option>
+              </select>
+            </label>
+          )}</More>}
+        </span>
+        <span className="fe-narrow">
         <More label="Frame options" always>
           {layer === 'frame' && <FramingControls beforeChange={save} />}
-          <button className={onion ? 'active' : ''} disabled={!prev} onClick={() => setOnion(!onion)} title="Show the previous frame faintly (N)">Onion skin</button>
+          {layer === 'frame' && <button className={`fe-ghost-add ${ghosts.length ? 'active' : ''}`} onClick={() => void addGhost()} title="Onion skin: keep this pose faded and draw the next position on top (⇧O)"><span className="fe-ico" aria-hidden>◌</span><span className="fe-lbl">Ghost pose{ghosts.length ? ` · ${ghosts.length}` : ''}</span></button>}
+          {ghostMenu}
           {(pen.seen || touch) && (
             <label className="check small keep-open" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
               <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
@@ -488,13 +604,15 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
           <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
           {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
           <hr />
-          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image stays. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FW, FH); changed(); } }}>Clear drawing…</button>
+          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image and any ghost poses stay. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FW, FH); changed(); } }}>Clear drawing…</button>
         </More>
+        </span>
       </div>
       <div className="frame-stage">
         <div ref={stackRef} className="frame-stack" style={{ aspectRatio: `${FW} / ${FH}`, width: `min(100%, calc((100vh - 240px) * ${(FW / FH).toFixed(4)}))` }}>
           <canvas ref={bgRef} width={FW} height={FH} />
           <canvas ref={onionRef} width={FW} height={FH} className="onion" />
+          <canvas ref={ghostRef} width={FW} height={FH} className="ghosts" />
           <canvas ref={drawRef} width={FW} height={FH} className={`draw tool-${tool}`}
             onPointerDown={down} onPointerMove={(e) => { moveRing(e); move(e); }} onPointerUp={up} onPointerCancel={up}
             onPointerLeave={() => { if (ringRef.current) ringRef.current.style.display = 'none'; }} />
@@ -554,4 +672,10 @@ export function floodFill(c: CanvasRenderingContext2D, sx: number, sy: number, h
     if (y < h - 1) stack.push(x, y + 1);
   }
   c.putImageData(img, 0, 0);
+}
+
+/** A small preview of a ghost pose in the onion-skin menu. */
+function GhostThumb({ id }: { id: string }) {
+  const url = useMediaUrl(id);
+  return <span className="fe-ghost-thumb">{url && <img src={url} alt="" />}</span>;
 }

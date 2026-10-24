@@ -11,7 +11,7 @@ import { insertFrame, storyboardPanels, PANEL_SHOT_TYPES, shotTypeCodes, type Pa
 import { addSceneToScript } from '../script/scenes';
 import { putMedia, useMediaUrl } from '../store/media';
 import { FramingControls, GuideOverlay } from './storyboard/FramingControls';
-import { formatOf } from './storyboard/formats';
+import { formatOf, ghostAlpha } from './storyboard/formats';
 
 import { FrameEditor } from './storyboard/FrameEditor';
 import { exportStoryboardPdf } from './storyboard/render';
@@ -269,7 +269,7 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, c
               {panel.frameCount > 1 && <span className="muted small">{panel.frameNo}/{panel.frameCount}</span>}
             </span>
           </div>
-          <DropBox framed className="sb-frame" imageId={frame?.imageId} drawingId={frame?.drawingId} empty="Click to draw · drop or upload an image"
+          <DropBox framed className="sb-frame" imageId={frame?.imageId} drawingId={frame?.drawingId} ghosts={frame?.ghosts} ghostFade={frame?.ghostFade} empty="Click to draw · drop or upload an image"
             onOpen={() => onOpen('frame')} onFile={(f) => onImage(f, 'frame')} />
         </div>
         {showRef && (
@@ -328,7 +328,13 @@ function PanelView({ panel, showRef, compact, onOpen, onImage, onPlan, onMove, c
 }
 
 /** Frame / set plan box: click to draw, drop or upload an image. */
-function DropBox({ className, imageId, drawingId, empty, onOpen, onFile, framed }: { className: string; imageId?: string; drawingId?: string; empty: string; onOpen: () => void; onFile: (f: File | undefined) => void; framed?: boolean }) {
+/** An onion-skin pose in a finished panel: the drawing at its ghost opacity. */
+function GhostLayer({ id, alpha }: { id: string; alpha: number }) {
+  const url = useMediaUrl(id);
+  return url ? <img src={url} alt="" className="layer" style={{ opacity: alpha }} /> : null;
+}
+
+function DropBox({ className, imageId, drawingId, ghosts = [], ghostFade, empty, onOpen, onFile, framed }: { className: string; imageId?: string; drawingId?: string; ghosts?: { id: string; drawingId: string }[]; ghostFade?: number; empty: string; onOpen: () => void; onFile: (f: File | undefined) => void; framed?: boolean }) {
   // Frame panels take the storyboard's format and show its frame guides; set plan boxes don't.
   const sb = useProject().storyboardSettings;
   const fmt = formatOf(sb);
@@ -343,8 +349,9 @@ function DropBox({ className, imageId, drawingId, empty, onOpen, onFile, framed 
       onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); onFile([...e.dataTransfer.files].find((f) => f.type.startsWith('image/'))); }}>
       <button className="sb-canvas" onClick={onOpen} title="Open the drawing tools" style={framed ? (fmt.ratio >= 1 ? { aspectRatio: String(fmt.ratio) } : { aspectRatio: String(fmt.ratio), width: 'auto', height: 'min(62vh, 560px)', maxWidth: '100%', margin: '0 auto' }) : undefined}>
         {img && <img src={img} alt="" />}
+        {ghosts.map((g, i) => <GhostLayer key={g.id} id={g.drawingId} alpha={ghostAlpha(i, ghosts.length, ghostFade)} />)}
         {drawing && <img src={drawing} alt="" className="layer" />}
-        {!img && !drawing && <span className="muted small">{empty}</span>}
+        {!img && !drawing && !ghosts.length && <span className="muted small">{empty}</span>}
         {framed && <GuideOverlay ratio={fmt.ratio} ids={guideIds} />}
       </button>
       <label className="sb-upload" title="Upload an image">⇪<input type="file" accept="image/*" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} /></label>

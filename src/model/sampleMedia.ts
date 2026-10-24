@@ -40,6 +40,7 @@ const SKETCHES: Record<string, Sketch> = {
   ladderSkid: (g, w, h) => { rain(g, w, h); ink(g); ground(g, w, h * 0.94); line(g, w * 0.3, h * 0.94, w * 0.48, h * 0.22); line(g, w * 0.35, h * 0.95, w * 0.53, h * 0.24); ink(g, 2, '#dc2626'); line(g, w * 0.22, h * 0.97, w * 0.3, h * 0.94); line(g, w * 0.22, h * 0.9, w * 0.29, h * 0.9); ink(g); person(g, w * 0.5, h * 0.3, h * 0.28, -0.8); },
   ladderFall: (g, w, h) => { rain(g, w, h); ink(g); ground(g, w, h * 0.94); g.strokeRect(w * 0.3, h * 0.82, w * 0.4, h * 0.12); line(g, w * 0.32, h * 0.86, w * 0.68, h * 0.86); g.save(); g.translate(w * 0.5, h * 0.74); g.rotate(-1.4); person(g, 0, 0, h * 0.3); g.restore(); ink(g, 2, '#2563eb'); g.setLineDash([8, 8]); line(g, w * 0.48, h * 0.15, w * 0.52, h * 0.55); g.setLineDash([]); },
   swerve: (g, w, h) => { rain(g, w, h); ink(g); line(g, 0, h * 0.55, w, h * 0.45); line(g, 0, h * 0.95, w, h * 0.85); ink(g, 2, '#94a3b8'); g.setLineDash([20, 18]); line(g, 0, h * 0.75, w, h * 0.65); g.setLineDash([]); ink(g); truck(g, w * 0.45, h * 0.78, w * 0.12, -0.5); ink(g, 2, '#16a34a'); g.beginPath(); g.ellipse(w * 0.75, h * 0.6, w * 0.035, h * 0.06, 0, 0, Math.PI * 2); g.stroke(); line(g, w * 0.75, h * 0.66, w * 0.75, h * 0.74); },
+  swerveFinal: (g, w, h) => { rain(g, w, h); ink(g); line(g, 0, h * 0.55, w, h * 0.45); line(g, 0, h * 0.95, w, h * 0.85); ink(g, 2, '#94a3b8'); g.setLineDash([20, 18]); line(g, 0, h * 0.75, w, h * 0.65); g.setLineDash([]); ink(g, 2, '#16a34a'); g.beginPath(); g.ellipse(w * 0.5, h * 0.62, w * 0.03, h * 0.05, 0, 0, Math.PI * 2); g.stroke(); line(g, w * 0.5, h * 0.67, w * 0.5, h * 0.74); ink(g, 2, '#78716c'); g.beginPath(); g.arc(w * 0.45, h * 1.4, w * 0.45, -1.75, -1.0); g.stroke(); ink(g); truck(g, w * 0.72, h * 0.9, w * 0.12, 0.35); },
   slide: (g, w, h) => { rain(g, w, h); ink(g); line(g, 0, h * 0.5, w, h * 0.45); line(g, 0, h * 0.85, w, h * 0.8); ink(g, 2, '#78716c'); g.beginPath(); g.arc(w * 0.25, h * 1.2, w * 0.3, -1.2, -0.4); g.stroke(); ink(g); truck(g, w * 0.62, h * 0.92, w * 0.12, 0.25); },
   beam: (g, w, h) => { g.fillStyle = '#0f172a'; g.fillRect(0, 0, w, h); ink(g, 3, '#e2e8f0'); screen(g, w * 0.45, h * 0.08, w * 0.45, h * 0.5); g.fillStyle = 'rgba(253,230,138,0.25)'; g.beginPath(); g.moveTo(w * 0.05, h * 0.55); g.lineTo(w * 0.45, h * 0.08); g.lineTo(w * 0.45, h * 0.58); g.closePath(); g.fill(); ink(g, 2, '#e2e8f0'); person(g, w * 0.6, h * 0.5, h * 0.3); person(g, w * 0.72, h * 0.5, h * 0.33); },
   dawn: (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#fde68a'); gr.addColorStop(1, '#fff7ed'); g.fillStyle = gr; g.fillRect(0, 0, w, h); ink(g); ground(g, w, h * 0.85); g.beginPath(); g.arc(w * 0.8, h * 0.85, h * 0.18, Math.PI, 0); g.stroke(); person(g, w * 0.35, h * 0.85, h * 0.6); person(g, w * 0.55, h * 0.85, h * 0.55); g.strokeRect(w * 0.29, h * 0.2, w * 0.12, h * 0.04); },
@@ -57,20 +58,29 @@ async function draw(sketch: Sketch, w: number, h: number, background?: string): 
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Could not draw'))), 'image/png'));
 }
 
-/** Storyboard frame captions → which sketch draws them (in frame order). */
-const FRAME_SKETCHES = ['arrival', 'ladderTop', 'ladderSkid', 'ladderFall', 'swerve', 'slide', 'beam', 'dawn'];
+/** Storyboard frames in order → which sketch draws them. */
+const FRAME_SKETCHES = ['arrival', 'ladderTop', 'ladderSkid', 'ladderFall', 'swerveFinal', 'beam', 'dawn'];
+/** The swerve frame's onion-skin ghosts: the truck earlier in the slide (transparent, truck only). */
+const SWERVE_GHOSTS: Sketch[] = [
+  (g, w, h) => { ink(g); truck(g, w * 0.22, h * 0.72, w * 0.12); },
+  (g, w, h) => { ink(g); truck(g, w * 0.45, h * 0.8, w * 0.12, -0.35); },
+];
 
 export async function addSampleMedia(p: Project): Promise<Project> {
   try {
     const { w: FW, h: FH } = frameSize(formatOf(p.storyboardSettings).ratio);
     const frames: string[] = [];
     for (const name of FRAME_SKETCHES) frames.push(await putMedia(p.id, await draw(SKETCHES[name], FW, FH)));
+    const ghosts: string[] = [];
+    for (const sk of SWERVE_GHOSTS) ghosts.push(await putMedia(p.id, await draw(sk, FW, FH)));
     const photos: Record<string, string> = {};
     for (const name of ['arrival', 'booth', 'road', 'diner'] as const) photos[name] = await putMedia(p.id, await draw(SKETCHES[name], 900, 600, '#ffffff'));
     const board: string[] = [];
     for (const name of ['beam', 'dawn', 'booth', 'ladderFall']) board.push(await putMedia(p.id, await draw(SKETCHES[name], 640, 400, '#ffffff')));
     return produce(p, (dr) => {
       dr.storyboard.forEach((f, i) => { if (frames[i]) { f.drawingId = frames[i]; f.rev++; } });
+      const swerve = dr.storyboard.find((f) => /swerves/.test(f.caption));
+      if (swerve) { swerve.ghosts = ghosts.map((drawingId) => ({ id: newId(), drawingId })); swerve.ghostFade = 0.4; }
       const photoFor: Record<string, string> = { 'DRIVE-IN THEATER': photos.arrival, 'COUNTY ROAD': photos.road, 'ROSIE\'S DINER': photos.diner };
       for (const l of dr.locations) { const id = photoFor[l.setName]; if (id) l.photoIds = [id, ...(l.setName === 'DRIVE-IN THEATER' ? [photos.booth] : [])]; }
       const mood = dr.boards[0];

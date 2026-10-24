@@ -21,6 +21,8 @@ import { useLongPress } from '../ui/responsive';
 import type { DerivedScene } from '../model/types';
 import { FRAMEWORKS, placeBeats } from '../reference/story';
 import { RefLink } from './ReferenceTab';
+import { LimitsPanel } from '../components/LimitsPanel';
+import { StartFromBudget } from '../components/StartFromBudget';
 
 const BAR: ElementType[] = ['sceneHeading', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot', 'centered', 'pageBreak'];
 
@@ -29,7 +31,10 @@ export function WriteTab() {
   const p = useProject();
   const update = useStore((s) => s.update);
   const [current, setCurrent] = useState<{ type: ElementType; sceneId?: string }>({ type: 'action' });
-  const [side, setSide] = useState<'title' | 'scenes' | 'characters' | 'drafts' | 'notes'>('scenes');
+  const limitsOn = !!p.writingPlan?.on;
+  const [side, setSide] = useState<'title' | 'scenes' | 'characters' | 'drafts' | 'notes' | 'limits'>(() => (limitsOn ? 'limits' : 'scenes'));
+  const [budgetPlan, setBudgetPlan] = useState(false);
+  useEffect(() => { if (!limitsOn && side === 'limits') setSide('scenes'); }, [limitsOn, side]);
 
   // A draft a day while writing (when the script changed since the last one).
   useEffect(() => {
@@ -93,9 +98,10 @@ export function WriteTab() {
 
   return (
     <div className="write-tab with-side">
+      {budgetPlan && <StartFromBudget onClose={() => { setBudgetPlan(false); setSide('limits'); }} />}
       <aside className="side" data-panel="Scenes & characters" data-panel-pick>
         <div className="side-tabs keep-open">
-          {(['title', 'scenes', 'characters', 'drafts', 'notes'] as const).map((s) => (
+          {(['title', 'scenes', 'characters', 'drafts', 'notes', ...(limitsOn ? ['limits'] as const : [])] as const).map((s) => (
             <button key={s} className={side === s ? 'active' : ''} onClick={() => setSide(s)}>{s[0].toUpperCase() + s.slice(1)}</button>
           ))}
         </div>
@@ -118,6 +124,7 @@ export function WriteTab() {
           </ul>
         )}
         {side === 'drafts' && <DraftsPanel />}
+        {side === 'limits' && <LimitsPanel onGo={jumpTo} />}
         {side === 'notes' && (
           <textarea className="notes" value={p.notes} placeholder="Project notes…" onChange={(e) => update((dr) => { dr.notes = e.target.value; }, null)} />
         )}
@@ -138,6 +145,9 @@ export function WriteTab() {
           <button onClick={() => setFindOpen(true)} title="Find & replace (⌘F)">Find</button>
           <RefLink page="format" />
           <button onClick={() => setSide('title')}>Title page</button>
+          {canEdit('writingPlan') && (p.writingPlan && !limitsOn
+            ? <button onClick={() => { update((dr) => { dr.writingPlan!.on = true; }, 'Show writing limits'); setSide('limits'); }} title="Show the Limits tab again">Writing to a budget</button>
+            : !p.writingPlan && <button onClick={() => setBudgetPlan(true)} title="Turn an amount of money into limits to write within: shoot days, locations, speaking roles, pages">Writing to a budget…</button>)}
           <label className="check" title="Lock scene numbers so new scenes get A/B numbers">
             <input type="checkbox" checked={p.sceneNumbersLocked} onChange={(e) => {
               const lock = e.target.checked;

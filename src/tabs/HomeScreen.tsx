@@ -12,6 +12,7 @@ import { askConfirm, DialogHost } from '../components/dialogs';
 import { migrate } from '../store/migrate';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { Logo } from '../components/Logo';
+import { StartFromBudget } from '../components/StartFromBudget';
 
 export function HomeScreen() {
   const [projects, setProjects] = useState<{ id: string; title: string; updatedAt: string }[]>([]);
@@ -52,6 +53,7 @@ export function HomeScreen() {
 
   // The sample production: every section filled in, with a few problems to fix. A fresh copy each time.
   const [building, setBuilding] = useState(false);
+  const [fromBudget, setFromBudget] = useState(false);
   const sampleProduction = async () => {
     setBuilding(true);
     try {
@@ -71,10 +73,16 @@ export function HomeScreen() {
         <p className="tagline">Write, break down, shot-list and schedule — one synced project.</p>
         <div className="home-actions">
           <button className="primary" onClick={() => open(newProject(), true)}>New screenplay</button>
+          <button onClick={() => setFromBudget(true)} title="Know your budget but not your story? Get limits to write within: shoot days, locations, speaking roles, pages">Start from a budget…</button>
           <button onClick={() => setImporting(true)}>Import a screenplay…</button>
           <button onClick={openFile}>Open project file…</button>
           <button onClick={() => void sampleProduction()} disabled={building} title="A filled-in short film: script, storyboards, breakdown, schedule, budget, paperwork and festivals, with a few problems to fix">{building ? 'Building the sample…' : 'Try the sample production'}</button>
         </div>
+        {fromBudget && <StartFromBudget onClose={() => setFromBudget(false)} onCreate={(p) => {
+          // Open on Write, where the Limits tab is.
+          try { localStorage.setItem('slateline.tab', 'screenplay'); } catch { /* ignore */ }
+          open(p, true);
+        }} />}
         <h2>Recent projects</h2>
         {projects.length === 0 && <p className="muted">No projects yet. Projects are saved in this browser automatically.</p>}
         <ul className="project-list">

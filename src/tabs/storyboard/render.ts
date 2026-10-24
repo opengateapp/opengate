@@ -1,5 +1,5 @@
 import type { Project, StoryboardFrame, StoryboardSettings } from '../../model/types';
-import { drawGuides, drawLayer, formatOf } from './formats';
+import { drawGuides, drawLayer, formatOf, ghostAlpha } from './formats';
 import { blobToImage, getMedia } from '../../store/media';
 import { getDerived } from '../../store/project';
 import { download, safeName } from '../../io/files';
@@ -30,15 +30,24 @@ export async function renderFrame(f: StoryboardFrame, size = 960, layer: 'frame'
   const ctx = c.getContext('2d')!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, width, h);
-  for (const id of [imageId, drawingId]) {
-    if (!id) continue;
-    const b = await getMedia(id);
+  // Image, then onion-skin ghost poses (faded, oldest faintest), then the drawing on top.
+  const ghosts = layer === 'frame' ? f.ghosts ?? [] : [];
+  const layers: { id?: string; kind: 'image' | 'drawing'; alpha: number }[] = [
+    { id: imageId, kind: 'image', alpha: 1 },
+    ...ghosts.map((g, i) => ({ id: g.drawingId, kind: 'drawing' as const, alpha: ghostAlpha(i, ghosts.length, f.ghostFade) })),
+    { id: drawingId, kind: 'drawing', alpha: 1 },
+  ];
+  for (const l of layers) {
+    if (!l.id) continue;
+    const b = await getMedia(l.id);
     if (!b) continue;
     try {
       const img = await blobToImage(b);
-      if (id === drawingId) drawLayer(ctx, img, width, h);
+      ctx.globalAlpha = l.alpha;
+      if (l.kind === 'drawing') drawLayer(ctx, img, width, h);
       else drawContain(ctx, img, width, h);
     } catch { /* skip unreadable */ }
+    ctx.globalAlpha = 1;
   }
   const guides = layer === 'frame' && settings?.guidesInPrint !== false ? (settings?.guides ?? []).filter((g) => g !== fmt.id) : [];
   if (guides.length) drawGuides(ctx, width, h, guides);

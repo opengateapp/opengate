@@ -1,11 +1,11 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { Draft } from 'immer';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Budget, BudgetAccount, BudgetGroup, BudgetLine, BudgetUnits, Project } from '../../model/types';
 import { newId } from '../../model/ids';
 import { GROUPS, TYPICAL_SPLIT, accountLabel } from '../../budget/accounts';
 import { money, totals, lineTotal, round2, billedQty } from '../../budget/calc';
-import { breakdownFacts, importFromBreakdown, LINK_LABEL, usesEstimate } from '../../budget/fromBreakdown';
+import { breakdownFacts, explainBreakdown, importFromBreakdown, LINK_LABEL, usesEstimate, zeroDayLines, type BreakdownExplain } from '../../budget/fromBreakdown';
 import { missingMarketingLines } from '../../budget/templates';
 import { RefLink } from '../ReferenceTab';
 import { canWrite, useSync } from '../../sync/state';
@@ -20,6 +20,8 @@ import { evaluate, isFormula, type Vars } from '../../budget/expr';
 import { BUILT_IN_VARS } from '../../budget/pipeline';
 import { costReport, lockBudget } from '../../budget/costReport';
 import { SheetImport, TemplatePicker } from './BudgetImport';
+import { BudgetGuide } from './BudgetGuide';
+import { Explain, Term, WorkedExample } from '../../components/BudgetHelp';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -133,7 +135,20 @@ function BudgetScreen() {
   const [accountId, setAccountId] = useState<string>(() => b.accounts.find((a) => a.code === '1400')?.id ?? b.accounts[0]?.id);
   const [showEmpty, setShowEmpty] = useState(false);
   const [settings, setSettings] = useState(false);
-  const [dialog, setDialog] = useState<'templates' | 'import' | null>(null);
+  const [dialog, setDialog] = useState<'templates' | 'import' | 'guide' | 'example' | null>(null);
+  // "Try it as a version" elsewhere shows the new version here.
+  useEffect(() => {
+    const show = (e: Event) => { setScenarioId((e as CustomEvent).detail as string); if (mode === 'scenarios' || mode === 'cost') pickMode('build'); };
+    window.addEventListener('opengate:budget-version', show);
+    return () => window.removeEventListener('opengate:budget-version', show);
+  });
+  const [result, setResult] = useState<BreakdownExplain | null>(null);
+  const [highlight, setHighlight] = useState<Set<string>>(new Set());
+  const flash = (ids: string[], accId?: string) => {
+    if (accId) setAccountId(accId);
+    setHighlight(new Set(ids));
+    setTimeout(() => setHighlight(new Set()), 4000);
+  };
   const cur = b.currency;
   const $ = (n: number) => money(n, cur);
   const pages = useDerived().pageCount;
@@ -141,12 +156,22 @@ function BudgetScreen() {
 
   const ub = (fn: (bd: Draft<Budget>) => void, label: string | null = 'Edit budget') => update((dr) => fn(dr.budget), label);
 
+  /** "Update from breakdown": adds what's missing and says what it did, and what was already there. */
   const importLines = () => {
     const added = importFromBreakdown(p, view.facts);
-    if (!added.length) { toast('Everything in the breakdown is already in the budget'); return; }
-    ub((bd) => { bd.lines.push(...added); }, 'Import from breakdown');
-    toast(`Added ${added.length} line${added.length === 1 ? '' : 's'} from the breakdown — fill in the rates`);
+    if (added.length) ub((bd) => { bd.lines.push(...added); }, 'Import from breakdown');
+    setResult(explainBreakdown(p, view.facts, added));
+    if (added.length) flash(added.map((l) => l.id), added[0].accountId);
   };
+  const setDays = async () => {
+    const v = await askText('How many shoot days for now?', { initial: String(b.funding?.plannedDays ?? view.facts.shootDays ?? ''), placeholder: 'e.g. 3', confirmLabel: 'Plan for these days' });
+    if (v == null) return;
+    const n = Math.round(Number(v));
+    if (!Number.isFinite(n) || n < 1) { toast('Type a number of days, like 3'); return; }
+    ub((bd) => { bd.funding = { ...bd.funding, plannedDays: n }; }, 'Plan shoot days');
+  };
+  const zero = zeroDayLines(p, view.facts);
+  const goto = (tab: string) => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: tab }));
   const addMarketing = () => {
     const add = missingMarketingLines(b.accounts, b.lines);
     if (!add.length) { toast('The budget already has every marketing & festival line'); return; }
@@ -183,9 +208,11 @@ function BudgetScreen() {
           </select>
         </label>
         <More label="Budget actions">
+        {!ro && <button onClick={() => setDialog('guide')} title="One question at a time: your money, shoot days, cast, crew, gear and the rest">Guided setup…</button>}
+        <button onClick={() => setDialog('example')} title="A $10,000, 3-day short, every line explained">See an example…</button>
         {!ro && <button onClick={() => setDialog('templates')} title="Typical lines for a short, a feature, a music video or a commercial">Templates…</button>}
         {!ro && <button onClick={() => setDialog('import')} title="Bring in an existing budget from CSV or Excel">Import spreadsheet…</button>}
-        {mode === 'build' && !ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet">⛓ Update from breakdown</button>}
+        {!ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet, and tells you what it did">⛓ Update from breakdown</button>}
         {!ro && <button onClick={addMarketing} title="Unit stills, BTS/EPK, key art, trailer, website, ads, press kit, festival fees, DCP, travel, publicist">＋ Marketing & festival lines</button>}
         <button onClick={() => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'funding' }))} title="From your breakdown to how much you need to raise">$ How much to raise…</button>
         <button onClick={() => exportBudget(p, 'pdf', scenario?.id).catch((e) => toast((e as Error).message))} title="Top sheet and detail of the version shown">PDF</button>
@@ -207,16 +234,59 @@ function BudgetScreen() {
       {settings && <BudgetSettings ro={ro} vars={view.vars} />}
       {dialog === 'templates' && <TemplatePicker onClose={() => setDialog(null)} />}
       {dialog === 'import' && <SheetImport onClose={() => setDialog(null)} />}
+      {dialog === 'guide' && <BudgetGuide onClose={() => setDialog(null)} />}
+      {dialog === 'example' && <WorkedExample onClose={() => setDialog(null)} />}
       {!ro && !b.lines.length && mode === 'build' && (
         <div className="budget-start">
           <b>Starting a budget?</b>
-          <span className="muted small">Begin from a template, pull in your breakdown, or import a spreadsheet you already have.</span>
-          <button className="primary" onClick={() => setDialog('templates')}>Templates…</button>
+          <span className="muted small">New to budgets? The guided setup asks one question at a time. Or begin from a template, pull in your breakdown, or import a spreadsheet you already have.</span>
+          <button className="primary" onClick={() => setDialog('guide')}>Set up my budget</button>
+          <button onClick={() => setDialog('example')}>See an example</button>
+          <button onClick={() => setDialog('templates')}>Templates…</button>
           <button onClick={importLines}>⛓ From the breakdown</button>
           <button onClick={() => setDialog('import')}>Import spreadsheet…</button>
         </div>
       )}
-      {usesEstimate(p) && <p className="budget-note">Shoot days are <b>estimated</b> from page count ({p.budget.funding?.pagesPerDay} pages a day) because nothing is on the stripboard yet. Schedule the film and the budget switches to the real days. <RefLink page="budget-how" /></p>}
+      {usesEstimate(p) && (
+        <p className="budget-note">
+          {b.funding?.plannedDays
+            ? <>Planning for <b>{b.funding.plannedDays} shoot day{b.funding.plannedDays === 1 ? '' : 's'}</b> until the stripboard is done. </>
+            : <>Shoot days are <b>estimated</b> from page count ({b.funding?.pagesPerDay} pages a day) because nothing is on the stripboard yet. </>}
+          Schedule the film and the budget switches to the real days.
+          {!ro && <> <button className="link small" onClick={() => void setDays()}>Change</button></>} <RefLink page="budget-how" />
+        </p>
+      )}
+      {zero.length > 0 && (
+        <div className="budget-warn">
+          <b>0 shoot days scheduled, so lines tied to the schedule are $0.</b>
+          <span className="muted small">{zero.length === 1 ? '1 line multiplies its rate' : `${zero.length} lines (crew, cast, locations, meals…) multiply their rate`} by the shoot days on the Stripboard, and there aren’t any yet.</span>
+          <span className="row wrap">
+            <button className="small" onClick={() => goto('stripboard')}>Go to Stripboard</button>
+            {!ro && <button className="small primary" onClick={() => void setDays()}>Set days by hand</button>}
+          </span>
+        </div>
+      )}
+      {result && (
+        <div className="budget-result" role="status">
+          <div className="row"><b>Update from breakdown</b><span className="spacer" /><button className="icon-btn" aria-label="Close" onClick={() => setResult(null)}>×</button></div>
+          {result.added.length > 0 ? (
+            <>
+              <span className="small">Added {result.added.length} line{result.added.length === 1 ? '' : 's'}. Fill in the rates:</span>
+              <ul>{result.added.map(({ line, account: where }) => (
+                <li key={line.id}><button className="link" onClick={() => flash([line.id], line.accountId)}>{line.description || 'Line'} → {where}</button>{view.facts.shootDays === 0 && line.link?.auto ? <span className="muted small"> (0 days until scheduled)</span> : null}</li>
+              ))}</ul>
+            </>
+          ) : <span className="small">Nothing new to add: everything in the breakdown is already in the budget.</span>}
+          {result.existing.length > 0 && (
+            <details open={!result.added.length}>
+              <summary className="small">Already in the budget ({result.existing.length})</summary>
+              <ul className="small">{result.existing.map((x) => (
+                <li key={x.line.id}><button className="link small" onClick={() => flash([x.line.id], x.line.accountId)}>{x.label} → {x.account}</button> <span className="muted">{x.why}</span></li>
+              ))}</ul>
+            </details>
+          )}
+        </div>
+      )}
       {scenario && mode !== 'scenarios' && <p className="budget-note">Showing <b>{scenario.name}</b>. Changes to quantities and rates are saved to this version only; the base budget stays as it is.</p>}
 
       {mode === 'cost' ? (
@@ -227,6 +297,7 @@ function BudgetScreen() {
         <div className="budget-split">
           <section className="budget-topsheet">
             {mode === 'target' && <TargetHeader ro={ro} subtotal={view.t.subtotal} estimates={view.t.byAccount} />}
+            {mode === 'target' && !ro && <p className="muted small">Estimates come from your lines. <button className="link small" onClick={importLines}>⛓ Update from breakdown</button> adds cast, crew, locations and props from the script.</p>}
             <table className="table topsheet">
               <thead>
                 <tr>
@@ -243,7 +314,7 @@ function BudgetScreen() {
                   const gActual = accountsIn(g.id).reduce((s, a) => s + (view.t.actualByAccount.get(a.id) ?? 0), 0);
                   const gEst = view.t.byGroup[g.id];
                   return (
-                    <GroupRows key={g.id} label={g.label} mode={mode}
+                    <GroupRows key={g.id} label={g.label} term={g.id} mode={mode}
                       est={gEst} target={gTarget} actual={gActual} $={$}
                       onAdd={ro ? undefined : async () => {
                         const name = await askText(`New account in ${g.label}`, { placeholder: 'e.g. Drone unit', confirmLabel: 'Add account' });
@@ -303,7 +374,7 @@ function BudgetScreen() {
               <tfoot>
                 <tr><td>Fringes (included above)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.fringes)}</td></tr>
                 <tr><td>Subtotal</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.subtotal)}</td></tr>
-                <tr><td>Contingency ({b.contingencyPct}%{b.contingencyAppliesTo && b.contingencyAppliesTo.length < GROUPS.length ? ` of ${b.contingencyAppliesTo.map((g) => GROUPS.find((x) => x.id === g)?.short).join(' + ')}` : ''})</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.contingency)}</td></tr>
+                <tr><td>Contingency<Term k="contingency" /> ({b.contingencyPct}%{b.contingencyAppliesTo && b.contingencyAppliesTo.length < GROUPS.length ? ` of ${b.contingencyAppliesTo.map((g) => GROUPS.find((x) => x.id === g)?.short).join(' + ')}` : ''})</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.contingency)}</td></tr>
                 {view.t.applied.map((a) => (
                   <tr key={a.id} className={a.credit ? 'credit' : ''}><td>{a.name} ({a.credit ? '−' : ''}{a.pct}%)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(a.amount)}</td></tr>
                 ))}
@@ -321,7 +392,7 @@ function BudgetScreen() {
           </section>
 
           <section className="budget-detail">
-            {account && <AccountLines account={account} view={view} scenarioId={scenario?.id} ro={ro} mode={mode} />}
+            {account && <AccountLines account={account} view={view} scenarioId={scenario?.id} ro={ro} mode={mode} highlight={highlight} />}
           </section>
         </div>
       )}
@@ -329,13 +400,13 @@ function BudgetScreen() {
   );
 }
 
-function GroupRows({ label, mode, est, target, actual, $, onAdd, children }: {
-  label: string; mode: BudgetMode; est: number; target: number; actual: number; $: (n: number) => string; onAdd?: () => void; children: React.ReactNode;
+function GroupRows({ label, term, mode, est, target, actual, $, onAdd, children }: {
+  label: string; term?: BudgetGroup; mode: BudgetMode; est: number; target: number; actual: number; $: (n: number) => string; onAdd?: () => void; children: React.ReactNode;
 }) {
   return (
     <>
       <tr className="group">
-        <td>{label}{onAdd && <button className="icon-btn" title="Add an account" onClick={(e) => { e.stopPropagation(); onAdd(); }}>＋</button>}</td>
+        <td>{label}{term && <Term k={term} />}{onAdd && <button className="icon-btn" title="Add an account" onClick={(e) => { e.stopPropagation(); onAdd(); }}>＋</button>}</td>
         {mode === 'build' && <td className="num">{$(est)}</td>}
         {mode === 'target' && <><td className="num">{target ? $(target) : '—'}</td><td className="num">{$(est)}</td><td className="num"><Room target={target || undefined} est={est} $={$} /></td></>}
         {mode === 'actual' && <><td className="num">{$(est)}</td><td className="num">{actual ? $(actual) : '—'}</td><td className="num"><Spent est={est} act={actual} $={$} /></td></>}
@@ -416,7 +487,7 @@ function TargetHeader({ ro, subtotal, estimates }: { ro: boolean; subtotal: numb
   );
 }
 
-function AccountLines({ account, view, scenarioId, ro, mode }: { account: BudgetAccount; view: ReturnType<typeof useBudgetView>; scenarioId?: string; ro: boolean; mode: BudgetMode }) {
+function AccountLines({ account, view, scenarioId, ro, mode, highlight }: { account: BudgetAccount; view: ReturnType<typeof useBudgetView>; scenarioId?: string; ro: boolean; mode: BudgetMode; highlight?: Set<string> }) {
   const p = useProject();
   const update = useStore((s) => s.update);
   const b = p.budget;
@@ -483,10 +554,16 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
         <h3><span className="code">{account.code}</span> {account.name}</h3>
         <span className="muted">{$(total)}</span>
       </div>
+      {lines.length > 0 && <p className="budget-formula muted small">How long × How many × Cost of one = Total <RefLink page="budget-deals" /></p>}
       {lines.length ? (
         <table className="table budget-lines cards-on-phone">
           <thead>
-            <tr><th /><th>Description</th><th className="num">Qty</th><th>Units</th><th className="num">×</th><th className="num">Rate</th>{b.fringes.length > 0 && <th>Fringes</th>}<th className="num">Total</th><th /></tr>
+            <tr><th /><th>Description</th>
+              <th className="num">How long<Explain tip="How many days, weeks, hours or items. Lines with ⛓ fill this from the schedule. Example: 3 days." /></th>
+              <th>Units</th>
+              <th className="num">How many<Explain tip="How many people or things at that rate. Example: 2 PAs. A word like CREW means however many crew are in Contacts." /></th>
+              <th className="num">Cost of one<Explain tip="The rate for one of them for one unit: $150 a day for one PA. So 2 PAs × 3 days × $150 = $900." /></th>
+              {b.fringes.length > 0 && <th>Fringes<Explain tip="Costs on top of wages: payroll taxes, union pension & health. Tick the ones that apply to this line." /></th>}<th className="num">Total</th><th /></tr>
           </thead>
           <tbody>
             {lines.map((l) => {
@@ -498,6 +575,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                 l.prepDays ? `+${l.prepDays} prep` : '', l.wrapDays ? `+${l.wrapDays} wrap` : '',
                 l.otHours ? `${l.otHours}h OT` : '', l.sixthDays ? `${l.sixthDays}× 6th` : '', l.seventhDays ? `${l.seventhDays}× 7th` : '',
                 l.units === 'rentdays' ? `billed ${billedQty(l, b)} d` : '', l.notes ? 'note' : '',
+                linked?.auto && view.facts.shootDays === 0 && ['cast', 'crew', 'location', 'element', 'shootDays', 'headcount'].includes(linked.kind) ? '0 days scheduled' : '',
               ].filter(Boolean);
               return (
                 <Fragment key={l.id}>
@@ -508,7 +586,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                   }, 'Move line') })) },
                   ...(linked && !linked.auto && !orphan ? [{ label: 'Follow the breakdown again', run: () => relink(l) }] : []),
                   { label: sc && !isAdded(l.id) ? `Remove from ${sc.name}` : 'Delete line', danger: true, run: () => removeLine(l) },
-                ]} className={overridden ? 'overridden' : isAdded(l.id) ? 'added' : ''}
+                ]} className={`${overridden ? 'overridden' : isAdded(l.id) ? 'added' : ''} ${highlight?.has(l.id) ? 'flash' : ''}`}
                   draggable={!ro} onDragStart={(e) => { e.dataTransfer.setData('application/x-budget-line', l.id); e.dataTransfer.effectAllowed = 'move'; }}>
                   <td className="drag" title="Drag onto an account to move">⋮⋮</td>
                   <td>
@@ -532,7 +610,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
                     </select>
                   </td>
                   <td className="num"><ExprIn className="cell-num small" disabled={ro} value={l.x} expr={base(l).xExpr} vars={view.vars}
-                    onNumber={(n) => set(l, { x: n, xExpr: undefined })} onExpr={(x) => set(l, { xExpr: x })} title="People, items… (or a formula like CREW)" /></td>
+                    onNumber={(n) => set(l, { x: n, xExpr: undefined })} onExpr={(x) => set(l, { xExpr: x })} title="How many people or things (or a word like CREW: however many crew are in Contacts)" /></td>
                   <td className="num"><NumIn className="cell-num" disabled={ro || !!l.items?.length} value={l.rate} onChange={(n) => set(l, { rate: n })} title={l.items?.length ? 'Adds up the sub-items (open ▸ details)' : undefined} /></td>
                   {b.fringes.length > 0 && (
                     <td className="fringe-cell">
@@ -607,6 +685,7 @@ function AccountLines({ account, view, scenarioId, ro, mode }: { account: Budget
     </div>
   );
 }
+
 
 const FRINGE_PRESETS: { name: string; pct: number; flat?: number; flatPer?: 'day' | 'week' | 'line' }[] = [
   { name: 'Employer payroll taxes', pct: 10 },

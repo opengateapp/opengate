@@ -68,3 +68,28 @@ describe('storyboard formats', () => {
     expect(p.storyboard.find((f) => f.id === id)!.order).toBe(3);
   });
 });
+
+describe('onion-skin ghost poses inside one frame', () => {
+  it('fades older ghosts more, and keeps the newest at the chosen fade', async () => {
+    const { ghostAlpha } = await import('./tabs/storyboard/formats');
+    expect(ghostAlpha(0, 1, 0.4)).toBeCloseTo(0.4);
+    expect(ghostAlpha(0, 3, 0.4)).toBeLessThan(ghostAlpha(1, 3, 0.4));
+    expect(ghostAlpha(2, 3, 0.4)).toBeCloseTo(0.4);
+  });
+
+  it('keeps ghost drawings with the project media, and survives a reload', async () => {
+    const { mediaIds } = await import('./io/files');
+    const p = produce(newProject('G'), (d) => { d.storyboard.push({ id: 'f', shotId: 's', order: 0, rev: 0, caption: '', drawingId: 'now', ghosts: [{ id: 'g1', drawingId: 'pose1' }, { id: 'g2', drawingId: 'pose2' }], ghostFade: 0.5 }); });
+    expect(mediaIds(p)).toEqual(expect.arrayContaining(['now', 'pose1', 'pose2']));
+    expect(migrate(JSON.parse(JSON.stringify(p))).storyboard[0]).toEqual(p.storyboard[0]);
+  });
+
+  it('the sample production shows motion in one frame instead of two', async () => {
+    const { buildSampleProduction } = await import('./model/sampleProduction');
+    const p = buildSampleProduction();
+    const shotId = p.shots.find((s) => s.shotNumber === '12A')!.id;
+    const frames = p.storyboard.filter((f) => f.shotId === shotId);
+    expect(frames).toHaveLength(1);
+    expect(frames[0].caption).toMatch(/ghosts/);
+  });
+});

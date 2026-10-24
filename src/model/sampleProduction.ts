@@ -359,8 +359,7 @@ export function buildSampleProduction(): Project {
     frame('7A', 'Maya at the top of the ladder, rain starting.');
     frame('7B', 'The ladder skids…', 0);
     frame('7B', '…she falls onto the tarps (crash pads under them).', 1);
-    frame('12A', 'Deer in the road; the truck swerves.', 0);
-    frame('12A', 'The truck slides onto the shoulder, nose in the ditch.', 1);
+    frame('12A', 'Deer in the road: the truck swerves and slides onto the shoulder (onion-skin ghosts show the slide).');
     frame('18A', 'The beam hits the patched screen: the 1962 wedding.');
     frame('21A', 'Dawn. Dale, hat in hand.');
     dr.storyboardSettings = { perPage: 2, showReference: true, format: '2.39', guides: ['16:9'], guidesInPrint: true };

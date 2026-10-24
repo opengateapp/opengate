@@ -29,7 +29,7 @@ export async function budgetXlsx(p: Project, d: Derived, scenarioId?: string): P
   XLSX.utils.book_append_sheet(wb, wsTop, 'Top Sheet');
 
   // Detail with formulas, so the sheet keeps working when someone edits a rate in Excel.
-  const header = ['Account', 'Description', 'Qty', 'Units', 'x', 'Rate', 'Subtotal', 'Fringes', 'Total'];
+  const header = ['Account', 'Description', 'How long (qty)', 'Units', 'How many (×)', 'Cost of one (rate)', 'Subtotal', 'Fringes', 'Total'];
   const detail: (string | number | { f: string; v?: number })[][] = [header];
   for (const g of r.groups) for (const x of g.accounts) for (const l of x.lines) {
     const row = detail.length + 1;
@@ -37,7 +37,7 @@ export async function budgetXlsx(p: Project, d: Derived, scenarioId?: string): P
     detail.push([accountLabel(x.a), l.description, round(l.qty), UNIT_LABEL[l.units] ?? l.units, l.x, l.rate, (l.units === 'rentdays' || linePremium(l, b) ? round(lineBase(l, b)) : { f: `C${row}*E${row}*F${row}`, v: round(l.qty * l.x * l.rate) }), round(fr), { f: `G${row}+H${row}`, v: round(r.t.lineTotal.get(l.id) ?? lineTotal(b, l)) }]);
   }
   const wsDetail = XLSX.utils.aoa_to_sheet(detail);
-  wsDetail['!cols'] = [{ wch: 28 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 6 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+  wsDetail['!cols'] = [{ wch: 28 }, { wch: 40 }, { wch: 14 }, { wch: 8 }, { wch: 13 }, { wch: 17 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail');
 
   if (b.expenses.length) {

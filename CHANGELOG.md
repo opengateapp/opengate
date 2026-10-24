@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.0 — 2026-10-23
+
+Budget help for first-timers, writing to a budget, a desktop Festivals table, and onion-skin poses in storyboards.
+
+- **Budget, explained:**
+  - lines tied to the schedule no longer sit at $0 without a word: a notice says why, with **Go to Stripboard** and **Set days by hand**;
+  - **Update from breakdown** says what it added and where (click to jump), or what's already there and why, and it's in every view;
+  - columns read **How long × How many × Cost of one = Total**, with a "?" on each and on budget words (above/below the line, fringe, contingency, kit fee, rental week).
+- **Set up my budget:** a guided setup, one question at a time (your money, shoot days, SAG-AFTRA agreement, cast and crew rates, gear, starter rates, contingency). It's offered on an empty budget and in Budget actions.
+- **Your cap on every Budget screen:** "$212 over your $11,000 cap", a warning when the total outgrows your SAG-AFTRA agreement (e.g. Micro-Budget past $20,000), and **ways to cut** ranked by money saved, each one you can **try as a version**.
+- **See an example:** a $10,000, 3-day short with one SAG-AFTRA Ultra Low actor, every line explained (rates checked October 2026).
+- **Start from a budget** (Home): tell it your money and what you have (gear, free locations, helpers, a union actor) and it suggests how many shoot days, locations, speaking roles and pages that buys. **Write → Limits** then tracks them as you write, flags things that cost money (crowds, cars, rain, kids, animals, stunts, VFX), notes the scene that goes past a limit, and offers story ideas from what you have. Existing scripts: Script tools → Writing to a budget….
+- **Reference → Writing to a budget:** what costs money on the page, *El Mariachi* and the Blumhouse model, with sources.
+- **Festivals on desktop:** a sortable table; click a row to open its deadlines and details. Phones keep the cards.
+- **Storyboards:**
+  - **ghost poses:** onion-skin earlier poses inside the same frame to show movement (add, edit, merge or delete them; undo brings them back);
+  - on desktop, Image, Clear drawing, Onion skin and Frame guides sit on the toolbar until the frame gets narrow.
+
 ## v0.4.1 — 2026-10-23
 
 - **One sample:** Home now has a single **"Try the sample production"** button, which opens "The Last Reel" filled in across every section. The script-only sample is gone.
