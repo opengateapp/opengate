@@ -11,8 +11,8 @@ import { More } from '../components/More';
 import { LongPress } from '../components/ActionSheet';
 import { useTouch } from '../ui/responsive';
 import { toast } from '../components/common';
-import { useSync } from '../sync/state';
-import { festivalDates } from '../budget/festivals';
+import { tabHidden, useSync } from '../sync/state';
+import { festivalDates, joinFestivals } from '../budget/festivals';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -29,10 +29,11 @@ export function CalendarTab() {
   const conflicts = useMemo(() => scanConflicts(p, d), [p, d]);
   const bone = boneyard(p, d);
   const byDate = new Map(p.schedule.days.map((x) => [x.date, x]));
-  // Festival deadlines and dates (Budget → Festivals), only for people who can see the budget.
-  const seesBudget = useSync((s) => s.write === null || s.admin || s.budget);
-  const fest = useMemo(() => (seesBudget ? festivalDates(p.budget.festivals ?? []) : new Map<string, string[]>()), [seesBudget, p.budget.festivals]);
-  const festChips = (date: string) => (fest.get(date) ?? []).map((t, i) => <div key={`f${i}`} className="cal-event cal-fest" title="Budget → Festivals" onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'festivals' })); }}>🎬 {t}</div>);
+  // Festival deadlines and dates (Release → Festivals): not private, so anyone who can see Release. Fees never show here.
+  useSync((s) => s.hidden);
+  const seesRelease = !tabHidden('festivals');
+  const fest = useMemo(() => (seesRelease ? festivalDates(joinFestivals(p)) : new Map<string, string[]>()), [seesRelease, p.festivals, p.budget.festivals]); // eslint-disable-line react-hooks/exhaustive-deps
+  const festChips = (date: string) => (fest.get(date) ?? []).map((t, i) => <div key={`f${i}`} className="cal-event cal-fest" title="Release → Festivals" onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'festivals' })); }}>🎬 {t}</div>);
 
   // Weeks covering the whole range, starting on Sunday or Monday (App preferences).
   const ws = usePrefs((s) => s.weekStart);

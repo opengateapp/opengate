@@ -1,4 +1,5 @@
 import type { BudgetLine, BudgetLinkKind, BudgetUnits, Project } from '../model/types';
+import { festivalLineItems, joinFestivals } from './festivals';
 import { newId } from '../model/ids';
 import type { Derived } from '../script/derive';
 import { sceneCast, sceneElements, sceneEighths } from '../script/derive';
@@ -160,7 +161,7 @@ export function linkedQty(p: Project, f: BreakdownFacts, link: NonNullable<Budge
       return g ? gearLineQty(g, f.gearDays.get(g.id) ?? 0) : null;
     }
     case 'license': return (p.budget.licenses ?? []).some((l) => l.id === link.id) ? 1 : null;
-    case 'festival': case 'festivalTravel': return (p.budget.festivals ?? []).length ? 1 : null;
+    case 'festival': case 'festivalTravel': return joinFestivals(p).length ? 1 : null;
     case 'kit': {
       const doc = (p.budget.paperwork ?? []).find((x) => x.id === link.id);
       if (!doc?.deal?.kitFee) return null;
@@ -188,6 +189,8 @@ export function resolveLines(p: Project, f: BreakdownFacts, lines = p.budget.lin
     if (!l.link) return l;
     const q = linkedQty(p, f, l.link);
     if (q === null) { orphaned.add(l.id); return l; }
+    // Festival lines take their items from Release → Festivals, which people without the budget can change.
+    if (l.link.auto && (l.link.kind === 'festival' || l.link.kind === 'festivalTravel')) return { ...l, qty: 1, items: festivalLineItems(p, l.link.kind) };
     return l.link.auto ? { ...l, qty: q + (Number(l.prepDays) || 0) + (Number(l.wrapDays) || 0) } : l;
   });
   return { lines: out, orphaned };

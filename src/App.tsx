@@ -31,7 +31,7 @@ import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
 import { LicensesTab } from './tabs/budget/LicensesTab';
 import { FundingTab } from './tabs/budget/FundingTab';
-import { FestivalsTab } from './tabs/budget/FestivalsTab';
+import { FestivalsTab } from './tabs/release/FestivalsTab';
 import { PaperworkTab } from './tabs/budget/PaperworkTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
@@ -54,7 +54,7 @@ import { AccessBanner } from './components/share/AccessBanner';
 import { startSync, stopSync, currentSync } from './sync/engine';
 import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
-export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'reference' | 'exports' | 'settings';
+export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'release' | 'reference' | 'exports' | 'settings';
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
@@ -62,11 +62,12 @@ export type TabId =
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
+  | 'presskit' | 'social' | 'distribution'
   | 'reference'
   | 'setup';
 
 export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label: string; hint: string }[] }[] = [
-  // In production order: write it, see it, break it down, plan the people and places, cost it, shoot it.
+  // In production order: write it, see it, break it down, plan the people and places, cost it, shoot it, release it.
   { id: 'write', label: 'Write', tabs: [
     { id: 'screenplay', label: 'Screenplay', hint: 'Write or import a screenplay' },
     { id: 'characters', label: 'Characters', hint: 'Character builder: traits, alignment, profile and continuity photos' },
@@ -95,7 +96,6 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'budget', label: 'Budget', tabs: [
     { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
     { id: 'funding', label: 'Funding', hint: 'How much to raise: from your breakdown to a funding goal, crowdfunding with rewards' },
-    { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and fees, and where each submission stands' },
     { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
     { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
     { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
@@ -103,6 +103,10 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'shoot', label: 'Shoot', tabs: [
     { id: 'callsheets', label: 'Call Sheets', hint: 'Daily call sheets' },
     { id: 'sides', label: 'Script Sides', hint: 'Each day’s pages for cast and crew' },
+  ] },
+  // Marketing and distribution: it starts in prep, but it's where the film goes last.
+  { id: 'release', label: 'Release', tabs: [
+    { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and status, laurels; fees for people with the budget' },
   ] },
   { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data, production, guilds and unions — explainers, calculators and a library' }] },
   // Shown as buttons next to the sections (⤓ and ⚙), not as sections.

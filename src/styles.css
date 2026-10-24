@@ -2020,7 +2020,7 @@ table.contacts .crew-role-picker select { width: 100%; }
   .ref-table.cards-on-phone td { white-space: normal; }
 }
 
-/* Budget → Festivals */
+/* Release → Festivals */
 .festivals-tab { max-width: 1000px; }
 .festival-list { display: flex; flex-direction: column; gap: 12px; min-height: 60px; }
 .festival-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; min-width: 0; }

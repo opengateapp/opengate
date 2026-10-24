@@ -6,7 +6,10 @@ import { budgetView } from './budget/pipeline';
 import { totals } from './budget/calc';
 import {
   aimedFee, amountsIn, datesIn, festivalDates, festivalTotals, newDeadline, newFestival, parseFestivalCsv, parseFestivalPaste, premiereWarnings, syncFestivalLines,
+  joinFestivals, writeFestivals, festivalInfo,
 } from './budget/festivals';
+import { migrate } from './store/migrate';
+import { channelOf } from './sync/channels';
 import { buildSampleProduction } from './model/sampleProduction';
 import { decodeField, encodeField } from './sync/channels';
 
@@ -125,20 +128,66 @@ describe('festival fees in the budget', () => {
     expect(festivalDates([a]).get('2027-01-10')).toEqual(['Local: Early deadline']);
   });
 
-  it('syncs privately with the budget and round-trips', () => {
-    const p = produce(newProject('S'), (dr) => { dr.budget.festivals = [fest({ name: 'A' })]; });
+  it('splits the list (Release) from its money (budget) and round-trips both', () => {
+    const p = produce(newProject('S'), (dr) => { writeFestivals(dr, [fest({ name: 'A', waiver: 'CODE', attend: true, travel: 200 })], true); });
+    const f = p.festivals![0];
+    expect(JSON.stringify(f)).not.toMatch(/"fee"|waiver|travel|feePaid/);
+    expect(channelOf('festivals', 2)).toBe('release');
+    const c = p.budget.festivalCosts![0];
+    expect(c).toMatchObject({ id: f.id, waiver: 'CODE', travel: 200 });
+    expect(Object.values(c.fees)).toEqual([20, 35]);
     const entries = encodeField('budget', p.budget);
-    expect([...entries.keys()].some((k) => k.startsWith('budget.festivals/'))).toBe(true);
+    expect([...entries.keys()].some((k) => k.startsWith('budget.festivalCosts/'))).toBe(true);
     const back = decodeField('budget', (k) => JSON.parse(JSON.stringify(entries.get(k))), [...entries.keys()]) as typeof p.budget;
-    expect(back.festivals).toEqual(JSON.parse(JSON.stringify(p.budget.festivals)));
+    expect(joinFestivals({ festivals: p.festivals, budget: back })).toEqual(joinFestivals(p));
+  });
+
+  it('people without the budget see no money, and their edits keep it', () => {
+    const p = produce(newProject('S'), (dr) => { writeFestivals(dr, [fest({ name: 'A' })], true); });
+    const noBudget = { festivals: p.festivals, budget: newProject('x').budget };
+    expect(joinFestivals(noBudget)[0].deadlines.every((d) => d.fee === 0)).toBe(true);
+    // A Release-only editor marks it submitted: the list changes, the money stays.
+    const q = produce(p, (dr) => { const l = joinFestivals(dr); l[0].status = 'submitted'; writeFestivals(dr, l, false); });
+    expect(q.festivals![0].status).toBe('submitted');
+    expect(q.budget.festivalCosts).toEqual(p.budget.festivalCosts);
+  });
+
+  it('the budget follows the list even when only Release changed it', () => {
+    const p = produce(newProject('S'), (dr) => { writeFestivals(dr, [fest({ name: 'A' }), fest({ name: 'B', status: 'considering' })], true); });
+    const q = produce(p, (dr) => { const l = joinFestivals(dr); l[1].status = 'planned'; writeFestivals(dr, l, false); });
+    const items = (x: typeof p) => budgetView(x, derive(x.scriptDoc)).lines.find((l) => l.link?.kind === 'festival')!.items!.map((i) => i.description);
+    expect(items(p)).toEqual(['A']);
+    expect(items(q)).toEqual(['A', 'B']);
+  });
+
+  it('moves v0.4 lists on load, and merges an older copy’s list without doubles', () => {
+    const old = fest({ name: 'Old', waiver: 'W' });
+    const saved = produce(newProject('M'), (dr) => { dr.budget.festivals = [old]; });
+    const m = migrate(JSON.parse(JSON.stringify(saved)));
+    expect(m.festivals!.map((f) => f.name)).toEqual(['Old']);
+    expect(m.budget.festivals).toEqual([]);
+    expect(m.budget.festivalCosts![0].waiver).toBe('W');
+    // A shared room: an older copy still writes budget.festivals next to the new list.
+    const mixed = produce(newProject('R'), (dr) => {
+      dr.festivals = [festivalInfo(old)];
+      dr.budget.festivals = [old, fest({ name: 'Added by an older copy' })];
+    });
+    const j = joinFestivals(mixed);
+    expect(j.map((f) => f.name)).toEqual(['Old', 'Added by an older copy']);
+    expect(j[0].waiver).toBe('W');
+    // The first edit with the budget moves everything over.
+    const moved = produce(mixed, (dr) => writeFestivals(dr, joinFestivals(dr), true));
+    expect(moved.budget.festivals).toEqual([]);
+    expect(moved.festivals!.length).toBe(2);
   });
 });
 
 describe('the sample production’s festivals', () => {
   it('plans fictional festivals, budgets their fees and travel, and shows a premiere clash', () => {
     const p = buildSampleProduction();
-    const list = p.budget.festivals ?? [];
+    const list = joinFestivals(p);
     expect(list.length).toBe(7);
+    expect(p.budget.festivals ?? []).toEqual([]);
     expect(list.every((f) => /fictional/.test(f.name))).toBe(true);
     const t = festivalTotals(list);
     expect(t.planned).toBe(50 + 25 + 40); // earlybirds; Drive-In Shorts is free, Coastline is waived

@@ -769,8 +769,14 @@ export interface Budget {
   fundingSources?: FundingSource[];
   /** Funding settings: estimate pace, starter-rate level, crowdfunding plan. */
   funding?: FundingPlan;
-  /** Festivals you're aiming at: deadlines, fees and status (Budget → Festivals). */
+  /**
+   * Festivals as v0.4–v0.5 stored them (money and all). Since Release, the list lives in
+   * `Project.festivals` and its money in `festivalCosts`; this is still read (and moved) so an
+   * older copy in a shared room doesn't lose entries.
+   */
   festivals?: Festival[];
+  /** Each festival's money, keyed by festival id: private like the rest of the budget. */
+  festivalCosts?: FestivalCost[];
 }
 
 export type FestivalStatus = 'considering' | 'planned' | 'submitted' | 'accepted' | 'declined' | 'withdrawn';
@@ -804,7 +810,15 @@ export interface Festival {
   attend?: boolean;
   travel?: number;
   notes?: string;
+  /** What the festival gave you, for the poster and press kit: "Official Selection", "Winner: Best Short". */
+  laurel?: string;
 }
+
+/** A festival as everyone with Release access sees it: no fees, waiver, paid or travel. */
+export type FestivalInfo = Omit<Festival, 'deadlines' | 'waiver' | 'feePaid' | 'travel'> & { deadlines: Omit<FestivalDeadline, 'fee'>[] };
+
+/** A festival's money (budget key only). `id` is the festival's. */
+export interface FestivalCost { id: Id; fees: Record<Id, number>; waiver?: string; feePaid?: number; travel?: number }
 
 export type FundingKind = 'cash' | 'inkind' | 'deferral' | 'grant' | 'investor' | 'crowdfunding' | 'sponsor' | 'presale' | 'incentive' | 'loan' | 'other';
 export type FundingStatus = 'idea' | 'applied' | 'pledged' | 'received';
@@ -1245,6 +1259,15 @@ export interface Project {
   structure?: { frameworkId: string };
   /** "Start from a budget": the money, what you have, and the limits to write within (Write → Limits). */
   writingPlan?: WritingPlan;
+  /** Release → Festivals (their money is in budget.festivalCosts). */
+  festivals?: FestivalInfo[];
+  /** Release → Press kit. */
+  pressKit?: PressKit;
+  /** Release → Social & BTS. */
+  socialPosts?: SocialPost[];
+  /** Release → Distribution: what you have to hand over, and who might release the film. */
+  deliverables?: Deliverable[];
+  outlets?: Outlet[];
   bible?: StoryBible;
   credits?: CreditsSettings;
   characterOptions?: CharacterOptions;
@@ -1294,4 +1317,72 @@ export interface WritingPlan {
   perLocation: number;
   /** The Limits panel in Write → Screenplay. */
   on: boolean;
+}
+
+// ---------------------------------------------------------------- release
+
+export interface PressKit {
+  logline?: string;
+  shortSynopsis?: string;
+  longSynopsis?: string;
+  directorStatement?: string;
+  /** Press-approved stills: media ids (storyboard images, BTS photos, uploads). */
+  stills: Id[];
+  posterId?: Id;
+  trailerUrl?: string;
+  website?: string;
+  /** Tech specs; empty ones are filled from the project when shown. */
+  specs: { runtime?: string; aspect?: string; camera?: string; sound?: string; color?: string; language?: string; country?: string; year?: string; genre?: string };
+  contact: { name?: string; email?: string; phone?: string };
+  /** Contacts left out of the cast & crew list. */
+  hidden?: Id[];
+  /** Short bios written for the press kit, by contact id. */
+  bios?: Record<Id, string>;
+}
+
+export type SocialStatus = 'idea' | 'drafted' | 'scheduled' | 'posted';
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'bluesky' | 'threads' | 'other';
+export interface SocialPost {
+  id: Id;
+  date?: ISODate;
+  /** The milestone it's about ("casting announced", "first day", "wrap", "picture lock", "festival news"). */
+  milestone?: string;
+  platforms: SocialPlatform[];
+  caption: string;
+  /** Photos and clips (media ids). */
+  mediaIds: Id[];
+  /** Contacts who appear in it (they need a signed release). */
+  people: Id[];
+  status: SocialStatus;
+  url?: string;
+}
+
+export type DeliverableStatus = 'todo' | 'doing' | 'done' | 'na';
+export interface Deliverable {
+  id: Id;
+  name: string;
+  group: 'picture' | 'sound' | 'captions' | 'legal' | 'marketing' | 'other';
+  status: DeliverableStatus;
+  due?: ISODate;
+  /** A file kept with the project (media id) and its name. */
+  fileId?: Id;
+  fileName?: string;
+  notes?: string;
+}
+
+export type OutletKind = 'sales-agent' | 'distributor' | 'platform' | 'aggregator' | 'broadcaster' | 'self' | 'other';
+export type OutletStatus = 'researching' | 'contacted' | 'talking' | 'offer' | 'signed' | 'passed';
+export type ReleaseRight = 'festival' | 'theatrical' | 'streaming' | 'tv' | 'online' | 'educational' | 'airline' | 'trailer';
+export interface Outlet {
+  id: Id;
+  name: string;
+  kind: OutletKind;
+  status: OutletStatus;
+  /** What this release would use the film for (checked against Licenses). */
+  rights: ReleaseRight[];
+  territory?: string;
+  releaseDate?: ISODate;
+  contact?: string;
+  url?: string;
+  notes?: string;
 }

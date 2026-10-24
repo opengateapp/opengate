@@ -87,20 +87,20 @@ describe('agreements, migration and layout', () => {
     expect(channelOf('societyOptions')).toBe('settings');
   });
   it('sections follow the pipeline, with every tab exactly once', () => {
-    expect(SECTIONS.map((s) => s.id)).toEqual(['write', 'visualize', 'breakdown', 'plan', 'budget', 'shoot', 'reference', 'exports', 'settings']);
+    expect(SECTIONS.map((s) => s.id)).toEqual(['write', 'visualize', 'breakdown', 'plan', 'budget', 'shoot', 'release', 'reference', 'exports', 'settings']);
     const tabs = SECTIONS.flatMap((s) => s.tabs.map((t) => t.id));
     expect(new Set(tabs).size).toBe(tabs.length);
     const of = (t: string) => SECTIONS.find((s) => s.tabs.some((x) => x.id === t))!.id;
-    expect([of('shots'), of('locations'), of('paperwork'), of('sides'), of('reports'), of('gear')]).toEqual(['breakdown', 'plan', 'plan', 'shoot', 'exports', 'budget']);
+    expect([of('shots'), of('locations'), of('paperwork'), of('sides'), of('reports'), of('gear'), of('festivals')]).toEqual(['breakdown', 'plan', 'plan', 'shoot', 'exports', 'budget', 'release']);
   });
   it('moving tabs changed no sync channel', () => {
     const chans = Object.fromEntries(TAB_ACCESS.map((t) => [t.id, t.channels.join(',')]));
     expect(chans).toEqual({
       screenplay: 'script,screenplay', characters: 'characters', bible: 'bible', docs: 'docs', av: 'av', boards: 'boards', designer: 'designer', storyboard: 'storyboard',
       breakdown: 'breakdown', shots: 'shots', stripboard: 'schedule', contacts: 'contacts', locations: 'locations', calendar: 'calendar', tasks: 'tasks',
-      budget: 'budget', gear: 'gear', callsheets: 'callsheets', settings: 'settings',
+      budget: 'budget', gear: 'gear', callsheets: 'callsheets', release: 'release', settings: 'settings',
     });
-    expect(TAB_FOLLOWS).toEqual({ dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', funding: 'budget', festivals: 'budget', reports: 'stripboard' });
+    expect(TAB_FOLLOWS).toEqual({ dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', funding: 'budget', festivals: 'release', presskit: 'release', social: 'release', distribution: 'release', reports: 'stripboard' });
     expect(channelOf('locations', 2)).toBe('locations');
     expect(channelOf('shots', 2)).toBe('shots');
     expect(RESTRICTED).toEqual(['budget']);

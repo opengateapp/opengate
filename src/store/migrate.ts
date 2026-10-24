@@ -1,5 +1,6 @@
 import type { Project } from '../model/types';
 import { SCHEMA_VERSION, newProject } from '../model/defaults';
+import { moveLegacyFestivals } from '../budget/festivals';
 
 /** Upgrades older saved projects and fills fields added since they were written. */
 export function migrate(input: unknown): Project {
@@ -24,12 +25,17 @@ export function migrate(input: unknown): Project {
   // v4: budget
   const b = p.budget as Partial<Project['budget']> | undefined;
   out.budget = b && typeof b === 'object'
-    ? { ...base.budget, ...b, accounts: b.accounts?.length ? b.accounts : base.budget.accounts, lines: b.lines ?? [], fringes: b.fringes ?? base.budget.fringes, scenarios: b.scenarios ?? [], expenses: b.expenses ?? [], licenses: b.licenses ?? [], paperwork: b.paperwork ?? [], clearances: b.clearances ?? [], timecards: b.timecards ?? [], agreements: b.agreements ?? [], fundingSources: b.fundingSources ?? [], festivals: b.festivals ?? [] }
+    ? { ...base.budget, ...b, accounts: b.accounts?.length ? b.accounts : base.budget.accounts, lines: b.lines ?? [], fringes: b.fringes ?? base.budget.fringes, scenarios: b.scenarios ?? [], expenses: b.expenses ?? [], licenses: b.licenses ?? [], paperwork: b.paperwork ?? [], clearances: b.clearances ?? [], timecards: b.timecards ?? [], agreements: b.agreements ?? [], fundingSources: b.fundingSources ?? [], festivals: b.festivals ?? [], festivalCosts: b.festivalCosts ?? [] }
     : base.budget;
   // v5: character profiles
   out.characters = Array.isArray(p.characters) ? p.characters : [];
   out.relationships = Array.isArray(p.relationships) ? p.relationships : [];
   out.characterMap = p.characterMap && typeof p.characterMap === 'object' ? p.characterMap : {};
+  // Release: festivals (moved from the budget for projects that aren't shared), social, distribution.
+  for (const k of ['festivals', 'socialPosts', 'deliverables', 'outlets'] as const) {
+    (out as unknown as Record<string, unknown>)[k] = Array.isArray(p[k]) ? p[k] : [];
+  }
+  if (!p.share) moveLegacyFestivals(out);
   // Licenses: older budgets get the Licensing & Clearances account.
   if (!out.budget.accounts.some((a) => a.code === '4600')) {
     const acc = { id: 'acc-4600', code: '4600', name: 'Licensing & Clearances', group: 'post' as const };
