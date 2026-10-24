@@ -70,7 +70,10 @@ export function budgetPdf(p: Project, d: Derived, scenarioId?: string): jsPDF {
   const lineGroups = r.groups.flatMap((g) => g.accounts).filter((x) => x.lines.length);
   if (lineGroups.length) {
     newPage();
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('DETAIL', M, y); y += 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('DETAIL', M, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90);
+    doc.text('Key: QTY = how long · × = how many · RATE = cost of one.  QTY × × × RATE = subtotal; + fringes = total.', M + 60, y);
+    doc.setTextColor(20); y += 16;
     const X = { desc: M, qty: M + 300, units: M + 312, x: M + 370, rate: M + 432, fr: M + 480, total: PW - M };
     for (const x of lineGroups) {
       need(48);

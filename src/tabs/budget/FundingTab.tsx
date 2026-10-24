@@ -39,7 +39,7 @@ function FundingScreen() {
   const [level, setLevel] = useState<FundingLevel>(plan.level ?? 'micro');
 
   const scheduled = shootDays(p).length;
-  const facts = useMemo(() => (scheduled ? budgetFacts(p, d) : estimatedFacts(p, d, ppd)), [p, d, scheduled, ppd]);
+  const facts = useMemo(() => (scheduled || plan.plannedDays ? budgetFacts(p, d) : estimatedFacts(p, d, ppd)), [p, d, scheduled, ppd, plan.plannedDays]);
   const t = useMemo(() => totals(p.budget, budgetView(p, d).lines), [p, d]);
   const checks = useMemo(() => forgottenItems(p, d), [p, d]);
   const sum = useMemo(() => raiseSummary(p, d), [p, d]);

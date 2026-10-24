@@ -118,12 +118,31 @@ export function estimatedFacts(p: Project, d: Derived, pagesPerDay = 3): Breakdo
 
 /** Whether the budget is working from an estimate (no shoot days scheduled, and the Funding pace is set). */
 export function usesEstimate(p: Project): boolean {
-  return !!p.budget.funding?.pagesPerDay && shootDays(p).length === 0;
+  return !!(p.budget.funding?.pagesPerDay || p.budget.funding?.plannedDays) && shootDays(p).length === 0;
 }
 
-/** Real facts from the schedule, or the estimate when there's no schedule yet and an estimate pace is set. */
+/**
+ * Real facts from the schedule, or an estimate when nothing is scheduled yet: at the Funding pace
+ * (pages per day), or for a number of days you set by hand ("plan for 3 days"), which scales the
+ * estimate so it comes to exactly that many days.
+ */
 export function budgetFacts(p: Project, d: Derived): BreakdownFacts {
-  return usesEstimate(p) ? estimatedFacts(p, d, p.budget.funding!.pagesPerDay) : breakdownFacts(p, d);
+  if (!usesEstimate(p)) return breakdownFacts(p, d);
+  const planned = p.budget.funding?.plannedDays;
+  if (!planned) return estimatedFacts(p, d, p.budget.funding!.pagesPerDay);
+  const est = estimatedFacts(p, d, Math.max(0.25, d.pageCount / planned));
+  if (!est.shootDays || est.shootDays === planned) return { ...est, shootDays: planned };
+  const k = planned / est.shootDays;
+  const scale = (m: Map<string, number>) => new Map([...m].map(([id, v]) => [id, Math.max(1, Math.min(planned, Math.round(v * k)))]));
+  const castWork = scale(est.castWork);
+  return { ...est, shootDays: planned, castWork, locationDays: scale(est.locationDays), elementDays: scale(est.elementDays), personDays: Math.round(est.personDays * k), cast: est.cast.map((c) => ({ ...c, work: castWork.get(c.key) ?? c.work })) };
+}
+
+/** Lines tied to the schedule that come to nothing because no shoot days exist yet. */
+export function zeroDayLines(p: Project, f: BreakdownFacts): BudgetLine[] {
+  if (f.shootDays > 0) return [];
+  const kinds = new Set(['cast', 'crew', 'location', 'element', 'shootDays', 'headcount']);
+  return p.budget.lines.filter((l) => l.link?.auto && kinds.has(l.link.kind));
 }
 
 /** The quantity a linked line should have now; null when its source no longer exists. */
@@ -236,31 +255,56 @@ const parseFee = (s?: string) => {
  * New lines for everything in the breakdown that isn't in the budget yet: cast (work and hold
  * days), crew, locations, tagged elements, and per-day catering. Existing linked lines are left alone.
  */
-export function importFromBreakdown(p: Project, f: BreakdownFacts): BudgetLine[] {
-  const has = new Set(p.budget.lines.filter((l) => l.link).map((l) => `${l.link!.kind}:${l.link!.id ?? ''}`));
-  const accounts = new Set(p.budget.accounts.map((a) => a.id));
+/** Every line the breakdown would add (cast, crew, locations, mapped elements, meals), whether or not it's there yet. */
+export function breakdownCandidates(p: Project, f: BreakdownFacts): BudgetLine[] {
   const out: BudgetLine[] = [];
-  const add = (l: BudgetLine) => {
-    const k = `${l.link?.kind}:${l.link?.id ?? ''}`;
-    if (l.link && has.has(k)) return;
-    if (!accounts.has(l.accountId)) l.accountId = p.budget.accounts.find((a) => a.group === 'btl')?.id ?? p.budget.accounts[0]?.id ?? l.accountId;
-    has.add(k);
-    out.push(l);
-  };
   for (const c of f.cast) {
-    add(line('1400', c.label, 'days', { kind: 'cast', id: c.key }));
-    if (c.hold > 0) add(line('1400', `${c.label} — hold days`, 'days', { kind: 'castHold', id: c.key }));
+    out.push(line('1400', c.label, 'days', { kind: 'cast', id: c.key }));
+    if (c.hold > 0) out.push(line('1400', `${c.label} — hold days`, 'days', { kind: 'castHold', id: c.key }));
   }
-  for (const c of p.crew) add(line(crewAccount(c.role), [c.role, c.name].filter(Boolean).join(' — ') || 'Crew', 'days', { kind: 'crew', id: c.id }));
-  for (const l of p.locations) add(line('2900', `Location fee — ${l.realName || l.setName || 'Location'}`, 'days', { kind: 'location', id: l.id }, parseFee(l.fee)));
+  for (const c of p.crew) out.push(line(crewAccount(c.role), [c.role, c.name].filter(Boolean).join(' — ') || 'Crew', 'days', { kind: 'crew', id: c.id }));
+  for (const l of p.locations) out.push(line('2900', `Location fee — ${l.realName || l.setName || 'Location'}`, 'days', { kind: 'location', id: l.id }, parseFee(l.fee)));
   for (const e of p.elements) {
     const m = CATEGORY_ACCOUNT[e.categoryId];
     if (!m || e.categoryId === 'cast' || e.categoryId === 'notes') continue;
     const cat = p.categories.find((c) => c.id === e.categoryId)?.name ?? '';
-    add(line(m.account, `${e.name}${cat ? ` (${cat})` : ''}`, m.units, { kind: 'element', id: e.id }));
+    out.push(line(m.account, `${e.name}${cat ? ` (${cat})` : ''}`, m.units, { kind: 'element', id: e.id }));
   }
-  if (f.shootDays > 0) add(line('3500', 'Meals & craft services (per person per day)', 'each', { kind: 'headcount' }));
+  if (f.shootDays > 0) out.push(line('3500', 'Meals & craft services (per person per day)', 'each', { kind: 'headcount' }));
   return out;
+}
+
+const linkKey = (l: { link?: BudgetLine['link'] }) => `${l.link?.kind}:${l.link?.id ?? ''}`;
+
+export function importFromBreakdown(p: Project, f: BreakdownFacts): BudgetLine[] {
+  const has = new Set(p.budget.lines.filter((l) => l.link).map(linkKey));
+  const accounts = new Set(p.budget.accounts.map((a) => a.id));
+  const out: BudgetLine[] = [];
+  for (const l of breakdownCandidates(p, f)) {
+    const k = linkKey(l);
+    if (l.link && has.has(k)) continue;
+    if (!accounts.has(l.accountId)) l.accountId = p.budget.accounts.find((a) => a.group === 'btl')?.id ?? p.budget.accounts[0]?.id ?? l.accountId;
+    has.add(k);
+    out.push(l);
+  }
+  return out;
+}
+
+export interface BreakdownExplain { added: { line: BudgetLine; account: string }[]; existing: { label: string; line: BudgetLine; account: string; why: string }[] }
+
+/** What "Update from breakdown" did: lines it added and where, and what was already in the budget and why. */
+export function explainBreakdown(p: Project, f: BreakdownFacts, added: BudgetLine[]): BreakdownExplain {
+  const acc = (id: string) => { const a = p.budget.accounts.find((x) => x.id === id); return a ? `${a.code} ${a.name}` : 'Budget'; };
+  const addedKeys = new Set(added.map(linkKey));
+  const existing: BreakdownExplain['existing'] = [];
+  for (const c of breakdownCandidates(p, f)) {
+    if (addedKeys.has(linkKey(c))) continue;
+    const l = p.budget.lines.find((x) => x.link && linkKey(x) === linkKey(c));
+    if (!l) continue;
+    const deal = (c.link?.kind === 'cast' || c.link?.kind === 'crew') && (p.budget.paperwork ?? []).some((d) => d.kind === 'deal' && d.person.kind === c.link!.kind && d.person.id === c.link!.id);
+    existing.push({ label: c.description, line: l, account: acc(l.accountId), why: deal ? 'from the deal memo' : l.link?.auto ? 'added earlier, following the schedule' : 'added earlier (you typed its quantity)' });
+  }
+  return { added: added.map((line) => ({ line, account: acc(line.accountId) })), existing };
 }
 
 export const LINK_LABEL: Record<BudgetLinkKind, string> = {

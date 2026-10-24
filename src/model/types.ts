@@ -855,6 +855,8 @@ export interface CrowdPlan {
 export interface FundingPlan {
   /** Pages shot per day, for estimating shoot days before there's a schedule. */
   pagesPerDay?: number;
+  /** Shoot days you plan for until the stripboard is done (Budget → "Set days by hand"). */
+  plannedDays?: number;
   /** Which starter rates "Quick estimate" fills in. */
   level?: 'none' | 'micro' | 'indie';
   crowd?: CrowdPlan;

@@ -2126,3 +2126,14 @@ table.contacts .crew-role-picker select { width: 100%; }
 }
 .festival-detail input[type=date] { width: 140px; }
 .festival-detail input.num { width: 90px; }
+
+/* Budget: plain-language help */
+.explain { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 4px; border-radius: 50%; border: 1px solid var(--border); font-size: 10px; font-weight: 600; color: var(--muted); cursor: help; position: relative; vertical-align: middle; text-transform: none; letter-spacing: 0; }
+.explain::before { content: '?'; }
+.explain:hover::after, .explain:focus::after { content: attr(data-tip); position: absolute; top: 120%; right: 0; z-index: 60; width: 240px; padding: 8px 10px; border-radius: 8px; background: var(--panel); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 12px; font-weight: 400; line-height: 1.35; text-align: left; white-space: normal; }
+.budget-formula { margin: 2px 0 6px; }
+.budget-warn { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; padding: 10px 12px; border: 1px solid #f59e0b; border-left-width: 4px; border-radius: 8px; background: rgba(245, 158, 11, .08); }
+.budget-result { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-soft); }
+.budget-result ul { margin: 2px 0; padding-left: 18px; }
+.budget-lines tr.flash td { animation: line-flash 4s ease-out; }
+@keyframes line-flash { 0%, 40% { background: rgba(245, 158, 11, .35); } 100% { background: transparent; } }
