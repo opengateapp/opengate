@@ -33,6 +33,7 @@ import { LicensesTab } from './tabs/budget/LicensesTab';
 import { FundingTab } from './tabs/budget/FundingTab';
 import { FestivalsTab } from './tabs/release/FestivalsTab';
 import { PressKitTab } from './tabs/release/PressKitTab';
+import { DistributionTab } from './tabs/release/DistributionTab';
 import { PaperworkTab } from './tabs/budget/PaperworkTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
@@ -109,6 +110,7 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'release', label: 'Release', tabs: [
     { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and status, laurels; fees for people with the budget' },
     { id: 'presskit', label: 'Press Kit', hint: 'EPK: logline, synopsis, stills, cast & crew, laurels, tech specs — as a PDF and a one-page website' },
+    { id: 'distribution', label: 'Distribution', hint: 'Deliverables checklist, sales agents / distributors / platforms, and whether your licences cover them' },
   ] },
   { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data, production, guilds and unions — explainers, calculators and a library' }] },
   // Shown as buttons next to the sections (⤓ and ⚙), not as sections.
@@ -324,6 +326,7 @@ export function App() {
         {tab === 'funding' && <FundingTab />}
         {tab === 'festivals' && <FestivalsTab />}
         {tab === 'presskit' && <PressKitTab />}
+        {tab === 'distribution' && <DistributionTab />}
         {tab === 'licenses' && <LicensesTab />}
         {tab === 'paperwork' && <PaperworkTab />}
         {tab === 'contacts' && <ContactsTab />}
