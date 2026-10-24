@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.6.0 — 2026-10-24
+
+A new Release section, money and units in every number box, help built in, and a tour of the sample.
+
+- **Release**, a new section after Shoot:
+  - **Festivals** moved here and are shared with the budget: anyone with Release sees the list, deadlines and status; fees, waivers, paid and travel show only to people with the budget. Accepted festivals get laurels.
+  - **Press Kit (EPK):** logline, synopsis, director's statement, stills, poster, cast and key crew with bios and headshots, laurel images (PNG/SVG kept as sent, light and dark), tech specs filled from the project. Export a PDF or a one-page website to host anywhere.
+  - **Social & BTS:** a content calendar from your milestones (desktop: list and editor side by side), photos and clips, and a check that everyone shown has signed a release. **Share** with your phone's share sheet, **Post to X / Threads / Bluesky** with the caption filled in, copy and download for the rest, then mark it posted. Export the calendar for Buffer or another scheduling tool; type in views and likes.
+  - **Distribution:** a deliverables checklist (DCP, masters, mixes, captions, cue sheet, E&O, chain of title…), the sales agents, distributors and platforms you're talking to, and a warning when a licence doesn't cover a planned release.
+  - Call sheets can list **BTS & stills** to get that day.
+  - A **Marketing / festivals** sharing preset: Release without the budget.
+- **Units & currency:**
+  - every money box shows the currency, locked inside (**$ [387] /day**, **[20] €**), and other boxes their unit (%, ×, h, min, days, mm, ft or m…);
+  - typing "1,200.50" or a pasted "$1,200" both work;
+  - **Settings → Units & currency** (shared): any currency, short or clear symbol (CA$), number format, feet or metres, or your region's defaults. Amounts are never converted;
+  - location fees are amounts per day or flat;
+  - the Shot List lens takes any focal length, and duration is m:ss.
+- **Plan ↔ Budget:**
+  - budget lines say where their rate comes from (the deal memo, the location);
+  - Contacts, Paperwork and Locations show rates with a link to their budget account;
+  - a checklist on top of Budget shows what's missing upstream;
+  - Plan screens show the budget so far (only for people who can see the budget).
+- **Help (?):**
+  - an **FAQ** on why Open Gate works the way it does, what happens to your data, and what it doesn't do (also on the GitHub page);
+  - **Send feedback** and **Report a bug** open a GitHub form filled in with your app version, never your project;
+  - **What's new**.
+- **Tour of the sample production:** offered when the sample opens, it walks every section and stops at each problem left in on purpose.
+- **One tab at a time:** a second tab with the same project opens it read only, with "Use it here", so tabs can't overwrite each other.
+- **Storyboards:** Clear drawing also clears ghost poses, and Ghost pose can't add the same pose twice.
+- **Sharing:** the relay was updated for the new Release section; Release edits sync for everyone on this version.
+
 ## v0.5.0 — 2026-10-23
 
 Budget help for first-timers, writing to a budget, a desktop Festivals table, and onion-skin poses in storyboards.
