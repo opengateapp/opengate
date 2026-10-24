@@ -1,4 +1,5 @@
 import { CrewRolePicker } from '../components/CrewRolePicker';
+import { AboutSettings } from '../help/About';
 import { useEffect, useState } from 'react';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
@@ -18,13 +19,14 @@ import { SocietiesPicker } from '../components/SocietiesPicker';
 import { newCastMember } from '../paperwork/unions';
 import { AccessibilityPrefs, DataPrefs, FormatPrefs, ProfilePrefs, ShortcutsPrefs } from '../components/AppPreferences';
 
-type Section = 'production' | 'units' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'unions' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
+type Section = 'about' | 'production' | 'units' | 'cast' | 'locations' | 'crew' | 'categories' | 'colors' | 'characters' | 'unions' | 'appearance' | 'phone' | 'formats' | 'profile' | 'access' | 'data' | 'shortcuts';
 const GROUPS: { label: string; hint: string; items: Section[] }[] = [
   { label: 'This project', hint: 'Saved in the project and shared with collaborators', items: ['production', 'units', 'cast', 'locations', 'crew', 'categories', 'colors', 'characters', 'unions'] },
   { label: 'This device', hint: 'Only on this device, for you', items: ['appearance', 'formats', 'profile', 'access', 'phone', 'data', 'shortcuts'] },
+  { label: 'Open Gate', hint: 'The app itself', items: ['about'] },
 ];
 const LABELS: Record<Section, string> = {
-  production: 'Production', units: 'Units & currency', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder', unions: 'Unions & societies',
+  about: 'About & help', production: 'Production', units: 'Units & currency', cast: 'Cast', locations: 'Locations', crew: 'Crew', categories: 'Breakdown categories', colors: 'Strip colors', characters: 'Character builder', unions: 'Unions & societies',
   appearance: 'Appearance', formats: 'Dates & units', profile: 'You & sharing', access: 'Accessibility', phone: 'Phone layout', data: 'Data & backups', shortcuts: 'Keyboard shortcuts',
 };
 
@@ -34,6 +36,8 @@ export function SetupTab() {
   const d = useDerived();
   const update = useStore((s) => s.update);
   const [section, setSection] = useState<Section>('production');
+  // Help → Keyboard shortcuts and other links open a section here.
+  useEffect(() => { const go = (e: Event) => setSection((e as CustomEvent).detail as Section); window.addEventListener('opengate:settings', go); return () => window.removeEventListener('opengate:settings', go); }, []);
   // The phone drawer's "Customize tabs…" opens the Phone layout panel.
   useEffect(() => {
     const go = () => setSection('phone');
@@ -64,6 +68,7 @@ export function SetupTab() {
         {section === 'characters' && <CharacterSettings />}
         {section === 'unions' && <UnionSettings />}
         {section === 'units' && <UnitsSettings />}
+        {section === 'about' && <AboutSettings />}
         {section === 'formats' && <FormatPrefs />}
         {section === 'profile' && <ProfilePrefs />}
         {section === 'access' && <AccessibilityPrefs />}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HelpDialogs, HelpLinks } from '../help/HelpMenu';
 import { listProjects, loadProject, deleteProject } from '../store/db';
 import { useStore } from '../store/project';
 import { newProject } from '../model/defaults';
@@ -101,6 +102,8 @@ export function HomeScreen() {
             </li>
           ))}
         </ul>
+        <div className="home-help"><HelpLinks home /></div>
+        <HelpDialogs />
         <div className="credits muted small">
           <p>Free and open source (GPL-3.0). Built on the work of:</p>
           <ul>

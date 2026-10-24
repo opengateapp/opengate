@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { helpItems } from '../help/HelpMenu';
 import { useStore } from '../store/project';
 import { useSync } from '../sync/state';
 import { useReview } from '../sync/review';
@@ -116,6 +117,10 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
         </div>
         <div className="drawer-sections drawer-extra">
           <button className={tab === 'reports' ? 'active' : ''} onClick={() => onPick('reports')}><b>⤓ Exports</b><span>Every PDF, spreadsheet, calendar and the end credits</span></button>
+        </div>
+        <div className="drawer-sections drawer-extra drawer-help">
+          <span className="muted small">? Help</span>
+          {helpItems(tab).filter((it) => it.id !== 'reference').map((it) => <button key={it.id} onClick={() => { onClose(); it.run(); }}><b>{it.label}</b><span>{it.hint}</span></button>)}
         </div>
         <div className="drawer-foot">
           {lite && sections !== allSections && (

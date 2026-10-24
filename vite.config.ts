@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import pkg from './package.json';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -62,6 +63,8 @@ self.addEventListener('fetch', (e) => {
 
 export default defineConfig({
   plugins: [react(), offlineServiceWorker()],
+  // The app's version, for Help → About and feedback forms.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   base: './',
   server: { port: 5173 },
   test: { environment: 'jsdom' },

@@ -1,0 +1,22 @@
+name: Suggest a resource
+description: A channel, site, book, podcast or free tool for the Reference library.
+labels: [resource]
+body:
+  - type: input
+    id: link
+    attributes:
+      label: Link
+      placeholder: https://
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What is it, and why is it good?
+    validations:
+      required: true
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      placeholder: e.g. lighting, sound, budgeting, unions

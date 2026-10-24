@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { HelpDialogs, HelpMenu } from './help/HelpMenu';
 import { useTabLock } from './store/tabLock';
 import { BudgetCapBar } from './components/BudgetHelp';
 import { tabHidden, useSync } from './sync/state';
@@ -297,6 +298,7 @@ export function App() {
             <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
               {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
             </span>
+            <HelpMenu tab={tab} />
             {!tabHidden('reports') && <button className={`icon-btn settings-btn ${section === 'exports' ? 'active' : ''}`} title="Exports: every PDF, spreadsheet, calendar and the end credits" aria-label="Exports" onClick={() => setTab('reports')}>⤓</button>}
             <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Settings" onClick={() => setTab('setup')}>⚙</button>
           </div>
@@ -314,6 +316,7 @@ export function App() {
         </nav>
       )}
       <AccessBanner />
+      <HelpDialogs />
       {phone && <PhonePanels tab={tab} />}
       <main className={`tab-body ${sideHidden && !phone ? 'side-hidden' : ''}`}>
         <TabBoundary tab={tab}>
