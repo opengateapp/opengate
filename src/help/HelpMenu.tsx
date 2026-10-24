@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { create } from 'zustand';
 import changelog from '../../CHANGELOG.md?raw';
 import { useStore, getDerived } from '../store/project';
@@ -28,7 +28,6 @@ export function helpItems(tab?: string): HelpItem[] {
     { id: 'bug', label: 'Report a bug', hint: 'Something didn’t work: tell us on GitHub', run: () => show({ kind: 'feedback', issue: 'bug', tab }) },
     { id: 'news', label: 'What’s new', hint: `The release notes (you have ${appContext().version})`, run: () => show({ kind: 'news' }) },
     { id: 'tour', label: 'Tour of the sample production', hint: 'A walk through every section, stopping at the problems to fix', run: () => (useStore.getState().project?.isSample ? window.dispatchEvent(new Event('opengate:tour')) : toast('The tour walks through the sample production: open it from Home → Try the sample production.')), project: true },
-    { id: 'reference', label: 'Reference', hint: 'The film school: camera, sound, budgets, unions…', run: () => goto('reference'), project: true },
     { id: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Settings → Keyboard shortcuts', run: () => { goto('setup'); setTimeout(() => window.dispatchEvent(new CustomEvent('opengate:settings', { detail: 'shortcuts' })), 0); }, project: true },
   ];
 }
@@ -36,13 +35,21 @@ export function helpItems(tab?: string): HelpItem[] {
 /** The "?" in the top bar. */
 export function HelpMenu({ tab }: { tab: string }) {
   const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null);
+  // Escape closes the menu and puts focus back on "?".
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); btn.current?.focus(); } };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [open]);
   return (
     <span className="help-menu">
-      <button className={`icon-btn settings-btn ${open ? 'active' : ''}`} title="Help, FAQ and feedback" aria-label="Help" aria-expanded={open} onClick={() => setOpen((x) => !x)}>?</button>
+      <button ref={btn} className={`icon-btn settings-btn ${open ? 'active' : ''}`} title="Help, FAQ and feedback" aria-label="Help" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((x) => !x)}>?</button>
       {open && (
         <>
           <div className="help-backdrop" onClick={() => setOpen(false)} />
-          <div className="section-flyout help-flyout" role="menu">
+          <div className="section-flyout help-flyout" role="menu" aria-label="Help">
             {helpItems(tab).map((it) => <button key={it.id} role="menuitem" onClick={() => { setOpen(false); it.run(); }}><b>{it.label}</b><span>{it.hint}</span></button>)}
           </div>
         </>

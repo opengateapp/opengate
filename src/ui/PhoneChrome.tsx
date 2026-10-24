@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { openFaq } from '../help/HelpMenu';
 import { helpItems } from '../help/HelpMenu';
 import { useStore } from '../store/project';
 import { useSync } from '../sync/state';
@@ -63,6 +64,7 @@ export function PhoneTopbar({ sections, allSections, tab, setTab, saveState }: {
           <hr />
           <button onClick={() => go('reports')}>⤓ Exports</button>
           <button onClick={() => go('setup')}>⚙ Settings</button>
+          <button onClick={() => openFaq()}>? Help &amp; FAQ</button>
           <div className="menu-note">{saveState === 'saved' ? 'All changes saved on this device' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes'}</div>
         </MoreMenu>
       </header>
