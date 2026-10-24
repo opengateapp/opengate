@@ -89,7 +89,8 @@ function FestivalsScreen() {
         {!ro && <button onClick={() => setPaste(true)}>Paste from FilmFreeway or a festival site…</button>}
         <RefLink page="festivals" label="Festival strategy" />
         <span className="spacer" />
-        <More label="Sort, filter and import">
+        {(() => {
+          const controls = (<>
           <label className="check small keep-open">Sort
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
               <option value="deadline">Next deadline</option><option value="event">Festival date</option><option value="tier">Tier</option><option value="status">Status</option><option value="name">Name</option>{m.show && <option value="fee">Fee</option>}
@@ -101,7 +102,10 @@ function FestivalsScreen() {
             </select>
           </label>
           {!ro && <label className="button-like" title="Columns: Name, URL, Deadline, Date, Fee, Event start, Event end, Location">Import CSV…<input type="file" accept=".csv,text/csv" hidden onChange={(e) => { void importCsv(e.target.files?.[0]); e.target.value = ''; }} /></label>}
-        </More>
+</>);
+          // Desktop: sort, filter and import sit in the toolbar; phones fold them into ⋯.
+          return narrow ? <More label="Sort, filter and import">{controls}</More> : <span className="row fest-controls">{controls}</span>;
+        })()}
       </div>
 
       <div className="fund-cards fest-summary">
