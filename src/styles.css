@@ -2269,3 +2269,4 @@ button.explain { padding: 0; background: none; font-family: inherit; }
 .social-row-main { display: flex; flex-direction: column; min-width: 0; }
 .social-row-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .social-row-add { margin-top: 8px; }
+.access-banner.tab-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { useTabLock } from './store/tabLock';
 import { BudgetCapBar } from './components/BudgetHelp';
 import { tabHidden, useSync } from './sync/state';
 import { useCallback, useEffect, useState } from 'react';
@@ -137,6 +138,8 @@ export function App() {
   usePrefs(); // date / clock / week-start preferences re-render everything
   const hiddenSync = useSync((s) => s.hidden);
   const saveState = useStore((s) => s.saveState);
+  // Read-only while another tab edits this project: re-render so every screen picks it up.
+  useTabLock((s) => s.readOnly);
   const phone = usePhone();
   const narrow = useNarrow();
   const phoneTabs = usePhoneTabs();

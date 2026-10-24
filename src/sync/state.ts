@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useTabLock } from '../store/tabLock';
 import { LEGACY_EXPAND, RESTRICTED, TAB_ACCESS, TAB_FOLLOWS, channelFormat, channelOf, type Channel } from './channels';
 
 export interface Peer { id: number; name: string; color: string; tab?: string }
@@ -23,6 +24,8 @@ interface SyncState {
 export const useSync = create<SyncState>(() => ({ status: 'off', peers: [], write: null, admin: false, pending: 0, budget: true }));
 
 export function canWrite(ch: Channel | string): boolean {
+  // Another tab of this browser is editing this project: this one is read-only (store/tabLock.ts).
+  if (useTabLock.getState().readOnly) return false;
   const { write, admin, hidden } = useSync.getState();
   if (write === null || admin) return true;
   if (hidden?.includes(ch)) return false;

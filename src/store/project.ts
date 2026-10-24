@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { enablePatches, produceWithPatches, applyPatches, type Patch, type Draft } from 'immer';
 import type { Project } from '../model/types';
 import { derive, type Derived } from '../script/derive';
-import { saveProject } from './db';
+import { loadProject, saveProject } from './db';
+import { claimProject, onHandOver, releaseProject, takeOver, useTabLock } from './tabLock';
 
 enablePatches();
 
@@ -33,8 +34,8 @@ export const useStore = create<State>((set, get) => ({
   past: [],
   future: [],
   saveState: 'saved',
-  open: (p) => set({ project: p, past: [], future: [], saveState: 'saved' }),
-  close: () => set({ project: null, past: [], future: [] }),
+  open: (p) => { set({ project: p, past: [], future: [], saveState: 'saved' }); void claimProject(p.id); },
+  close: () => { set({ project: null, past: [], future: [] }); releaseProject(); },
   update: (recipe, label = 'Edit') => {
     const p = get().project;
     if (!p) return;
@@ -95,6 +96,8 @@ let lastSaved: Project | null = null;
 export function startAutosave(): () => void {
   return useStore.subscribe((s) => {
     if (!s.project || s.project === lastSaved || s.saveState !== 'dirty') return;
+    // Read-only here: another tab is editing this project and saves it.
+    if (useTabLock.getState().readOnly) return;
     clearTimeout(timer);
     timer = setTimeout(async () => {
       const p = useStore.getState().project;
@@ -116,9 +119,21 @@ export function startAutosave(): () => void {
 export async function flushSave(): Promise<void> {
   clearTimeout(timer);
   const p = useStore.getState().project;
-  if (p) {
+  if (p && !useTabLock.getState().readOnly) {
     await saveProject(p);
     lastSaved = p;
     useStore.setState({ saveState: 'saved' });
   }
+}
+
+// Before handing the project to another tab, save this tab's copy.
+onHandOver(flushSave);
+
+/** "Use it here": take the project over from the other tab and load what it saved. */
+export async function editProjectHere(): Promise<void> {
+  const id = useStore.getState().project?.id;
+  if (!id) return;
+  await takeOver(id);
+  const p = await loadProject(id);
+  if (p) { lastSaved = p; useStore.setState({ project: p, past: [], future: [], saveState: 'saved' }); }
 }
