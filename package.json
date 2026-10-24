@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "faq": "UPDATE_FAQ=1 vitest run src/faqReadme.test.ts"
   },
   "dependencies": {
     "dexie": "4.0.8",

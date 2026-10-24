@@ -45,3 +45,20 @@ export const FAQ_PAGE: RefPage = {
   sections: [], tool: 'faq', topics: [],
   keywords: FAQ.map((f) => `${f.q} ${f.a}`).join(' '),
 };
+
+// ---------------------------------------------------------------- the repo page
+
+const TAB_NAMES: Record<string, string> = { setup: 'Settings', calendar: 'Plan → Calendar', social: 'Release → Social & BTS', festivals: 'Release → Festivals', budget: 'Budget' };
+
+/** The FAQ as Markdown, for the README on GitHub (kept in step by a test: run `npm run faq` after changing it). */
+export function faqMarkdown(): string {
+  const out: string[] = ['## FAQ', '', 'What you’re getting into, in plain words. The same answers are in the app under **Help (?) → FAQ**.', ''];
+  for (const g of FAQ_GROUPS) {
+    out.push(`### ${g}`, '');
+    for (const f of FAQ.filter((x) => x.group === g)) {
+      const links = (f.links ?? []).map((l) => (l.url ? `[${l.label}](${l.url})` : l.tab ? `in the app: ${TAB_NAMES[l.tab] ?? l.label}` : `in the app: ${l.label}`));
+      out.push(`**${f.q}**`, '', `${f.a}${links.length ? ` (${links.join('; ')})` : ''}`, '');
+    }
+  }
+  return out.join('\n').trimEnd() + '\n';
+}

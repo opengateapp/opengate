@@ -8,6 +8,116 @@ Free, open-source production management in one synced project: **write** the scr
 
 **Use it in your browser:** https://opengateapp.github.io/opengate/ (works offline once loaded; install it from the address bar as a desktop app).
 
+**Free, no account, and your project stays on your device.** New here? Start with the [FAQ](#faq): why it's built this way, what that means for your data, and what it doesn't do.
+
+<!-- faq:start -->
+## FAQ
+
+What you’re getting into, in plain words. The same answers are in the app under **Help (?) → FAQ**.
+
+### About Open Gate
+
+**What is Open Gate?**
+
+A free, open-source pre-production app for filmmakers that takes a project from script to release: writing, breakdown, scheduling, budget, paperwork, call sheets, festivals and the press kit, all in one place.
+
+**Is it really free?**
+
+Yes. No subscription, no ads, no paid tier. It’s open source under the GPL-3.0 licence: anyone can read the code, and it stays free. ([The code on GitHub](https://github.com/opengateapp/opengate))
+
+**Who makes it?**
+
+An independent filmmaker, with help from contributors. The open projects it builds on are credited on the Home screen.
+
+**How is it different from other production software?**
+
+Many production tools are paid subscriptions that keep your project on their servers and need an account. Open Gate is free, works without an account, keeps your project on your device, works offline, and covers the whole pipeline in one app.
+
+### Your data and privacy
+
+**Where is my project stored?**
+
+On your device, in your browser’s storage. It isn’t on our servers unless you share it, and then only encrypted.
+
+**How do I back it up?**
+
+Save a .opengate project file regularly (⌘S, or Save in the project menu) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser. (in the app: Settings)
+
+**Do I need an account?**
+
+No. No account means nothing to sign up for, no password to leak, and no profile about you for anyone to sell.
+
+**How does sharing work without accounts?**
+
+You send an invite link. Your project is encrypted on your device (AES-256), and the key is in the part of the link after the “#”, which browsers never send to the server. The relay that passes updates between collaborators only stores encrypted data it can’t read. The budget, paperwork and festival fees have their own separate key, so you choose who sees money.
+
+**Does it work offline?**
+
+Yes. Once it’s loaded (or installed), you can work without internet, and shared projects catch up when you’re back online.
+
+**Can I open my project in two tabs or on two devices?**
+
+Two devices: yes, through sharing. Two tabs of the same browser: one tab edits and the other opens the project read only, with “Use it here” to move editing to it, so the two can’t overwrite each other.
+
+### Why it’s built this way
+
+**Why no “Sign in with Google”, Google Drive or Google Calendar?**
+
+Connecting to Google needs a server that holds every user’s Google login tokens, plus Google’s app verification. That would mean storing access to your accounts, which is a security risk and against Open Gate’s design of keeping your work on your device. Instead, save your .opengate file into any cloud folder you like, and download the shoot schedule as an .ics file (Plan → Calendar) to add it to Google, Apple or Outlook calendar. (in the app: Plan → Calendar)
+
+**Why can’t Open Gate post straight to Instagram, TikTok or YouTube?**
+
+Those platforms need a server holding everyone’s social media logins, app reviews by each company, and paid API access in some cases. Instead, Open Gate prepares the post (caption, photos, and a check that everyone in it has signed a release). You share it with your phone’s share sheet, open X, Threads or Bluesky with the caption filled in, or export the calendar for a scheduling tool like Buffer. (in the app: Release → Social & BTS)
+
+**Why can’t it import festivals from FilmFreeway automatically?**
+
+FilmFreeway’s terms don’t allow automated reading of its site. So you paste a festival’s dates and fees and Open Gate reads them on your device; you still submit on FilmFreeway. (in the app: Release → Festivals)
+
+**Why aren’t union rates built in?**
+
+Union rates and rules change often, and their rate sheets belong to the unions. Open Gate explains each union and agreement in plain words, links to the official terms with a “checked on” date, and lets you type your own rates. (in the app: Reference → Guilds & Unions)
+
+**Why doesn’t Open Gate convert currencies?**
+
+Exchange rates change daily, and a budget should use the rates you actually get. Pick your project’s currency in Settings → Units & currency; amounts stay as you typed them. (in the app: Settings)
+
+**Is the legal, union, tax or money information advice?**
+
+No. It’s plain-language guidance with sources, to help you ask the right questions. For decisions, read the official terms and talk to the union, a lawyer or an accountant.
+
+### Using it
+
+**Can I use it on my phone or iPad?**
+
+Yes. Phones get “Open Gate Lite”: you choose which tabs show (Settings → Phone layout). On iPad, storyboards and boards work with Apple Pencil, with pressure and palm rejection.
+
+**Is there a desktop app?**
+
+One is in progress for Mac, Windows and Linux. Until then, the web app works in any modern browser, and you can install it from your browser (Install app, or Add to Home Screen on a phone or iPad) so it opens in its own window and works offline.
+
+**What script formats can I import?**
+
+Fountain (and plain text or Markdown written in Fountain), Final Draft (.fdx), PDF, Word (.docx), Highland, Celtx and HTML. Old .doc files need saving as .docx or PDF first.
+
+**I’m new to budgeting. Where do I start?**
+
+Use “Set up my budget” in the Budget tab, which asks one question at a time, or start a project from “Start from a budget” on the Home screen. The sample production shows a finished example. (in the app: Budget)
+
+**What happens to my work if Open Gate stops being developed?**
+
+Your project files stay on your device and keep working. The format is open and the code is open source, so anyone can keep it going.
+
+### Feedback
+
+**How do I report a bug or suggest a feature?**
+
+Help (?) → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.
+
+**Can I help?**
+
+Yes: report bugs, suggest resources for the Reference library, or contribute code on GitHub. ([Open Gate on GitHub](https://github.com/opengateapp/opengate))
+<!-- faq:end -->
+
 ## Run it
 
 ```bash
@@ -52,6 +162,7 @@ No accounts. Projects are shared through a small relay you deploy once for free 
 | **Breakdown** | **Script Breakdown** (tag into 21 categories, breakdown sheets, element manager) · **Shot Lists** · **Stripboard** · **Day Out of Days** |
 | **Plan** | **Contacts** (cast, crew and other contacts with unions and societies; vCard import/export) · **Locations** (contacts, permits, logistics, scout photos, linked mood images) · **Paperwork** (deal memos, releases signed on a phone or iPad, start forms, clearances, time cards; private with the budget) · **Calendar** (shoot days, events, tasks; `.ics` export) · **Tasks** |
 | **Budget** | **Budget** (top sheet, accounts, lines linked to the breakdown, targets, actuals, versions; PDF / Excel) · **Gear** · **Expenses** (receipts, bank / card CSV import) · **Licenses** (music and footage clearances) |
+| **Release** | **Festivals** (deadlines, status and laurels, shared with the budget's fees) · **Press Kit** (EPK as a PDF and a one-page website) · **Social & BTS** (content calendar, share links, releases check) · **Distribution** (deliverables, outlets, licence check) |
 | **Shoot** | **Call Sheets** (editable page: company + key contacts, logo, times with live lunch / sunrise / sunset / weather, hospital, map, big call time; sections you can hide, reorder, rename or add; Download / Send PDF) · **Script Sides** |
 | **Reference** | A small film school: story, camera, lenses, lighting, audio, data, production, crew roles, **Guilds & Unions** (what each union and honorary society does, its agreements and rules, researched from official sources), and a library |
 | ⤓ | **Exports**: every PDF, spreadsheet, calendar and the end credits, in one place |
@@ -96,7 +207,8 @@ Light / dark / system mode, built-in color themes, and custom colors for each mo
 
 ## Next phases
 
-- **Phase 3:** revision colors and locked pages, desktop app (Tauri), live Google Calendar sync.
+- **Desktop app** (Tauri) for Mac, Windows and Linux: in progress.
+- Revision colours and locked pages shipped in v0.2.0. Live Google Calendar sync was dropped (see the FAQ); use the `.ics` export instead.
 
 ## Code map
 
