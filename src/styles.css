@@ -2137,3 +2137,34 @@ table.contacts .crew-role-picker select { width: 100%; }
 .budget-result ul { margin: 2px 0; padding-left: 18px; }
 .budget-lines tr.flash td { animation: line-flash 4s ease-out; }
 @keyframes line-flash { 0%, 40% { background: rgba(245, 158, 11, .35); } 100% { background: transparent; } }
+
+/* Budget help: cap bar, cuts, guided setup, worked example */
+button.explain { padding: 0; background: none; font-family: inherit; }
+.cap-bar { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.cap-bar.over { border-color: #ef4444; background: rgba(239, 68, 68, .06); }
+.cap-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cap-meter { flex: 0 0 120px; height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.cap-meter > span { display: block; height: 100%; background: var(--accent); }
+.cap-bar.over .cap-meter > span { background: #ef4444; }
+.cap-agreement { color: var(--text); }
+.cut-list { margin: 4px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.cut-list li > div { gap: 8px; align-items: baseline; }
+.cut-list li > button { margin-top: 4px; }
+.guide-steps { display: flex; gap: 4px; margin-bottom: 12px; }
+.guide-steps button { flex: 1; height: 5px; min-height: 0; padding: 0; border: 0; border-radius: 3px; background: var(--border); }
+.guide-steps button.done { background: var(--accent-soft); }
+.guide-steps button.active { background: var(--accent); }
+.guide-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 8px 0; }
+.guide-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; white-space: normal; height: auto; padding: 10px 12px; }
+.guide-rates { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.guide-rates label { gap: 6px; align-items: center; }
+.guide-rates input { flex: 0 0 90px; width: 90px; }
+.guide-rate-name { flex: 1; min-width: 0; }
+.guide-total { font-size: 1.1em; }
+.example-sheet td.small { min-width: 220px; }
+@media (max-width: 760px) { .cap-meter { flex-basis: 100%; } .example-sheet td.small { min-width: 0; } }
+.term { white-space: nowrap; }
+/* The cap bar sits above a Budget screen: the screen takes the rest of the height. */
+.tab-body:has(> .cap-bar) { display: flex; flex-direction: column; }
+.tab-body > .cap-bar { height: auto; flex: none; margin: 8px 12px 0; max-height: 45%; overflow-y: auto; }
+.tab-body:has(> .cap-bar) > :not(.cap-bar) { height: auto; flex: 1; min-height: 0; }

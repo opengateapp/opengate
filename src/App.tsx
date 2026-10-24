@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { BudgetCapBar } from './components/BudgetHelp';
 import { tabHidden, useSync } from './sync/state';
 import { useCallback, useEffect, useState } from 'react';
 import { useStore, flushSave } from './store/project';
@@ -310,6 +311,7 @@ export function App() {
         {tab === 'stripboard' && <ScheduleTab />}
         {tab === 'dood' && <DoodView />}
         {tab === 'sides' && <SidesView />}
+        {['budget', 'funding', 'festivals', 'gear', 'expenses', 'licenses'].includes(tab) && <BudgetCapBar />}
         {tab === 'budget' && <BudgetTab />}
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}

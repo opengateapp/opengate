@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { Draft } from 'immer';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Budget, BudgetAccount, BudgetGroup, BudgetLine, BudgetUnits, Project } from '../../model/types';
@@ -20,6 +20,8 @@ import { evaluate, isFormula, type Vars } from '../../budget/expr';
 import { BUILT_IN_VARS } from '../../budget/pipeline';
 import { costReport, lockBudget } from '../../budget/costReport';
 import { SheetImport, TemplatePicker } from './BudgetImport';
+import { BudgetGuide } from './BudgetGuide';
+import { Explain, Term, WorkedExample } from '../../components/BudgetHelp';
 import { download, safeName } from '../../io/files';
 
 /** Downloads the budget (one version) as a PDF or an Excel workbook. */
@@ -133,7 +135,13 @@ function BudgetScreen() {
   const [accountId, setAccountId] = useState<string>(() => b.accounts.find((a) => a.code === '1400')?.id ?? b.accounts[0]?.id);
   const [showEmpty, setShowEmpty] = useState(false);
   const [settings, setSettings] = useState(false);
-  const [dialog, setDialog] = useState<'templates' | 'import' | null>(null);
+  const [dialog, setDialog] = useState<'templates' | 'import' | 'guide' | 'example' | null>(null);
+  // "Try it as a version" elsewhere shows the new version here.
+  useEffect(() => {
+    const show = (e: Event) => { setScenarioId((e as CustomEvent).detail as string); if (mode === 'scenarios' || mode === 'cost') pickMode('build'); };
+    window.addEventListener('opengate:budget-version', show);
+    return () => window.removeEventListener('opengate:budget-version', show);
+  });
   const [result, setResult] = useState<BreakdownExplain | null>(null);
   const [highlight, setHighlight] = useState<Set<string>>(new Set());
   const flash = (ids: string[], accId?: string) => {
@@ -200,6 +208,8 @@ function BudgetScreen() {
           </select>
         </label>
         <More label="Budget actions">
+        {!ro && <button onClick={() => setDialog('guide')} title="One question at a time: your money, shoot days, cast, crew, gear and the rest">Guided setup…</button>}
+        <button onClick={() => setDialog('example')} title="A $10,000, 3-day short, every line explained">See an example…</button>
         {!ro && <button onClick={() => setDialog('templates')} title="Typical lines for a short, a feature, a music video or a commercial">Templates…</button>}
         {!ro && <button onClick={() => setDialog('import')} title="Bring in an existing budget from CSV or Excel">Import spreadsheet…</button>}
         {!ro && <button onClick={importLines} title="Adds cast, crew, locations, tagged elements and per-day catering that aren't in the budget yet, and tells you what it did">⛓ Update from breakdown</button>}
@@ -224,11 +234,15 @@ function BudgetScreen() {
       {settings && <BudgetSettings ro={ro} vars={view.vars} />}
       {dialog === 'templates' && <TemplatePicker onClose={() => setDialog(null)} />}
       {dialog === 'import' && <SheetImport onClose={() => setDialog(null)} />}
+      {dialog === 'guide' && <BudgetGuide onClose={() => setDialog(null)} />}
+      {dialog === 'example' && <WorkedExample onClose={() => setDialog(null)} />}
       {!ro && !b.lines.length && mode === 'build' && (
         <div className="budget-start">
           <b>Starting a budget?</b>
-          <span className="muted small">Begin from a template, pull in your breakdown, or import a spreadsheet you already have.</span>
-          <button className="primary" onClick={() => setDialog('templates')}>Templates…</button>
+          <span className="muted small">New to budgets? The guided setup asks one question at a time. Or begin from a template, pull in your breakdown, or import a spreadsheet you already have.</span>
+          <button className="primary" onClick={() => setDialog('guide')}>Set up my budget</button>
+          <button onClick={() => setDialog('example')}>See an example</button>
+          <button onClick={() => setDialog('templates')}>Templates…</button>
           <button onClick={importLines}>⛓ From the breakdown</button>
           <button onClick={() => setDialog('import')}>Import spreadsheet…</button>
         </div>
@@ -300,7 +314,7 @@ function BudgetScreen() {
                   const gActual = accountsIn(g.id).reduce((s, a) => s + (view.t.actualByAccount.get(a.id) ?? 0), 0);
                   const gEst = view.t.byGroup[g.id];
                   return (
-                    <GroupRows key={g.id} label={g.label} mode={mode}
+                    <GroupRows key={g.id} label={g.label} term={g.id} mode={mode}
                       est={gEst} target={gTarget} actual={gActual} $={$}
                       onAdd={ro ? undefined : async () => {
                         const name = await askText(`New account in ${g.label}`, { placeholder: 'e.g. Drone unit', confirmLabel: 'Add account' });
@@ -360,7 +374,7 @@ function BudgetScreen() {
               <tfoot>
                 <tr><td>Fringes (included above)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.fringes)}</td></tr>
                 <tr><td>Subtotal</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.subtotal)}</td></tr>
-                <tr><td>Contingency ({b.contingencyPct}%{b.contingencyAppliesTo && b.contingencyAppliesTo.length < GROUPS.length ? ` of ${b.contingencyAppliesTo.map((g) => GROUPS.find((x) => x.id === g)?.short).join(' + ')}` : ''})</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.contingency)}</td></tr>
+                <tr><td>Contingency<Term k="contingency" /> ({b.contingencyPct}%{b.contingencyAppliesTo && b.contingencyAppliesTo.length < GROUPS.length ? ` of ${b.contingencyAppliesTo.map((g) => GROUPS.find((x) => x.id === g)?.short).join(' + ')}` : ''})</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(view.t.contingency)}</td></tr>
                 {view.t.applied.map((a) => (
                   <tr key={a.id} className={a.credit ? 'credit' : ''}><td>{a.name} ({a.credit ? '−' : ''}{a.pct}%)</td><td className="num" colSpan={mode === 'build' ? 1 : 3}>{$(a.amount)}</td></tr>
                 ))}
@@ -386,13 +400,13 @@ function BudgetScreen() {
   );
 }
 
-function GroupRows({ label, mode, est, target, actual, $, onAdd, children }: {
-  label: string; mode: BudgetMode; est: number; target: number; actual: number; $: (n: number) => string; onAdd?: () => void; children: React.ReactNode;
+function GroupRows({ label, term, mode, est, target, actual, $, onAdd, children }: {
+  label: string; term?: BudgetGroup; mode: BudgetMode; est: number; target: number; actual: number; $: (n: number) => string; onAdd?: () => void; children: React.ReactNode;
 }) {
   return (
     <>
       <tr className="group">
-        <td>{label}{onAdd && <button className="icon-btn" title="Add an account" onClick={(e) => { e.stopPropagation(); onAdd(); }}>＋</button>}</td>
+        <td>{label}{term && <Term k={term} />}{onAdd && <button className="icon-btn" title="Add an account" onClick={(e) => { e.stopPropagation(); onAdd(); }}>＋</button>}</td>
         {mode === 'build' && <td className="num">{$(est)}</td>}
         {mode === 'target' && <><td className="num">{target ? $(target) : '—'}</td><td className="num">{$(est)}</td><td className="num"><Room target={target || undefined} est={est} $={$} /></td></>}
         {mode === 'actual' && <><td className="num">{$(est)}</td><td className="num">{actual ? $(actual) : '—'}</td><td className="num"><Spent est={est} act={actual} $={$} /></td></>}
@@ -672,10 +686,6 @@ function AccountLines({ account, view, scenarioId, ro, mode, highlight }: { acco
   );
 }
 
-/** A "?" that explains a column. The "?" is drawn by CSS, so phone card labels (copied from header text) stay clean. */
-function Explain({ tip }: { tip: string }) {
-  return <span className="explain" tabIndex={0} role="note" aria-label={tip} data-tip={tip} />;
-}
 
 const FRINGE_PRESETS: { name: string; pct: number; flat?: number; flatPer?: 'day' | 'week' | 'line' }[] = [
   { name: 'Employer payroll taxes', pct: 10 },
