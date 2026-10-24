@@ -37,6 +37,10 @@ const SRC = {
   eurimages: { label: 'Council of Europe: Eurimages', url: 'https://www.coe.int/en/web/eurimages' },
   sag: { label: 'SAG-AFTRA: Ultra Low Budget Project rate sheet', url: 'https://www.sagaftra.org/production-center/contract/819/rate-sheet/document' },
   filmfreeway: { label: 'FilmFreeway: festival listings and fees', url: 'https://filmfreeway.com/festivals' },
+  mariachi: { label: 'Sundance Institute: “El Mariachi” at 30 years', url: 'https://www.sundance.org/blogs/el-mariachi-at-30-years-looking-back-at-the-scrappy-passion-that-brought-the-film-to-life/' },
+  mariachiWiki: { label: 'Wikipedia: El Mariachi', url: 'https://en.wikipedia.org/wiki/El_Mariachi' },
+  blumhouse: { label: 'CNN Business (2022): the horror studio behind Halloween Ends is making a killing', url: 'https://abc17news.com/money/cnn-business-consumer/2022/10/14/its-a-scary-time-in-hollywood-but-the-horror-studio-behind-hits-like-halloween-ends-is-making-a-killing/' },
+  blumhouseWiki: { label: 'Wikipedia: Blumhouse Productions', url: 'https://en.wikipedia.org/wiki/Blumhouse_Productions' },
 };
 
 const base = { checked: MONEY_CHECKED, notice: MONEY_NOTE, category: 'money' as const };
@@ -100,6 +104,20 @@ export const MONEY_PAGES: RefPage[] = [
     ],
     use: [{ tab: 'funding', label: 'Budget → Funding' }],
     topics: ['production', 'funding'], keywords: 'how much does a short film cost budget size rule of thumb',
+  },
+  {
+    ...base, id: 'writing-to-budget', group: 'Budgeting basics', title: 'Writing to a budget', lead: 'Write the film you can afford: what costs money on the page, and what doesn’t.',
+    sections: [
+      { p: 'Every line of a script turns into money: “EXT. HIGHWAY – NIGHT – a car chase in the rain” is a picture car, a stunt driver, a closed road, lights and a rain machine, all paid by the day. “INT. KITCHEN – DAY – two people argue” is two actors and a room you already have. Neither is better writing; one is a lot cheaper.' },
+      { h: 'What costs money', p: 'Shoot days (everyone is paid again each day), locations and moving between them, speaking roles, night scenes (lights, slower days, later hours), crowds and extras, vehicles, weather, children (shorter hours, a guardian, permits), animals (a trainer), stunts and fights (a coordinator and insurance), period wardrobe and sets, and visual effects.' },
+      { h: 'What’s cheap', p: 'One or two locations you can use for free, day interiors, a small cast, people talking under pressure, things you already own, and time running in real time. Limits push a story inward, toward characters: plenty of good films are two people in a room.' },
+      { h: 'Write around what you have', p: 'Make a list before you write: places, people, props, skills, a car, a dog. Then write a story that needs those things. Robert Rodriguez made El Mariachi (1992) for about $7,000, around half of it earned as a paid volunteer in clinical drug trials, and built it around the people and places he had access to in Ciudad Acuña. Columbia Pictures later spent far more than that on post-production before releasing it, so the famous number is the shoot, not the finished film.' },
+      { h: 'The Blumhouse model', p: 'Blumhouse makes films for small, fixed budgets and gives directors creative freedom in exchange for lower pay up front and a share of the profits. Paranormal Activity (2007) was made for about $15,000; Get Out cost about $4.5 million and earned around $255 million. Small budgets mean contained stories: one house, a few characters, the scares built from sound, darkness and performance rather than effects.' },
+      { h: 'In Open Gate', p: 'Home → Start from a budget turns your money and what you have into limits: about how many shoot days, locations, speaking roles and pages it pays for. While you write, Write → Limits counts them, flags the things that cost money, and says when a scene takes you past a limit (“Scene 14 adds a 4th location”). The numbers are rough rules of thumb: change any of them, and once the script is done, Budget → Update from breakdown builds the real budget.' },
+    ],
+    use: [{ tab: 'screenplay', label: 'Write → Limits' }, { tab: 'budget', label: 'Budget' }],
+    topics: ['production', 'funding'], keywords: 'write to budget low budget contained story locations el mariachi rodriguez blumhouse paranormal activity micro budget screenplay limits',
+    sources: [SRC.mariachi, SRC.mariachiWiki, SRC.blumhouse, SRC.blumhouseWiki],
   },
 
   // ---------- Funding ----------

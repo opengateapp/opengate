@@ -1243,6 +1243,8 @@ export interface Project {
   autoDrafts?: boolean;
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
+  /** "Start from a budget": the money, what you have, and the limits to write within (Write → Limits). */
+  writingPlan?: WritingPlan;
   bible?: StoryBible;
   credits?: CreditsSettings;
   characterOptions?: CharacterOptions;
@@ -1262,3 +1264,34 @@ export interface UnionOption { id: string; name: string; group: string; locals?:
 
 /** An honorary society in the Settings list, with how its letters are written. */
 export interface SocietyOption { id: string; abbr: string; name: string; craft: string; letters: string; custom?: boolean; hidden?: boolean }
+
+// ---------------------------------------------------------------- writing to a budget
+
+export type WritingKind = 'short' | 'feature' | 'music' | 'other';
+
+export interface WritingHave {
+  kind: WritingKind;
+  /** Owns (or can borrow) a camera, lights and sound. */
+  gear: boolean;
+  /** Places you can shoot for free or cheap ("my apartment", "a friend's diner"). */
+  locations: string[];
+  /** People helping for free or cheap. */
+  helpers: number;
+  /** A SAG-AFTRA tier when an actor is in the union. */
+  unionTier?: string;
+  pagesPerDay: number;
+  /** Other things you have that a story could use ("a dog", "a vintage car"). */
+  extras?: string[];
+}
+
+export interface WritingLimitsSet { shootDays: number; locations: number; speakingRoles: number; crew: number; pagesMin: number; pagesMax: number; nightScenes: number }
+
+export interface WritingPlan {
+  money: number;
+  have: WritingHave;
+  limits: WritingLimitsSet;
+  /** About what one more location costs (fee plus a company move). */
+  perLocation: number;
+  /** The Limits panel in Write → Screenplay. */
+  on: boolean;
+}
