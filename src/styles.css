@@ -1797,7 +1797,8 @@ select.doc-status { padding: 2px 6px; border: 0; }
 .drawer-extra > button span { font-size: 12px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drawer-extra > button.active { background: var(--accent-soft); }
 
-.ref-page { min-width: 0; max-width: 100%; }
+/* A centred flex item shrinks to its content: give pages a steady width so opening an FAQ answer doesn't widen the page. */
+.ref-page { min-width: 0; max-width: 100%; width: 100%; }
 .ref-table.wrap td, .ref-table.wrap th { white-space: normal; }
 .ref-table.wrap td:first-child { min-width: 120px; font-weight: 600; }
 
