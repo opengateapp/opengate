@@ -2060,3 +2060,29 @@ table.contacts .crew-role-picker select { width: 100%; }
   .festival-deadlines td input:not([type=radio]):not(.num):not([type=date]) { width: 68px; }
   .fest-days { display: none; }
 }
+
+/* Storyboard editor: frame options inline on a wide toolbar, folded into ⋯ when narrower. */
+.frame-editor { container-type: inline-size; container-name: fe; }
+.fe-wide { display: none; align-items: center; gap: 8px; }
+.fe-narrow { display: contents; }
+@container fe (min-width: 1270px) {
+  .fe-wide { display: inline-flex; }
+  .fe-narrow { display: none; }
+}
+.fe-wide > .button-like, .fe-wide > button { white-space: nowrap; }
+.fe-onion .fe-ghost-add { border: none; border-radius: 0; background: var(--panel); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 46px; min-height: 40px; padding: 3px 8px; }
+.fe-onion.active .fe-ghost-add { background: var(--accent-soft); color: var(--accent); }
+.fe-framing-btn { white-space: nowrap; }
+.frame-stack canvas.ghosts { pointer-events: none; }
+.fe-ghosts { min-width: 260px; }
+.fe-ghost-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.fe-ghost-list li { display: flex; align-items: center; gap: 8px; }
+.fe-ghost-list li > span:nth-child(2) { flex: 1; }
+.fe-ghost-thumb { width: 48px; height: 27px; border: 1px solid var(--border); border-radius: 4px; background: #fff; overflow: hidden; flex: none; }
+.fe-ghost-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.fe-ghost-menu, .fe-framing-menu { min-width: 280px; }
+@container fe (min-width: 1270px) and (max-width: 1480px) {
+  .fe-tools .fe-ctl-lbl { display: none; }
+  .fe-tools .size-control input[type=range] { width: 80px; }
+  .fe-tools .opacity-control input[type=range] { width: 60px; }
+}

@@ -372,6 +372,11 @@ export interface StoryboardFrame {
   imageId?: Id;
   /** Transparent PNG drawing layer drawn over the image. */
   drawingId?: Id;
+  /** Onion-skin poses inside this frame (oldest first): earlier positions of a moving character or
+   *  object, drawn faded under the drawing in the finished frame. */
+  ghosts?: { id: Id; drawingId: Id }[];
+  /** How strong the ghost poses are, 0–1 (default 0.35); older ones are fainter. */
+  ghostFade?: number;
   /** Bumped whenever a media blob is rewritten, so thumbnails refresh. */
   rev: number;
   caption: string;

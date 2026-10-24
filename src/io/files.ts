@@ -44,7 +44,7 @@ export function budgetMediaIds(p: Project): string[] {
 
 export function mediaIds(p: Project): string[] {
   return [...new Set([
-    ...p.storyboard.flatMap((f) => [f.imageId, f.drawingId]),
+    ...p.storyboard.flatMap((f) => [f.imageId, f.drawingId, ...(f.ghosts ?? []).map((g) => g.drawingId)]),
     ...p.boards.flatMap((b) => b.items.map((i) => i.imageId)),
     ...p.locations.flatMap((l) => l.photoIds ?? []),
     ...p.storyboard.flatMap((f) => [f.refImageId, f.refDrawingId]),
@@ -62,7 +62,7 @@ function remapMedia(p: Project, remap: Map<string, string>): Project {
   const re = (id?: string) => (id ? remap.get(id) ?? id : id);
   return {
     ...p,
-    storyboard: p.storyboard.map((f: StoryboardFrame) => ({ ...f, imageId: re(f.imageId), drawingId: re(f.drawingId), refImageId: re(f.refImageId), refDrawingId: re(f.refDrawingId) })),
+    storyboard: p.storyboard.map((f: StoryboardFrame) => ({ ...f, imageId: re(f.imageId), drawingId: re(f.drawingId), ...(f.ghosts ? { ghosts: f.ghosts.map((g) => ({ ...g, drawingId: re(g.drawingId)! })) } : {}), refImageId: re(f.refImageId), refDrawingId: re(f.refDrawingId) })),
     boards: p.boards.map((b) => ({ ...b, items: b.items.map((i) => ({ ...i, imageId: re(i.imageId) })) })),
     locations: p.locations.map((l) => ({ ...l, photoIds: l.photoIds?.map((x) => re(x)!) })),
     callSheets: Object.fromEntries(Object.entries(p.callSheets).map(([k, c]) => [k, { ...c, logoId: re(c.logoId) }])),
