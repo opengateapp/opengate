@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { lineFor } from '../budget/planLinks';
+import { openBudgetAccount, useSeesBudget } from '../components/PlanBudget';
 import { MoneyInput } from '../components/NumberInput';
 import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../store/project';
@@ -86,6 +88,8 @@ function LocationDetail({ loc }: { loc: Location }) {
   const update = useStore((s) => s.update);
   const [over, setOver] = useState(false);
   const set = (patch: Partial<Location>, label: string | null = null) => update((dr) => { Object.assign(dr.locations.find((x) => x.id === loc.id)!, patch); }, label);
+  // The fee is money: only people with the budget see it (like the Clearance box).
+  const sees = useSeesBudget();
   const sceneIds = new Set(locationSceneIds(p, d, loc));
   const scenes = d.scenes.filter((s) => sceneIds.has(s.id));
   const days = p.schedule.days.filter((day) => day.items.some((i) => i.kind === 'scene' && sceneIds.has(i.sceneId)));
@@ -129,13 +133,14 @@ function LocationDetail({ loc }: { loc: Location }) {
         {text('contactName', 'Contact')}
         {text('contactPhone', 'Contact phone')}
         {text('contactEmail', 'Contact email')}
-        <Field label="Fee">
-          <span className="row nowrap">
-            <MoneyInput value={loc.feeAmount} placeholder="0" onChange={(n) => set({ feeAmount: n })} />
+        {sees && <Field label="Fee">
+          <span className="row wrap">
+            <MoneyInput value={loc.feeAmount} placeholder="0" per={loc.feePer === 'flat' ? 'flat' : 'day'} onChange={(n) => set({ feeAmount: n })} />
             <select value={loc.feePer ?? 'day'} aria-label="Fee per" onChange={(e) => set({ feePer: e.target.value as 'day' | 'flat' }, 'Fee per')}><option value="day">per day</option><option value="flat">flat</option></select>
+            {(() => { const at = lineFor(p, { kind: 'location', id: loc.id }); return at?.account ? <button className="link small" onClick={() => openBudgetAccount(at.account!.id)}>Budget → {at.account.code} {at.account.name} →</button> : null; })()}
           </span>
-        </Field>
-        {text('fee', 'Fee notes', false, 'e.g. includes power; half rate on hold days')}
+        </Field>}
+        {sees && text('fee', 'Fee notes', false, 'e.g. includes power; half rate on hold days')}
         {text('permit', 'Permit', false, 'Status, number, dates')}
         {text('parking', 'Parking / basecamp')}
         {text('power', 'Power')}

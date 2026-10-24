@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { openPaperwork } from './PaperworkTab';
+import { lineSource, pipelineChecklist } from '../../budget/planLinks';
 import { MoneyInput, NumberInput, type Per } from '../../components/NumberInput';
 import type { Draft } from 'immer';
 import { useDerived, useProject, useStore } from '../../store/project';
@@ -44,6 +46,7 @@ export async function exportBudget(p: Project, kind: 'pdf' | 'xlsx', scenarioId?
 // the breakdown and schedule; while a scenario is selected, line edits are saved to it.
 
 export type BudgetMode = 'build' | 'target' | 'actual' | 'scenarios' | 'cost';
+const goto = (tab: string) => window.dispatchEvent(new CustomEvent('opengate:goto', { detail: tab }));
 const MODES: { id: BudgetMode; label: string; hint: string }[] = [
   { id: 'build', label: 'Build from breakdown', hint: 'Add lines and rates; import cast, crew, locations and tagged elements' },
   { id: 'target', label: 'Top-down target', hint: 'Set a total and split it across accounts' },
@@ -141,6 +144,12 @@ function BudgetScreen() {
   const [showEmpty, setShowEmpty] = useState(false);
   const [settings, setSettings] = useState(false);
   const [dialog, setDialog] = useState<'templates' | 'import' | 'guide' | 'example' | null>(null);
+  // Plan → "Budget → 2200 Camera →" opens that account here.
+  useEffect(() => {
+    const show = (e: Event) => { setAccountId((e as CustomEvent).detail as string); if (mode !== 'build' && mode !== 'target' && mode !== 'actual') pickMode('build'); };
+    window.addEventListener('opengate:budget-account', show);
+    return () => window.removeEventListener('opengate:budget-account', show);
+  });
   // "Try it as a version" elsewhere shows the new version here.
   useEffect(() => {
     const show = (e: Event) => { setScenarioId((e as CustomEvent).detail as string); if (mode === 'scenarios' || mode === 'cost') pickMode('build'); };
@@ -261,6 +270,7 @@ function BudgetScreen() {
           {!ro && <> <button className="link small" onClick={() => void setDays()}>Change</button></>} <RefLink page="budget-how" />
         </p>
       )}
+      {mode !== 'scenarios' && <PipelineChecklist />}
       {zero.length > 0 && (
         <div className="budget-warn">
           <b>0 shoot days scheduled, so lines tied to the schedule are $0.</b>
@@ -606,6 +616,7 @@ function AccountLines({ account, view, scenarioId, ro, mode, highlight }: { acco
                       <input disabled={ro} value={l.description} placeholder="Description" onChange={(e) => set(l, { description: e.target.value })} />
                     </div>
                     {extras.length > 0 && <div className="line-extras">{extras.map((x) => <span key={x}>{x}</span>)}</div>}
+                    {(() => { const src = lineSource(p, l); return src ? <button className="link small line-source" onClick={() => (src.docId ? openPaperwork('docs', src.docId) : goto(src.tab))}>{src.text} →</button> : null; })()}
                   </td>
                   <td className="num"><ExprIn className="cell-num" disabled={ro} value={l.qty} expr={linked?.auto ? undefined : base(l).qtyExpr} vars={view.vars}
                     onNumber={(n) => set(l, { qty: n, qtyExpr: undefined })} onExpr={(x) => set(l, { qtyExpr: x })} title={linked?.auto ? LINK_LABEL[linked.kind] : 'A number, or a formula like SHOOT_WEEKS * 5'} /></td>
@@ -974,6 +985,19 @@ function CostReportView({ view, ro }: { view: ReturnType<typeof useBudgetView>; 
         <span className={projected < 0 ? 'over' : 'under'}>Accounts are projected to finish <b>{$(Math.abs(projected))} {projected < 0 ? 'over' : 'under'}</b>{projected < 0 && r.reserve > 0 ? ` — ${-projected <= r.reserve ? 'covered by' : 'more than'} the contingency` : ''}.</span>
       </div>
       <p className="muted small">Committed = expenses logged but not marked paid (purchase orders, deposits due). Untick “Paid” on an expense in the Expenses tab to count it as committed.</p>
+    </div>
+  );
+}
+
+/** What the budget needs upstream (script, breakdown, stripboard, crew, deal memos, location fees); hidden once it's all there. */
+function PipelineChecklist() {
+  const p = useProject();
+  const d = useDerived();
+  const items = useMemo(() => pipelineChecklist(p, d), [p, d]);
+  if (items.every((x) => x.ok)) return null;
+  return (
+    <div className="pipeline-check" aria-label="What the budget needs upstream">
+      {items.map((x) => <button key={x.id} className={`pipe-item ${x.ok ? 'ok' : 'todo'}`} onClick={() => goto(x.tab)} title={x.ok ? 'Done' : 'Go there'}>{x.ok ? '✓' : '✕'} {x.label}</button>)}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { PlanBudgetSummary } from './components/PlanBudget';
 import { HelpDialogs, HelpMenu } from './help/HelpMenu';
 import { useTabLock } from './store/tabLock';
 import { BudgetCapBar } from './components/BudgetHelp';
@@ -328,6 +329,7 @@ export function App() {
         {tab === 'dood' && <DoodView />}
         {tab === 'sides' && <SidesView />}
         {['budget', 'funding', 'festivals', 'gear', 'expenses', 'licenses'].includes(tab) && <BudgetCapBar />}
+        {['contacts', 'locations', 'paperwork', 'calendar', 'tasks'].includes(tab) && <PlanBudgetSummary />}
         {tab === 'budget' && <BudgetTab />}
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}

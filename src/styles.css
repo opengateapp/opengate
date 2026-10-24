@@ -2318,3 +2318,12 @@ table.cards-on-phone .num-in { width: 100%; }
 .changelog h3 { margin: 16px 0 4px; }
 .changelog p { margin: 2px 0; }
 .changelog-item { font-size: 14px; }
+/* Plan ↔ Budget */
+.plan-budget { flex-direction: row; align-items: center; gap: 8px; padding: 4px 12px; }
+.rate-link { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rate-link.compact .link { font-size: 11px; }
+.line-source { display: block; text-align: left; font-size: 11px; margin-top: 2px; }
+.pipeline-check { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.pipe-item { font-size: 12px; padding: 3px 10px; border-radius: 999px; height: auto; min-height: 0; }
+.pipe-item.ok { color: var(--muted); border-color: var(--border); background: none; }
+.pipe-item.todo { border-color: #f59e0b; background: rgba(245, 158, 11, .1); }

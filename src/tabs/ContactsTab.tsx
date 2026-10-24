@@ -1,4 +1,5 @@
 import { CrewRolePicker } from '../components/CrewRolePicker';
+import { RateLink, useSeesBudget } from '../components/PlanBudget';
 import { useState } from 'react';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
@@ -47,6 +48,7 @@ export function ContactsTab() {
   const [q, setQ] = useState('');
   const [group, setGroup] = useState<'all' | Row['group']>('all');
   const [over, setOver] = useState(false);
+  const sees = useSeesBudget();
 
   const rows: Row[] = [
     ...[...p.cast].sort((a, b) => a.castNumber - b.castNumber).map((c) => ({ key: 'cast:' + c.id, group: 'Cast' as const, name: c.actorName, role: `#${c.castNumber} ${c.characterName}`, company: '', phone: c.phone ?? '', email: c.email ?? '', union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, societies: c.societies, pgaCertified: c.pgaCertified })),
@@ -125,7 +127,7 @@ export function ContactsTab() {
         </More>
       </div>
       <table className="table contacts cards-on-phone" onDoubleClick={(e) => { if ((e.target as HTMLElement).closest('tbody tr')) return; add(group === 'Cast' || group === 'Crew' ? group : 'Contacts'); }}>
-        <thead><tr><th>Group</th><th>Name</th><th>Role</th><th>Company / type</th><th>Phone</th><th>Email</th><th>Union & societies</th><th /></tr></thead>
+        <thead><tr><th>Group</th><th>Name</th><th>Role</th><th>Company / type</th><th>Phone</th><th>Email</th><th>Union & societies</th>{sees && <th>Rate</th>}<th /></tr></thead>
         <tbody>
           {shown.map((r) => (
             <tr key={r.key}>
@@ -139,10 +141,11 @@ export function ContactsTab() {
               <td><input value={r.phone} onChange={(e) => set(r, 'phone', e.target.value)} />{r.phone && <a className="icon-link" href={`tel:${r.phone}`} title="Call">☎</a>}</td>
               <td className={r.group === 'Crew' ? 'na' : undefined}>{r.group === 'Crew' ? <span className="muted small">—</span> : <><input value={r.email} onChange={(e) => set(r, 'email', e.target.value)} />{r.email && <a className="icon-link" href={`mailto:${r.email}`} title="Email">✉</a>}</>}</td>
               <td data-label="Union & societies" title={unionBadge(r)}><UnionPicker compact value={r} onChange={(patch) => setUnion(r, patch)} /><SocietiesPicker value={r} onChange={(patch) => setUnion(r, patch)} /></td>
+              {sees && <td data-label="Rate">{r.group !== 'Contacts' ? <RateLink compact target={{ kind: r.group === 'Cast' ? 'cast' : 'crew', id: r.key.split(':')[1] }} /> : <span className="muted small">—</span>}</td>}
               <td><button className="icon-btn" onClick={() => remove(r)}>×</button></td>
             </tr>
           ))}
-          {!shown.length && <tr><td colSpan={8} className="muted pad"><Hint>{'No contacts. Double-click here to add one, or drop .vcf contact cards anywhere on this page.'}</Hint></td></tr>}
+          {!shown.length && <tr><td colSpan={sees ? 9 : 8} className="muted pad"><Hint>{'No contacts. Double-click here to add one, or drop .vcf contact cards anywhere on this page.'}</Hint></td></tr>}
         </tbody>
       </table>
       <p className="muted small"><Hint>{'Double-click empty space to add · drop .vcf cards to import · cast and crew here are the same people on call sheets (edit unavailable dates and daily crew in ⚙ Settings).'}</Hint></p>

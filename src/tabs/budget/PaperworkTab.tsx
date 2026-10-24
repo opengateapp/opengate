@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { RateLink } from '../../components/PlanBudget';
 import { MoneyInput, NumberInput } from '../../components/NumberInput';
 import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../../store/project';
@@ -187,6 +188,7 @@ function PeopleView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
               </div>
               {isOpen && (
                 <div className="person-body">
+                  {(x.ref.kind === 'cast' || x.ref.kind === 'crew' || x.ref.kind === 'location') && <div className="field"><span>{x.ref.kind === 'location' ? 'Fee' : 'Rate'}</span><RateLink target={x.ref as never} /></div>}
                   {x.group !== 'Location' && <div className="field"><span>Union</span><UnionPicker ro={ro} value={x} onChange={(patch) => setUnion(x, patch)} /></div>}
                   {x.group !== 'Location' && <div className="field"><span>Honorary societies (letters in the credits)</span><SocietiesPicker ro={ro} value={x} onChange={(patch) => setUnion(x, patch)} /></div>}
                   <ul className="doc-rows">
