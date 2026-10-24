@@ -2086,3 +2086,43 @@ table.contacts .crew-role-picker select { width: 100%; }
   .fe-tools .size-control input[type=range] { width: 80px; }
   .fe-tools .opacity-control input[type=range] { width: 60px; }
 }
+
+/* Festivals on desktop: a table with rows that open into their details. */
+@media (min-width: 901px) { .festivals-tab { max-width: none; } }
+.festival-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.festival-table th { text-align: left; white-space: nowrap; }
+.festival-table th.num, .festival-table td.num { text-align: right; }
+.festival-table .th-sort { font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; padding: 0; }
+.festival-table th.sorted .th-sort { color: var(--accent); }
+.festival-table td { vertical-align: middle; padding: 6px 8px; border-top: 1px solid var(--border); }
+.festival-table .festival-row { cursor: pointer; }
+.festival-table .festival-row:hover td { background: var(--accent-soft); }
+.festival-table .festival-group.open .festival-row td { background: var(--accent-soft); }
+.festival-table .festival-group.st-accepted .festival-row td:first-child { box-shadow: inset 3px 0 0 var(--ok, #16a34a); }
+.festival-table .festival-group.st-submitted .festival-row td:first-child { box-shadow: inset 3px 0 0 #2563eb; }
+.festival-table .muted-row .festival-row td { opacity: .75; }
+.festival-table select { max-width: none; width: auto; }
+.festival-detail-side .festival-meta > * { flex-shrink: 0; }
+.festival-detail-side .festival-meta > input { flex: 1 1 160px; }
+.festival-table .fest-name-cell { min-width: 160px; }
+.festival-table .fest-name-cell .icon-link { margin-left: 4px; }
+.festival-table .nowrap { white-space: nowrap; }
+.festival-table .festival-detail td { border-top: none; padding: 4px 8px 14px; background: var(--panel); }
+.festival-detail-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 16px 24px; align-items: start; }
+.festival-detail-side { display: flex; flex-direction: column; gap: 8px; }
+.fest-toggle { font-size: 12px; }
+.festival-detail input[type=checkbox], .festival-detail input[type=radio] { width: auto; }
+.festival-table .festival-row select { min-width: max-content; }
+.festival-table .festival-row select { padding-right: 26px; }
+
+.fest-premiere-detail { display: none; }
+@media (max-width: 1200px) {
+  .festival-table .col-premiere, .festival-table .col-travel { display: none; }
+  .fest-premiere-detail { display: flex; }
+  .festival-detail-grid { grid-template-columns: 1fr; }
+  .festival-table .nowrap { white-space: normal; }
+  .festival-table td { padding: 6px 5px; }
+  .festival-table .festival-row select { min-width: 0; max-width: 130px; }
+}
+.festival-detail input[type=date] { width: 140px; }
+.festival-detail input.num { width: 90px; }
