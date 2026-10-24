@@ -84,6 +84,8 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const pen = usePen();
   const touch = useTouch();
   const drawing = useRef<{ start: Pt; last: Pt; points: Pt[]; snap: ImageData; erasing?: boolean } | null>(null);
+  // A ghost pose is being added: a held ⇧O or a double click mustn't add the same pose twice.
+  const ghostBusy = useRef(false);
   const penLayer = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => { penLayer.current = null; }, [FW, FH]); // the pen's scratch layer matches the frame size
   // Size indicators: how wide the current tool draws, in canvas pixels and on screen.
@@ -260,7 +262,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
       if (e.key === ']') changeSize(Math.min(40, size + 1));
       if (e.key === 'c') { e.preventDefault(); colorRef.current?.open(); }
       if (e.key === 'n') setOnion((v) => !v);
-      if (e.key === 'O' && layer === 'frame') void addGhost();
+      if (e.key === 'O' && layer === 'frame' && !e.repeat) void addGhost();
       if (e.key === 'ArrowLeft' && prev) { void save(); onSelect(prev.frame.id); }
       if (e.key === 'ArrowRight' && next) { void save(); onSelect(next.frame.id); }
     };
@@ -404,16 +406,29 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
   const isBlank = () => { const d = ctx().getImageData(0, 0, FW, FH).data; for (let i = 3; i < d.length; i += 16) if (d[i]) return false; return true; };
   /** The drawing becomes a ghost pose; the canvas clears for the next position. */
   const addGhost = async () => {
-    if (layer !== 'frame') return;
+    if (layer !== 'frame' || ghostBusy.current) return;
     if (isBlank()) { toast('Draw the first pose, then add the next one on top of it.'); return; }
-    dirty.current = true;
-    await save();
-    const d0 = useStore.getState().project?.storyboard.find((x) => x.id === cur.frame.id)?.drawingId;
-    if (!d0) return;
-    snapshot(true);
-    setFrame((x) => { x.ghosts = [...(x.ghosts ?? []), { id: newId(), drawingId: d0 }]; x.drawingId = undefined; }, 'Add ghost pose');
+    ghostBusy.current = true;
+    try {
+      dirty.current = true;
+      await save();
+      const fr = useStore.getState().project?.storyboard.find((x) => x.id === cur.frame.id);
+      const d0 = fr?.drawingId;
+      if (!d0 || fr.ghosts?.some((g) => g.drawingId === d0)) return;
+      snapshot(true);
+      setFrame((x) => { x.ghosts = [...(x.ghosts ?? []), { id: newId(), drawingId: d0 }]; x.drawingId = undefined; }, 'Add ghost pose');
+      ctx().clearRect(0, 0, FW, FH);
+      force((n) => n + 1);
+    } finally { ghostBusy.current = false; }
+  };
+  /** Clears what's drawn on this frame, ghost poses included; the image stays. One undo brings it all back. */
+  const clearDrawing = async () => {
+    const n = ghosts.length;
+    if (!(await askConfirm(n ? `Clear the drawing and its ${n} ghost pose${n === 1 ? '' : 's'}?` : 'Clear the drawing on this frame?', { message: 'The image stays. You can undo this.', confirmLabel: 'Clear drawing', danger: true }))) return;
+    snapshot(n > 0);
+    if (n) setFrame((x) => { x.ghosts = []; }, 'Clear drawing');
     ctx().clearRect(0, 0, FW, FH);
-    force((n) => n + 1);
+    changed();
   };
   /** Brings a ghost back as the drawing to change it; the current drawing takes its place. */
   const editGhost = async (gid: string) => {
@@ -576,7 +591,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
           {layer === 'frame' && <MoreMenu label="Format and frame guides" className="fe-framing-menu" buttonClassName="fe-framing-btn" icon={<span>▭ {fmt.short}{guides.length ? ` +${guides.length}` : ''} ▾</span>}><FramingControls beforeChange={save} /></MoreMenu>}
           <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
           {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
-          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image and any ghost poses stay. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FW, FH); changed(); } }}>Clear drawing…</button>
+          <button className="danger-text" onClick={() => void clearDrawing()}>Clear drawing…</button>
           {(pen.seen || touch) && <More label="Pencil" always>{(pen.seen || touch) && (
             <label className="check small keep-open" title="Palm rejection — Auto: once you use a pencil, fingers stop drawing. Pencil only: fingers never draw. Pencil & fingers: both draw.">Pencil
               <select value={pen.mode} onChange={(e) => pen.setMode(e.target.value as PenMode)}>
@@ -604,7 +619,7 @@ export function FrameEditor({ frameId, onClose, onSelect, layer = 'frame' }: { f
           <label className="button-like">Image…<input type="file" accept="image/*" hidden onChange={(e) => void replaceImage(e.target.files?.[0])} /></label>
           {cur.frame[IMG] && <button onClick={() => update((dr) => { const x = dr.storyboard.find((y) => y.id === cur.frame.id); if (x) { x[IMG] = undefined; x.rev++; } }, 'Remove frame image')}>Remove image</button>}
           <hr />
-          <button className="danger-text" onClick={async () => { if (await askConfirm('Clear the drawing on this frame?', { message: 'The image and any ghost poses stay. You can undo this.', confirmLabel: 'Clear drawing', danger: true })) { snapshot(); ctx().clearRect(0, 0, FW, FH); changed(); } }}>Clear drawing…</button>
+          <button className="danger-text" onClick={() => void clearDrawing()}>Clear drawing…</button>
         </More>
         </span>
       </div>
