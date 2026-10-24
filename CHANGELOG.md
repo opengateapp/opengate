@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.2 — 2026-10-24
+
+- **Help & FAQ:** the FAQ page keeps one width. It no longer widens when you open an answer.
+
 ## v0.6.1 — 2026-10-24
 
 - **Release tabs on desktop:** wider screens now get desktop layouts instead of stretched phone ones.
