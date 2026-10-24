@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react';
+import { todayISO } from '../../model/dates';
+import { ShareBar, ExportCalendar, monthStats } from './SocialShare';
+import { NumberInput } from '../../components/NumberInput';
+import { overLimits } from '../../release/socialShare';
 import type { SocialPlatform, SocialPost, SocialStatus } from '../../model/types';
 import { useProject, useStore } from '../../store/project';
 import { putMedia, useMediaUrl } from '../../store/media';
@@ -61,6 +65,7 @@ export function SocialTab() {
         {!ro && ideas.length > 0 && <button onClick={() => edit((l) => { l.push(...ideas); }, 'Add milestone posts')} title={ideas.map((x) => `${x.milestone} ${x.date ?? ''}`).join('\n')}>Add {ideas.length} milestone idea{ideas.length === 1 ? '' : 's'}</button>}
         <RefLink page="marketing" label="Marketing your film" />
         <span className="spacer" />
+        {posts.length > 0 && <ExportCalendar posts={posts} />}
         <label className="check small">Show
           <select value={show} onChange={(e) => setShow(e.target.value as SocialStatus | '')}><option value="">Every post</option>{SOCIAL_STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
         </label>
@@ -74,7 +79,7 @@ export function SocialTab() {
             <div className="social-rows" role="listbox" aria-label="Posts">
               {[...groups].map(([month, list]) => (
                 <section key={month}>
-                  <h4>{month === 'none' ? 'No date yet' : formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}</h4>
+                  <h4>{month === 'none' ? 'No date yet' : formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}{monthStats(list)}</h4>
                   {list.map((x) => <PostRow key={x.id} post={x} on={x.id === cur?.id} shootDay={!!x.date && shootDates.has(x.date)} seesPaperwork={seesPaperwork} pick={() => setSel(x.id)} />)}
                 </section>
               ))}
@@ -94,7 +99,7 @@ export function SocialTab() {
         {!posts.length && <p className="muted pad"><Hint>{'No posts yet. “Add milestone ideas” starts a calendar from your schedule and festivals; or double-click here to add one.'}</Hint></p>}
         {[...groups].map(([month, list]) => (
           <section key={month}>
-            <h4>{month === 'none' ? 'No date yet' : formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}</h4>
+            <h4>{month === 'none' ? 'No date yet' : formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}{monthStats(list)}</h4>
             {list.map((x) => (
               <PostCard key={x.id} post={x} ro={ro} shootDay={!!x.date && shootDates.has(x.date)} seesPaperwork={seesPaperwork}
                 set={(patch, label) => set(x.id, patch, label)}
@@ -109,7 +114,7 @@ export function SocialTab() {
   );
 }
 
-const PLATFORM_SHORT: Record<SocialPlatform, string> = { instagram: 'IG', tiktok: 'TT', youtube: 'YT', x: 'X', facebook: 'FB', bluesky: 'BS', threads: 'TH', other: '…' };
+const PLATFORM_SHORT: Record<SocialPlatform, string> = { instagram: 'IG', tiktok: 'TT', youtube: 'YT', x: 'X', facebook: 'FB', bluesky: 'BS', threads: 'TH', linkedin: 'LI', other: '…' };
 
 /** Desktop: one compact row per post; click (or double-click) to edit it on the right. */
 function PostRow({ post: x, on, shootDay, seesPaperwork, pick }: { post: SocialPost; on: boolean; shootDay: boolean; seesPaperwork: boolean; pick: () => void }) {
@@ -134,7 +139,9 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
   const p = useProject();
   const all = useMemo(() => taggable(p), [p]);
   const missing = unreleased(p, x, seesPaperwork);
-  const long = x.platforms.includes('x') && x.caption.length > 280;
+  const over = overLimits(x);
+  const [ask, setAsk] = useState(false);
+  const shared = () => { if (x.status !== 'posted') setAsk(true); };
   return (
     <article className={`social-card st-${x.status}`} onDragOver={(e) => { if (!ro && e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={(e) => { if (ro) return; e.preventDefault(); addMedia(media(e.dataTransfer.files)); }}>
       <div className="row wrap">
@@ -149,7 +156,15 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
         {PLATFORMS.map((pl) => <label key={pl.id} className={`chip small ${x.platforms.includes(pl.id) ? 'on' : ''}`}><input disabled={ro} type="checkbox" hidden checked={x.platforms.includes(pl.id)} onChange={(e) => set({ platforms: e.target.checked ? [...x.platforms, pl.id] : x.platforms.filter((y) => y !== pl.id) as SocialPlatform[] })} />{pl.label}</label>)}
       </div>
       <textarea disabled={ro} rows={3} value={x.caption} placeholder="Caption" aria-label="Caption" onChange={(e) => set({ caption: e.target.value })} />
-      {long && <span className="small warn">{x.caption.length} characters: X allows 280.</span>}
+      {over.map((o) => <span key={o.platform} className="small warn">{o.length} characters: {o.label} allows {o.limit.toLocaleString()}.</span>)}
+      <ShareBar post={x} missing={missing} onShared={shared} />
+      {ask && !ro && (
+        <div className="social-ask row wrap" role="status">
+          <span className="small">Did it go up?</span>
+          <button className="small primary" onClick={() => { set({ status: 'posted', date: x.date ?? todayISO() }, 'Mark posted'); setAsk(false); }}>Mark posted{x.date ? '' : ' today'}</button>
+          <button className="small" onClick={() => setAsk(false)}>Not yet</button>
+        </div>
+      )}
       <div className="social-media">
         {x.mediaIds.map((id, i) => <Thumb key={id} id={id} ro={ro} onRemove={() => set({ mediaIds: x.mediaIds.filter((_, k) => k !== i) }, 'Remove photo')} />)}
         {!ro && <label className="social-add" title="Add photos or clips (or drop them on the post)">＋<input type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { addMedia(media(e.target.files)); e.target.value = ''; }} /></label>}
@@ -168,6 +183,14 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
       </div>
       {missing && missing.length > 0 && <p className="fund-warn small">No signed release for {missing.map((m) => m.name).join(', ')}. Get one before this goes up. <button className="link small" onClick={() => goto('paperwork')}>Paperwork</button></p>}
       {missing === null && x.people.length > 0 && <p className="muted small">Releases are kept with the paperwork (budget access): check them before posting.</p>}
+      {x.status === 'posted' && (
+        <div className="social-stats row wrap">
+          {(['views', 'likes', 'comments'] as const).map((k) => (
+            <label key={k} className="check small">{{ views: 'Views', likes: 'Likes', comments: 'Comments' }[k]} <NumberInput className="cell-num small" disabled={ro} min={0} decimals={0} value={x.stats?.[k]} aria-label={k} onChange={(n) => set({ stats: { ...x.stats, [k]: n } })} /></label>
+          ))}
+          <span className="muted small">typed in from the platform</span>
+        </div>
+      )}
       {x.status === 'posted' && <input disabled={ro} value={x.url ?? ''} placeholder="Link to the post" aria-label="Link to the post" onChange={(e) => set({ url: e.target.value || undefined })} />}
       <datalist id="social-milestones">{MILESTONES.map((m) => <option key={m} value={m} />)}</datalist>
     </article>

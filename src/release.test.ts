@@ -142,3 +142,33 @@ describe('press kit laurels', () => {
     expect(pressKitPdf(v, imgs).getNumberOfPages()).toBeGreaterThan(0);
   });
 });
+
+import { bufferCsv, calendarCsv, captionLength, composeUrl, overLimits } from './release/socialShare';
+
+describe('social posting', () => {
+  it('builds compose links where platforms support them', () => {
+    expect(composeUrl('x', 'Day 1 & go')).toBe('https://x.com/intent/tweet?text=Day%201%20%26%20go');
+    expect(composeUrl('threads', 'Hi')).toBe('https://www.threads.com/intent/post?text=Hi');
+    expect(composeUrl('bluesky', 'Hi')).toBe('https://bsky.app/intent/compose?text=Hi');
+    expect(composeUrl('instagram', 'Hi')).toBeUndefined();
+    expect(composeUrl('linkedin', 'Hi')).toBeUndefined();
+  });
+  it('counts emoji once and warns per platform', () => {
+    expect(captionLength('🎬🎬')).toBe(2);
+    const long = 'a'.repeat(301);
+    expect(overLimits({ caption: long, platforms: ['x', 'bluesky', 'threads', 'instagram'] }).map((o) => o.label)).toEqual(['X', 'Bluesky']);
+  });
+  it('exports the calendar, and Buffer’s format', () => {
+    const posts = [
+      { id: 'a', date: '2027-01-02', milestone: 'Wrap', platforms: ['instagram' as const], caption: 'That’s a wrap, "everyone"', mediaIds: ['m1'], people: [], status: 'idea' as const },
+      { id: 'b', platforms: ['x' as const], caption: 'Old news', mediaIds: [], people: [], status: 'posted' as const },
+    ];
+    const cal = calendarCsv(posts, (id) => (id === 'm1' ? 'media/wrap 1.jpg' : undefined));
+    expect(cal.split('\r\n')[0]).toBe('Date,Time,Platforms,Milestone,Caption,Media files,Status,Link');
+    expect(cal).toContain('2027-01-02,10:00,Instagram,Wrap,"That’s a wrap, ""everyone""",media/wrap 1.jpg,idea,');
+    const buf = bufferCsv(posts).split('\r\n');
+    expect(buf[0]).toBe('Text,Image URL,Tags,Posting Time');
+    expect(buf[1]).toBe('"That’s a wrap, ""everyone""",,Wrap,2027-01-02 10:00');
+    expect(buf.length).toBe(3); // posted posts are left out
+  });
+});

@@ -1365,7 +1365,7 @@ export interface PressLaurel {
 }
 
 export type SocialStatus = 'idea' | 'drafted' | 'scheduled' | 'posted';
-export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'bluesky' | 'threads' | 'other';
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'bluesky' | 'threads' | 'linkedin' | 'other';
 export interface SocialPost {
   id: Id;
   date?: ISODate;
@@ -1379,6 +1379,8 @@ export interface SocialPost {
   people: string[];
   status: SocialStatus;
   url?: string;
+  /** Typed in from the platform after posting (Open Gate doesn't fetch stats). */
+  stats?: { views?: number; likes?: number; comments?: number };
 }
 
 export type DeliverableStatus = 'todo' | 'doing' | 'done' | 'na';

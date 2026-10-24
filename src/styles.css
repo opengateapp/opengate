@@ -2297,3 +2297,7 @@ table.cards-on-phone .num-in { width: 100%; }
 .laurel-grid.dark .laurel-img { background: #161616; }
 .laurel-grid:not(.dark) .laurel-img { background: #f6f6f4; }
 .laurel-img img { max-height: 80px; max-width: 100%; object-fit: contain; }
+.share-bar { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px dashed var(--border); }
+.social-ask { gap: 8px; padding: 6px 8px; border-radius: 6px; background: var(--accent-soft); }
+.social-stats { gap: 8px; }
+.social-month-stats { text-transform: none; letter-spacing: 0; }

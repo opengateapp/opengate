@@ -10,7 +10,7 @@ import { docsFor, isDone, people, type Person } from '../paperwork/paperwork';
 
 export const PLATFORMS: { id: SocialPlatform; label: string }[] = [
   { id: 'instagram', label: 'Instagram' }, { id: 'tiktok', label: 'TikTok' }, { id: 'youtube', label: 'YouTube' }, { id: 'x', label: 'X' },
-  { id: 'facebook', label: 'Facebook' }, { id: 'bluesky', label: 'Bluesky' }, { id: 'threads', label: 'Threads' }, { id: 'other', label: 'Other' },
+  { id: 'facebook', label: 'Facebook' }, { id: 'bluesky', label: 'Bluesky' }, { id: 'threads', label: 'Threads' }, { id: 'linkedin', label: 'LinkedIn' }, { id: 'other', label: 'Other' },
 ];
 export const SOCIAL_STATUSES: { id: SocialStatus; label: string }[] = [
   { id: 'idea', label: 'Idea' }, { id: 'drafted', label: 'Drafted' }, { id: 'scheduled', label: 'Scheduled' }, { id: 'posted', label: 'Posted' },
