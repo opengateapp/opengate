@@ -67,13 +67,15 @@ export function PressKitTab() {
       <p className="muted small"><Hint>{'Festivals, journalists and distributors ask for an EPK (electronic press kit). Cast, crew, laurels and tech specs come from the project; grey text is filled in for you and changes when the project does, until you type over it.'}</Hint></p>
 
       <div className="presskit-grid">
-        <section className="presskit-col">
+        <section className="presskit-col pk-film">
           <h4>The film</h4>
           {txt('logline', 'Logline', 2, p.bible?.logline || undefined, 'one sentence')}
           {txt('shortSynopsis', 'Short synopsis', 3, undefined, 'about 50 words')}
           {txt('longSynopsis', 'Long synopsis', 7, p.bible?.synopsis || undefined, 'a few paragraphs')}
           {txt('directorStatement', 'Director’s statement', 6, undefined, 'why you made it')}
+        </section>
 
+        <section className="presskit-col pk-pictures">
           <LaurelsSection ro={ro} set={set} />
 
           <h4>Stills <span className="muted small">{kit.stills.length}</span></h4>
@@ -85,7 +87,7 @@ export function PressKitTab() {
           <p className="muted small">Drop photos here or double-click. Use production stills and behind-the-scenes photos that the people in them have signed releases for.</p>
         </section>
 
-        <section className="presskit-col">
+        <section className="presskit-col pk-details">
           <h4>Poster & links</h4>
           <div className="presskit-poster" {...fileDrop((f) => void setPoster(f))}>
             <Poster id={kit.posterId} />

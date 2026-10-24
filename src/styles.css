@@ -2335,3 +2335,43 @@ table.cards-on-phone .num-in { width: 100%; }
 @media (max-width: 760px) { .tour-card { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; } }
 /* Wide shot tables next to the side panel scroll sideways instead of running off the screen. */
 @media (min-width: 761px) { .shot-group { overflow-x: auto; } }
+
+/* ---- Release tabs on desktop ---- */
+/* Desktop: the page's full width; the film's text, its pictures and the details side by side. */
+@media (min-width: 901px) {
+  .presskit-tab { max-width: none; }
+  .presskit-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: 'film pictures' 'film details'; align-items: start; }
+  .pk-film { grid-area: film; } .pk-pictures { grid-area: pictures; } .pk-details { grid-area: details; }
+  .presskit-people { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .presskit-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(280px, .8fr); grid-template-areas: 'film pictures details'; }
+  .presskit-specs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 901px) {
+  .distribution-tab { max-width: none; }
+  .dist-summary { margin-bottom: 8px; }
+  .deliv-table { width: 100%; }
+  .deliv-table td { vertical-align: top; }
+  .deliv-table td.deliv-main { width: 60%; }
+  .deliv-table .deliv-main input { width: 100%; display: block; }
+  .deliv-table .deliv-main input + input { margin-top: 2px; }
+  .deliv-group-row th { text-align: left; background: var(--panel-2, var(--panel)); font-size: 12px; }
+  .deliv-tr.st-done .deliv-name, .deliv-tr.st-na .deliv-name { text-decoration: line-through; color: var(--muted); }
+}
+@media (min-width: 1280px) {
+  .dist-split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(360px, 1fr); gap: 24px; align-items: start; }
+  .dist-outlets .outlet-list { grid-template-columns: 1fr; }
+}
+@media (min-width: 901px) { .fest-controls { gap: 10px; align-items: center; } }
+/* Social: on desktop the post editor puts the post (caption, media, share) beside its details. */
+.post-meta, .post-main, .post-more { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+@media (min-width: 1100px) {
+  .social-editor .social-card { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); grid-template-areas: 'main meta' 'main more'; gap: 10px 16px; align-items: start; }
+  .social-editor .post-main { grid-area: main; }
+  .social-editor .post-meta { grid-area: meta; }
+  .social-editor .post-more { grid-area: more; }
+  .social-editor .post-main textarea { min-height: 160px; }
+  .social-editor .social-thumb, .social-editor .social-add { width: 96px; height: 96px; }
+  .social-split { grid-template-columns: minmax(320px, .8fr) minmax(560px, 1.6fr); }
+}

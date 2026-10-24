@@ -144,6 +144,7 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
   const shared = () => { if (x.status !== 'posted') setAsk(true); };
   return (
     <article className={`social-card st-${x.status}`} onDragOver={(e) => { if (!ro && e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={(e) => { if (ro) return; e.preventDefault(); addMedia(media(e.dataTransfer.files)); }}>
+      <div className="post-meta">
       <div className="row wrap">
         <input disabled={ro} type="date" value={x.date ?? ''} aria-label="Date" onChange={(e) => set({ date: e.target.value || undefined })} />
         {shootDay && <span className="chip small" title="On this day’s call sheet (BTS & stills section)">🎬 shoot day</span>}
@@ -155,6 +156,8 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
       <div className="rights" role="group" aria-label="Platforms">
         {PLATFORMS.map((pl) => <label key={pl.id} className={`chip small ${x.platforms.includes(pl.id) ? 'on' : ''}`}><input disabled={ro} type="checkbox" hidden checked={x.platforms.includes(pl.id)} onChange={(e) => set({ platforms: e.target.checked ? [...x.platforms, pl.id] : x.platforms.filter((y) => y !== pl.id) as SocialPlatform[] })} />{pl.label}</label>)}
       </div>
+      </div>
+      <div className="post-main">
       <textarea disabled={ro} rows={3} value={x.caption} placeholder="Caption" aria-label="Caption" onChange={(e) => set({ caption: e.target.value })} />
       {over.map((o) => <span key={o.platform} className="small warn">{o.length} characters: {o.label} allows {o.limit.toLocaleString()}.</span>)}
       <ShareBar post={x} missing={missing} onShared={shared} />
@@ -171,6 +174,8 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
         {!ro && (p.pressKit?.stills.length ?? 0) > 0 && <button className="small" onClick={() => set({ mediaIds: [...new Set([...x.mediaIds, ...p.pressKit!.stills])] }, 'Add press stills')} title="Add the press kit’s stills">＋ Press stills</button>}
         {!ro && (p.pressKit?.laurels ?? []).some((l) => l.include && l.imageId) && <button className="small" onClick={() => set({ mediaIds: [...new Set([...x.mediaIds, ...p.pressKit!.laurels!.filter((l) => l.include && l.imageId).map((l) => l.imageId!)])] }, 'Add laurels')} title="Add the laurel images from the press kit">＋ Laurels</button>}
       </div>
+      </div>
+      <div className="post-more">
       <div className="row wrap social-people">
         <span className="muted small">In it:</span>
         {x.people.map((k) => { const who = all.find((y) => y.key === k); return <span key={k} className={`chip small ${missing?.some((m) => m.key === k) ? 'warn-chip' : ''}`}>{who?.name ?? 'Someone'}{!ro && <button className="icon-btn" aria-label={`Remove ${who?.name ?? 'person'}`} onClick={() => set({ people: x.people.filter((y) => y !== k) })}>×</button>}</span>; })}
@@ -192,6 +197,7 @@ function PostCard({ post: x, ro, shootDay, seesPaperwork, set, addMedia, remove 
         </div>
       )}
       {x.status === 'posted' && <input disabled={ro} value={x.url ?? ''} placeholder="Link to the post" aria-label="Link to the post" onChange={(e) => set({ url: e.target.value || undefined })} />}
+      </div>
       <datalist id="social-milestones">{MILESTONES.map((m) => <option key={m} value={m} />)}</datalist>
     </article>
   );
