@@ -27,7 +27,7 @@ export function helpItems(tab?: string): HelpItem[] {
     { id: 'feedback', label: 'Send feedback or an idea', hint: 'A GitHub form, filled in with your app version', run: () => show({ kind: 'feedback', issue: 'feature', tab }) },
     { id: 'bug', label: 'Report a bug', hint: 'Something didn’t work: tell us on GitHub', run: () => show({ kind: 'feedback', issue: 'bug', tab }) },
     { id: 'news', label: 'What’s new', hint: `The release notes (you have ${appContext().version})`, run: () => show({ kind: 'news' }) },
-    { id: 'tour', label: 'Tour of the sample production', hint: 'A walk through every section, stopping at the problems to fix', run: () => window.dispatchEvent(new Event('opengate:tour')), project: true },
+    { id: 'tour', label: 'Tour of the sample production', hint: 'A walk through every section, stopping at the problems to fix', run: () => (useStore.getState().project?.isSample ? window.dispatchEvent(new Event('opengate:tour')) : toast('The tour walks through the sample production: open it from Home → Try the sample production.')), project: true },
     { id: 'reference', label: 'Reference', hint: 'The film school: camera, sound, budgets, unions…', run: () => goto('reference'), project: true },
     { id: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Settings → Keyboard shortcuts', run: () => { goto('setup'); setTimeout(() => window.dispatchEvent(new CustomEvent('opengate:settings', { detail: 'shortcuts' })), 0); }, project: true },
   ];

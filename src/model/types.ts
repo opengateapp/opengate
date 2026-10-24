@@ -1262,6 +1262,8 @@ export interface Project {
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
   /** "Start from a budget": the money, what you have, and the limits to write within (Write → Limits). */
+  /** The sample production (offers the tour). */
+  isSample?: boolean;
   /** Currency and measurements (Settings → Project → Units & currency). Shared with everyone on the project. */
   units?: ProjectUnits;
   writingPlan?: WritingPlan;

@@ -1,4 +1,5 @@
 import { usePrefs } from './prefs';
+import { Tour, TourOffer } from './tour/Tour';
 import { PlanBudgetSummary } from './components/PlanBudget';
 import { HelpDialogs, HelpMenu } from './help/HelpMenu';
 import { useTabLock } from './store/tabLock';
@@ -318,6 +319,8 @@ export function App() {
       )}
       <AccessBanner />
       <HelpDialogs />
+      <Tour />
+      <TourOffer />
       {phone && <PhonePanels tab={tab} />}
       <main className={`tab-body ${sideHidden && !phone ? 'side-hidden' : ''}`}>
         <TabBoundary tab={tab}>

@@ -90,7 +90,7 @@ const textDoc = (lines: string[]) => ({
 export function buildSampleProduction(): Project {
   const parsed = parseFountain(SAMPLE_PRODUCTION_FOUNTAIN);
   // The sample's rates are US figures (SAG-AFTRA, US crew): it stays in US dollars and feet wherever it's opened.
-  let p = produce(newProject('The Last Reel'), (dr) => { applyImportedScript(dr, parsed); dr.units = { currency: 'USD', symbolStyle: 'narrow', distance: 'ft', locale: 'en-US' }; dr.budget.currency = 'USD'; });
+  let p = produce(newProject('The Last Reel'), (dr) => { applyImportedScript(dr, parsed); dr.units = { currency: 'USD', symbolStyle: 'narrow', distance: 'ft', locale: 'en-US' }; dr.budget.currency = 'USD'; dr.isSample = true; });
   const d0 = derive(p.scriptDoc, p.sceneNumbersLocked);
   /** Scene id by scene number (1–22, in script order). */
   const sc = (n: number) => d0.scenes[n - 1].id;
