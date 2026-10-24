@@ -25,6 +25,8 @@ import { syncGearLines, syncPlanGear } from '../budget/gear';
 import { missingMarketingLines } from '../budget/templates';
 import { addMarketingTasks } from '../plan/marketingTasks';
 import { writeFestivals } from '../budget/festivals';
+import { milestonePosts } from '../release/social';
+import { missingDeliverables, newOutlet } from '../release/distribution';
 
 // The sample production: "The Last Reel" filled in across every section, so each tab has something
 // real to show, with a few deliberate problems that make the warnings teach:
@@ -602,6 +604,26 @@ export function buildSampleProduction(): Project {
       fest('Silver Reel Awards (fictional)', 'long-shot', 'none', 200, [['Regular', 55, 75]], { status: 'considering', location: 'Online' }),
       fest('Hometown Screens (fictional)', 'local', 'none', 100, [['Regular', 20, 20]], { status: 'considering', location: 'Ridgeview, MT (fictional)' }),
     ], true);
+
+    // Release: the press kit, a social calendar from the milestones, deliverables and who might
+    // release it. Deliberate problems: a tagged actor without a signed release, and a song whose
+    // licence (festivals and online) doesn't cover the TV channel's trailer use.
+    dr.pressKit = {
+      shortSynopsis: 'A projectionist and her uncle have one weekend to bring a dead drive-in back to life, and one reel of film to remind their town why it mattered.',
+      directorStatement: 'My grandparents met at a drive-in. I wanted to make a film about the places a town shares, and what we lose when the last one goes dark. We shot it in three days on a real lot, with the people who used to run it.',
+      stills: [], specs: { sound: 'Stereo', color: 'Colour', language: 'English', country: 'United States', year: '2027' },
+      contact: { name: 'Jordan Lee (sample)', email: 'press@starlite.example' },
+    };
+    const posts = milestonePosts(dr as Project);
+    posts.forEach((x, i) => { x.status = i < 1 ? 'posted' : i < 3 ? 'scheduled' : i < 5 ? 'drafted' : 'idea'; });
+    const firstDayPost = posts.find((x) => x.milestone === 'First shoot day');
+    if (firstDayPost) firstDayPost.people = dr.cast.slice(0, 3).map((c) => `cast:${c.id}`);
+    dr.socialPosts = posts;
+    dr.deliverables = missingDeliverables([]).map((x, i) => ({ ...x, status: i < 3 ? 'done' : i < 6 ? 'doing' : 'todo' }));
+    dr.outlets = [
+      newOutlet({ name: 'ShortReel (fictional aggregator)', kind: 'aggregator', status: 'researching', rights: ['streaming', 'online'], territory: 'Worldwide' }),
+      newOutlet({ name: 'Northwind Shorts Channel (fictional)', kind: 'broadcaster', status: 'contacted', rights: ['tv', 'trailer'], territory: 'Canada', notes: 'Wants a 30-second promo cut.' }),
+    ];
 
     // Two versions to compare: as budgeted (Ultra Low, UPA) and Micro-Budget.
     const castLines = dr.budget.lines.filter((l) => l.link?.kind === 'cast');
