@@ -95,7 +95,7 @@ export function autofillCallSheet(p: Project, d: Derived, day: ShootDay, existin
 // ---- Page layout ----
 
 export const SECTION_LABELS: Record<CallSheetSection['kind'], string> = {
-  scenes: 'Scenes', cast: 'Cast', crew: 'Crew', notes: 'Production notes', locations: 'Locations', advance: 'Advance schedule', table: 'Custom table',
+  scenes: 'Scenes', cast: 'Cast', crew: 'Crew', notes: 'Production notes', locations: 'Locations', advance: 'Advance schedule', table: 'Custom table', bts: 'BTS & stills',
 };
 
 export function defaultSections(): CallSheetSection[] {
@@ -112,6 +112,7 @@ export const SECTION_TEMPLATES: { label: string; make: () => CallSheetSection }[
   { label: 'Locations table', make: () => ({ id: newId(), kind: 'locations', title: 'Locations' }) },
   { label: 'Advance schedule (next shoot day)', make: () => ({ id: newId(), kind: 'advance', title: 'Advance schedule' }) },
   { label: 'Notes box', make: () => ({ id: newId(), kind: 'notes', title: 'Notes', text: '' }) },
+  { label: 'BTS & stills to get (Release → Social)', make: () => ({ id: newId(), kind: 'bts', title: 'BTS & stills', text: '' }) },
   { label: 'Walkie channels', make: () => table('Walkie channels', ['Channel', 'Department'], [['1', 'Production'], ['2', 'Open / chat'], ['3', 'Camera'], ['4', 'Grip & Electric']]) },
   { label: 'Background / extras', make: () => table('Background', ['Description', 'Qty', 'Call time', 'Wardrobe / notes'], [['', '', '', '']]) },
   { label: 'Vendors & deliveries', make: () => table('Vendors & deliveries', ['Vendor', 'Item', 'Time', 'Contact', 'Phone'], [['', '', '', '', '']]) },
@@ -180,6 +181,17 @@ export function infoValue(row: CallSheetInfoRow, r: ResolvedCallSheet, day: Shoo
     }
     default: return '';
   }
+}
+
+/**
+ * Behind-the-scenes photos and clips to get today: what you typed (one per line), plus Social posts
+ * planned for this day that aren't posted yet.
+ */
+export function btsItems(p: Project, day: ShootDay, sec: CallSheetSection): { what: string; why: string }[] {
+  const typed = (sec.text ?? '').split('\n').map((x) => x.trim()).filter(Boolean).map((what) => ({ what, why: '' }));
+  const posts = (p.socialPosts ?? []).filter((x) => x.date === day.date && x.status !== 'posted')
+    .map((x) => ({ what: x.caption.split('\n')[0].slice(0, 90) || x.milestone || 'Social post', why: ['Social', x.milestone].filter(Boolean).join(': ') }));
+  return [...typed, ...posts];
 }
 
 /** Next shoot day's scenes, for the advance schedule section. */

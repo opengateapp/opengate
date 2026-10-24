@@ -284,7 +284,7 @@ export interface CallSheetLocation {
 
 // ---- Call sheet page layout (all optional so older sheets keep working) ----
 
-export type CallSheetSectionKind = 'scenes' | 'cast' | 'crew' | 'notes' | 'locations' | 'advance' | 'table';
+export type CallSheetSectionKind = 'scenes' | 'cast' | 'crew' | 'notes' | 'locations' | 'advance' | 'table' | 'bts';
 
 export interface CallSheetSection {
   id: Id;
@@ -294,7 +294,7 @@ export interface CallSheetSection {
   /** Custom tables. */
   columns?: string[];
   rows?: { id: Id; cells: string[] }[];
-  /** Notes boxes: left and right columns. */
+  /** Notes boxes: left and right columns. BTS: one photo or clip to get per line. */
   text?: string;
   text2?: string;
 }
@@ -1353,8 +1353,8 @@ export interface SocialPost {
   caption: string;
   /** Photos and clips (media ids). */
   mediaIds: Id[];
-  /** Contacts who appear in it (they need a signed release). */
-  people: Id[];
+  /** People who appear in it, as person keys (`cast:<id>`, `crew:<id>`, `contact:<id>`): they need a signed release. */
+  people: string[];
   status: SocialStatus;
   url?: string;
 }

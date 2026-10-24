@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import type { CallSheetSection, Project, ShootDay } from '../model/types';
 import { sceneCast, sceneEighths, type Derived } from '../script/derive';
 import { formatClock12, formatDate, formatEighths, parseClock } from '../model/dates';
-import { resolveCallSheet, infoValue, advanceSchedule, callDayLabel, type ResolvedCallSheet } from '../schedule/callsheet';
+import { resolveCallSheet, infoValue, advanceSchedule, btsItems, callDayLabel, type ResolvedCallSheet } from '../schedule/callsheet';
 import { buildDood } from '../schedule/dood';
 import { getMedia, blobToImage } from '../store/media';
 import { clip } from './schedulePdf';
@@ -321,6 +321,11 @@ function drawSection(s: Sheet, p: Project, d: Derived, day: ShootDay, r: Resolve
       a.forEach((l, i) => s.doc.text(l, M + 4, s.y + 12 + i * 10));
       b.forEach((l, i) => s.doc.text(l, M + half + 12, s.y + 12 + i * 10));
       s.y += h + 12;
+      break;
+    }
+    case 'bts': {
+      const items = btsItems(p, day, sec);
+      table(s, ['BTS & stills to get', 'For'], [70, 30], items.length ? items.map((x) => [x.what, x.why]) : [['Nothing listed.', '']]);
       break;
     }
     case 'table': {
