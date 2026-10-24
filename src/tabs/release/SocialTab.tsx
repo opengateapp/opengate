@@ -5,6 +5,7 @@ import { putMedia, useMediaUrl } from '../../store/media';
 import { canEdit, useSync } from '../../sync/state';
 import { formatDate } from '../../model/dates';
 import { prepareImage } from '../storyboard/images';
+import { useNarrow } from '../../ui/responsive';
 import { MILESTONES, PLATFORMS, SOCIAL_STATUSES, missingMilestonePosts, newPost, taggable, unreleased } from '../../release/social';
 import { toast } from '../../components/common';
 import { deletedToast } from '../../components/deleted';
@@ -29,11 +30,13 @@ export function SocialTab() {
   const posts = p.socialPosts ?? [];
   const shown = useMemo(() => posts.filter((x) => !show || x.status === show).slice().sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999')), [posts, show]);
   const ideas = useMemo(() => missingMilestonePosts(p), [p]);
+  const narrow = useNarrow();
+  const [sel, setSel] = useState<string | null>(null);
   const shootDates = useMemo(() => new Set(p.schedule.days.filter((d) => d.items.some((i) => i.kind === 'scene')).map((d) => d.date)), [p.schedule.days]);
 
   const edit = (fn: (l: SocialPost[]) => void, label: string | null = 'Edit social posts') => update((dr) => { dr.socialPosts ??= []; fn(dr.socialPosts as SocialPost[]); }, label);
   const set = (id: string, patch: Partial<SocialPost>, label: string | null = null) => edit((l) => { const x = l.find((y) => y.id === id); if (x) Object.assign(x, patch); }, label);
-  const add = () => edit((l) => { l.push(newPost()); }, 'Add post');
+  const add = () => { const x = newPost(); edit((l) => { l.push(x); }, 'Add post'); setSel(x.id); };
   const addMedia = async (id: string, files: File[]) => {
     if (ro || !files.length) return;
     const ids: string[] = [];
@@ -64,6 +67,29 @@ export function SocialTab() {
       </div>
       <p className="muted small"><Hint>{'Plan posts around the production: casting, first day, wrap, picture lock, the poster, festival news. Posts dated on a shoot day show up on that day’s call sheet (add a “BTS & stills” section) so someone gets the photo.'}</Hint></p>
 
+      {!narrow && posts.length > 0 ? (() => {
+        const cur = shown.find((x) => x.id === sel) ?? shown[0];
+        return (
+          <div className="social-split">
+            <div className="social-rows" role="listbox" aria-label="Posts">
+              {[...groups].map(([month, list]) => (
+                <section key={month}>
+                  <h4>{month === 'none' ? 'No date yet' : formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}</h4>
+                  {list.map((x) => <PostRow key={x.id} post={x} on={x.id === cur?.id} shootDay={!!x.date && shootDates.has(x.date)} seesPaperwork={seesPaperwork} pick={() => setSel(x.id)} />)}
+                </section>
+              ))}
+              {!ro && <button className="social-row-add" onClick={add} onDoubleClick={(e) => e.stopPropagation()}>＋ Post</button>}
+            </div>
+            <div className="social-editor">
+              {cur ? <PostCard key={cur.id} post={cur} ro={ro} shootDay={!!cur.date && shootDates.has(cur.date)} seesPaperwork={seesPaperwork}
+                set={(patch, label) => set(cur.id, patch, label)}
+                addMedia={(f) => void addMedia(cur.id, f)}
+                remove={() => { const i = shown.findIndex((y) => y.id === cur.id); setSel(shown[i + 1]?.id ?? shown[i - 1]?.id ?? null); edit((l) => { const k = l.findIndex((y) => y.id === cur.id); if (k >= 0) l.splice(k, 1); }, 'Delete post'); deletedToast('post'); }} />
+                : <p className="muted">No posts with that status.</p>}
+            </div>
+          </div>
+        );
+      })() : (
       <div className="social-list">
         {!posts.length && <p className="muted pad"><Hint>{'No posts yet. “Add milestone ideas” starts a calendar from your schedule and festivals; or double-click here to add one.'}</Hint></p>}
         {[...groups].map(([month, list]) => (
@@ -78,7 +104,26 @@ export function SocialTab() {
           </section>
         ))}
       </div>
+      )}
     </div>
+  );
+}
+
+const PLATFORM_SHORT: Record<SocialPlatform, string> = { instagram: 'IG', tiktok: 'TT', youtube: 'YT', x: 'X', facebook: 'FB', bluesky: 'BS', threads: 'TH', other: '…' };
+
+/** Desktop: one compact row per post; click (or double-click) to edit it on the right. */
+function PostRow({ post: x, on, shootDay, seesPaperwork, pick }: { post: SocialPost; on: boolean; shootDay: boolean; seesPaperwork: boolean; pick: () => void }) {
+  const p = useProject();
+  const missing = unreleased(p, x, seesPaperwork);
+  return (
+    <button role="option" aria-selected={on} className={`social-row st-${x.status} ${on ? 'on' : ''}`} onClick={pick} onDoubleClick={() => { pick(); setTimeout(() => (document.querySelector('.social-editor textarea') as HTMLTextAreaElement | null)?.focus(), 0); }}>
+      <span className="social-row-date">{x.date ? formatDate(x.date, { month: 'short', day: 'numeric' }) : '—'}{shootDay && <span title="Shoot day"> 🎬</span>}</span>
+      <span className="social-row-main"><b>{x.milestone || 'Post'}</b><span className="muted small">{x.caption.split('\n')[0] || 'No caption yet'}</span></span>
+      <span className="social-row-pl muted small">{x.platforms.map((pl) => PLATFORM_SHORT[pl]).join(' ')}</span>
+      {x.mediaIds.length > 0 && <span className="muted small">🖼 {x.mediaIds.length}</span>}
+      {missing && missing.length > 0 && <span className="warn small" title={`No signed release: ${missing.map((m) => m.name).join(', ')}`}>⚠</span>}
+      <span className={`doc-status s-${x.status} small`}>{SOCIAL_STATUSES.find((s) => s.id === x.status)?.label}</span>
+    </button>
   );
 }
 

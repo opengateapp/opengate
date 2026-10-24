@@ -2255,3 +2255,17 @@ button.explain { padding: 0; background: none; font-family: inherit; }
 .social-people .chip { display: inline-flex; align-items: center; gap: 2px; }
 .social-people .chip .icon-btn { min-height: 0; padding: 0 2px; }
 .warn-chip { border-color: #f59e0b; background: rgba(245, 158, 11, .12); }
+@media (min-width: 901px) {
+  .social-tab { max-width: none; display: flex; flex-direction: column; height: 100%; }
+  .social-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.3fr); gap: 16px; }
+  .social-rows { overflow-y: auto; padding-right: 4px; }
+  .social-editor { overflow-y: auto; }
+  .social-editor .social-card { margin: 0; }
+}
+.social-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto auto auto auto; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; height: auto; min-height: 0; border: 1px solid transparent; border-radius: 6px; background: none; color: inherit; font: inherit; }
+.social-row:hover { background: var(--panel); }
+.social-row.on { border-color: var(--accent); background: var(--accent-soft); }
+.social-row.st-posted { opacity: .65; }
+.social-row-main { display: flex; flex-direction: column; min-width: 0; }
+.social-row-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.social-row-add { margin-top: 8px; }
