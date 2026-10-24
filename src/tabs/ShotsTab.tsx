@@ -175,7 +175,7 @@ export function ShotsTab() {
                         <td><LensInput value={sh.lens} options={LENSES} onChange={(v) => setField(sh.id, 'lens', v)} /></td>
                         <td><Select value={sh.move} options={MOVES} onChange={(v) => setField(sh.id, 'move', v)} /></td>
                         <td><input value={sh.subject} onChange={(e) => setField(sh.id, 'subject', e.target.value)} /></td>
-                        <td><DurationInput className="w-sm" value={sh.duration} onChange={(v) => setField(sh.id, 'duration', v)} /></td>
+                        <td><DurationInput compact className="w-sm" value={sh.duration} onChange={(v) => setField(sh.id, 'duration', v)} /></td>
                         <td><Select value={sh.priority} options={PRIORITIES} onChange={(v) => setField(sh.id, 'priority', v)} /></td>
                         <td className="actions">
                           <button className="icon-btn" title="All fields" onClick={() => setEditing(sh.id)}>⋯</button>

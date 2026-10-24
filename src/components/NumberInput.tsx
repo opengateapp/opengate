@@ -94,14 +94,13 @@ export function useCurrencyAffix(): { prefix?: string; suffix?: string } {
 }
 
 /** A duration typed as "0:12", "12" or "1m 5s", shown as m:ss once you leave the box. Stored as text. */
-export function DurationInput({ value, onChange, className, placeholder = '0:12', disabled }: { value: string; onChange: (v: string) => void; className?: string; placeholder?: string; disabled?: boolean }) {
-  return (
-    <Affixed suffix="m:ss" disabled={disabled} className={className}>
-      <input value={value} placeholder={placeholder} disabled={disabled} inputMode="numeric"
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={(e) => { const s = parseDuration(e.target.value); if (s != null) onChange(formatDuration(s)); }} />
-    </Affixed>
+export function DurationInput({ value, onChange, className, placeholder = '0:12', disabled, compact }: { value: string; onChange: (v: string) => void; className?: string; placeholder?: string; disabled?: boolean; /** In tight tables: "m:ss" as the placeholder instead of a label. */ compact?: boolean }) {
+  const input = (
+    <input className={compact ? className : undefined} value={value} placeholder={compact ? 'm:ss' : placeholder} title="Minutes:seconds, e.g. 0:12" disabled={disabled} inputMode="numeric"
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => { const s = parseDuration(e.target.value); if (s != null) onChange(formatDuration(s)); }} />
   );
+  return compact ? input : <Affixed suffix="m:ss" disabled={disabled} className={className}>{input}</Affixed>;
 }
 
 const MM = /^(\d+(?:\.\d+)?)\s*mm$/i;

@@ -2333,3 +2333,5 @@ table.cards-on-phone .num-in { width: 100%; }
 .tour-card .guide-steps { margin-bottom: 4px; }
 .tour-hl { outline: 3px solid var(--accent) !important; outline-offset: 3px; border-radius: 6px; transition: outline-color .3s; }
 @media (max-width: 760px) { .tour-card { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; } }
+/* Wide shot tables next to the side panel scroll sideways instead of running off the screen. */
+@media (min-width: 761px) { .shot-group { overflow-x: auto; } }
