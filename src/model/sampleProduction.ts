@@ -24,7 +24,9 @@ import { totals } from '../budget/calc';
 import { syncGearLines, syncPlanGear } from '../budget/gear';
 import { missingMarketingLines } from '../budget/templates';
 import { addMarketingTasks } from '../plan/marketingTasks';
-import { syncFestivalLines } from '../budget/festivals';
+import { writeFestivals } from '../budget/festivals';
+import { milestonePosts } from '../release/social';
+import { missingDeliverables, newOutlet } from '../release/distribution';
 
 // The sample production: "The Last Reel" filled in across every section, so each tab has something
 // real to show, with a few deliberate problems that make the warnings teach:
@@ -87,7 +89,8 @@ const textDoc = (lines: string[]) => ({
 
 export function buildSampleProduction(): Project {
   const parsed = parseFountain(SAMPLE_PRODUCTION_FOUNTAIN);
-  let p = produce(newProject('The Last Reel'), (dr) => { applyImportedScript(dr, parsed); });
+  // The sample's rates are US figures (SAG-AFTRA, US crew): it stays in US dollars and feet wherever it's opened.
+  let p = produce(newProject('The Last Reel'), (dr) => { applyImportedScript(dr, parsed); dr.units = { currency: 'USD', symbolStyle: 'narrow', distance: 'ft', locale: 'en-US' }; dr.budget.currency = 'USD'; dr.isSample = true; });
   const d0 = derive(p.scriptDoc, p.sceneNumbersLocked);
   /** Scene id by scene number (1–22, in script order). */
   const sc = (n: number) => d0.scenes[n - 1].id;
@@ -268,10 +271,10 @@ export function buildSampleProduction(): Project {
     );
 
     const loc = (key: string, l: Omit<Project['locations'][number], 'id'>) => { const id = newId(); dr.locations.push({ id, ...l }); ids[key] = id; return id; };
-    const driveIn = loc('loc:drive-in', { setName: 'DRIVE-IN THEATER', realName: 'Ridgeview Drive-In (closed)', address: '4400 Old Highway 12, Ridgeview, MT', status: 'confirmed', contactName: 'Gary Hollis', contactPhone: '(406) 555-0142', fee: '$200/day', permit: 'County film permit + public-gathering permit (Sc 18–21)', parking: 'Basecamp by the snack bar', power: 'None: bring the generator', restrooms: 'Rent two portable toilets', nearestHospital: 'Ridgeview General, 12 min', photoIds: [] });
-    const road = loc('loc:road', { setName: 'COUNTY ROAD', realName: 'Mill Creek Road (County Rd 12)', address: 'County Rd 12 between mile 3 and 4', status: 'hold', fee: '$150 flat', permit: 'Road-use permit and closure for the swerve (Sc 12): requested', parking: 'Gravel pull-out at mile 3', nearestHospital: 'Ridgeview General, 18 min', photoIds: [] });
-    loc('loc:kitchen', { setName: 'THEO\'S KITCHEN', realName: 'The producer\'s aunt\'s house', address: '17 Birch Lane, Ridgeview', status: 'confirmed', fee: 'Free (a thank-you credit)', permit: 'Not needed (private home)', photoIds: [] });
-    loc('loc:diner', { setName: 'ROSIE\'S DINER', realName: 'Rosie\'s Diner', address: '210 Main St, Ridgeview', status: 'hold', contactName: 'Rosie Albers', contactPhone: '(406) 555-0150', fee: '$250/day', permit: 'Not needed (private business)', notes: 'Added in the production draft: a 4th location and a pickup day.', photoIds: [] });
+    const driveIn = loc('loc:drive-in', { setName: 'DRIVE-IN THEATER', realName: 'Ridgeview Drive-In (closed)', address: '4400 Old Highway 12, Ridgeview, MT', status: 'confirmed', contactName: 'Gary Hollis', contactPhone: '(406) 555-0142', feeAmount: 200, feePer: 'day', permit: 'County film permit + public-gathering permit (Sc 18–21)', parking: 'Basecamp by the snack bar', power: 'None: bring the generator', restrooms: 'Rent two portable toilets', nearestHospital: 'Ridgeview General, 12 min', photoIds: [] });
+    const road = loc('loc:road', { setName: 'COUNTY ROAD', realName: 'Mill Creek Road (County Rd 12)', address: 'County Rd 12 between mile 3 and 4', status: 'hold', feeAmount: 150, feePer: 'flat', permit: 'Road-use permit and closure for the swerve (Sc 12): requested', parking: 'Gravel pull-out at mile 3', nearestHospital: 'Ridgeview General, 18 min', photoIds: [] });
+    loc('loc:kitchen', { setName: 'THEO\'S KITCHEN', realName: 'The producer\'s aunt\'s house', address: '17 Birch Lane, Ridgeview', status: 'confirmed', feeAmount: 0, feePer: 'flat', fee: 'Free (a thank-you credit)', permit: 'Not needed (private home)', photoIds: [] });
+    loc('loc:diner', { setName: 'ROSIE\'S DINER', realName: 'Rosie\'s Diner', address: '210 Main St, Ridgeview', status: 'hold', contactName: 'Rosie Albers', contactPhone: '(406) 555-0150', feeAmount: 250, feePer: 'day', permit: 'Not needed (private business)', notes: 'Added in the production draft: a 4th location and a pickup day.', photoIds: [] });
     // Scenes at the drive-in and on the road that use other set names (the booth, the truck).
     for (const n of [4, 5, 6, 7, 8, 16, 17, 18, 19]) dr.sceneMeta[sc(n)] = { ...dr.sceneMeta[sc(n)], locationId: driveIn };
     for (const n of [2, 11, 13]) dr.sceneMeta[sc(n)] = { ...dr.sceneMeta[sc(n)], locationId: road };
@@ -593,7 +596,7 @@ export function buildSampleProduction(): Project {
       const dls = deadlines.map(([label, inDays, fee]) => ({ id: newId(), label, date: addDays(lock, inDays), fee }));
       return { id: newId(), name, platform: 'filmfreeway', tier, premiere, status: 'planned', eventStart: addDays(lock, eventIn), eventEnd: addDays(lock, eventIn + 4), deadlines: dls, aim: dls[0].id, category: 'Narrative short', ...extra };
     };
-    dr.budget.festivals = [
+    writeFestivals(dr, [
       fest('Northern Lights International Film Festival (fictional)', 'top', 'world', 210, [['Earlybird', 30, 50], ['Regular', 60, 65], ['Late', 90, 80]], { location: 'Calgary, AB (fictional)', notes: 'Wants a world premiere: hold the film back from earlier festivals if we get in.' }),
       fest('Prairie Light Film Festival (fictional)', 'local', 'none', 120, [['Earlybird', 21, 25], ['Regular', 50, 35]], { location: 'Billings, MT (fictional)', attend: true, travel: 250 }),
       fest('Big Sky Indie Shorts (fictional)', 'target', 'regional', 160, [['Regular', 35, 40], ['Late', 70, 55]], { location: 'Missoula, MT (fictional)' }),
@@ -601,8 +604,27 @@ export function buildSampleProduction(): Project {
       fest('Coastline Film Week (fictional)', 'target', 'national', 240, [['Earlybird', 45, 45], ['Regular', 80, 60]], { location: 'Portland, OR (fictional)', waiver: 'Fee waiver for first-time filmmakers (apply by email)' }),
       fest('Silver Reel Awards (fictional)', 'long-shot', 'none', 200, [['Regular', 55, 75]], { status: 'considering', location: 'Online' }),
       fest('Hometown Screens (fictional)', 'local', 'none', 100, [['Regular', 20, 20]], { status: 'considering', location: 'Ridgeview, MT (fictional)' }),
+    ], true);
+
+    // Release: the press kit, a social calendar from the milestones, deliverables and who might
+    // release it. Deliberate problems: a tagged actor without a signed release, and a song whose
+    // licence (festivals and online) doesn't cover the TV channel's trailer use.
+    dr.pressKit = {
+      shortSynopsis: 'A projectionist and her uncle have one weekend to bring a dead drive-in back to life, and one reel of film to remind their town why it mattered.',
+      directorStatement: 'My grandparents met at a drive-in. I wanted to make a film about the places a town shares, and what we lose when the last one goes dark. We shot it in three days on a real lot, with the people who used to run it.',
+      stills: [], specs: { sound: 'Stereo', color: 'Colour', language: 'English', country: 'United States', year: '2027' },
+      contact: { name: 'Jordan Lee (sample)', email: 'press@starlite.example' },
+    };
+    const posts = milestonePosts(dr as Project);
+    posts.forEach((x, i) => { x.status = i < 1 ? 'posted' : i < 3 ? 'scheduled' : i < 5 ? 'drafted' : 'idea'; });
+    const firstDayPost = posts.find((x) => x.milestone === 'First shoot day');
+    if (firstDayPost) firstDayPost.people = dr.cast.slice(0, 3).map((c) => `cast:${c.id}`);
+    dr.socialPosts = posts;
+    dr.deliverables = missingDeliverables([]).map((x, i) => ({ ...x, status: i < 3 ? 'done' : i < 6 ? 'doing' : 'todo' }));
+    dr.outlets = [
+      newOutlet({ name: 'ShortReel (fictional aggregator)', kind: 'aggregator', status: 'researching', rights: ['streaming', 'online'], territory: 'Worldwide' }),
+      newOutlet({ name: 'Northwind Shorts Channel (fictional)', kind: 'broadcaster', status: 'contacted', rights: ['tv', 'trailer'], territory: 'Canada', notes: 'Wants a 30-second promo cut.' }),
     ];
-    syncFestivalLines(dr, todayISO());
 
     // Two versions to compare: as budgeted (Ultra Low, UPA) and Micro-Budget.
     const castLines = dr.budget.lines.filter((l) => l.link?.kind === 'cast');

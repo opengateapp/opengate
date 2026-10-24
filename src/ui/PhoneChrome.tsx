@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { openFaq } from '../help/HelpMenu';
+import { helpItems } from '../help/HelpMenu';
 import { useStore } from '../store/project';
 import { useSync } from '../sync/state';
 import { useReview } from '../sync/review';
@@ -62,6 +64,7 @@ export function PhoneTopbar({ sections, allSections, tab, setTab, saveState }: {
           <hr />
           <button onClick={() => go('reports')}>⤓ Exports</button>
           <button onClick={() => go('setup')}>⚙ Settings</button>
+          <button onClick={() => openFaq()}>? Help &amp; FAQ</button>
           <div className="menu-note">{saveState === 'saved' ? 'All changes saved on this device' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes'}</div>
         </MoreMenu>
       </header>
@@ -116,6 +119,10 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
         </div>
         <div className="drawer-sections drawer-extra">
           <button className={tab === 'reports' ? 'active' : ''} onClick={() => onPick('reports')}><b>⤓ Exports</b><span>Every PDF, spreadsheet, calendar and the end credits</span></button>
+        </div>
+        <div className="drawer-sections drawer-extra drawer-help">
+          <span className="muted small">? Help</span>
+          {helpItems(tab).filter((it) => it.id !== 'reference').map((it) => <button key={it.id} onClick={() => { onClose(); it.run(); }}><b>{it.label}</b><span>{it.hint}</span></button>)}
         </div>
         <div className="drawer-foot">
           {lite && sections !== allSections && (

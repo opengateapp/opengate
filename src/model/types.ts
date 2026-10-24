@@ -133,7 +133,11 @@ export interface Location {
   power?: string;
   restrooms?: string;
   nearestHospital?: string;
+  /** The fee as typed before v0.6 ("$200/day"), now kept as a note next to `feeAmount`. */
   fee?: string;
+  /** The location fee, in the project currency, per day or flat. */
+  feeAmount?: number;
+  feePer?: 'day' | 'flat';
   photoIds?: Id[];
 }
 
@@ -284,7 +288,7 @@ export interface CallSheetLocation {
 
 // ---- Call sheet page layout (all optional so older sheets keep working) ----
 
-export type CallSheetSectionKind = 'scenes' | 'cast' | 'crew' | 'notes' | 'locations' | 'advance' | 'table';
+export type CallSheetSectionKind = 'scenes' | 'cast' | 'crew' | 'notes' | 'locations' | 'advance' | 'table' | 'bts';
 
 export interface CallSheetSection {
   id: Id;
@@ -294,7 +298,7 @@ export interface CallSheetSection {
   /** Custom tables. */
   columns?: string[];
   rows?: { id: Id; cells: string[] }[];
-  /** Notes boxes: left and right columns. */
+  /** Notes boxes: left and right columns. BTS: one photo or clip to get per line. */
   text?: string;
   text2?: string;
 }
@@ -769,8 +773,14 @@ export interface Budget {
   fundingSources?: FundingSource[];
   /** Funding settings: estimate pace, starter-rate level, crowdfunding plan. */
   funding?: FundingPlan;
-  /** Festivals you're aiming at: deadlines, fees and status (Budget → Festivals). */
+  /**
+   * Festivals as v0.4–v0.5 stored them (money and all). Since Release, the list lives in
+   * `Project.festivals` and its money in `festivalCosts`; this is still read (and moved) so an
+   * older copy in a shared room doesn't lose entries.
+   */
   festivals?: Festival[];
+  /** Each festival's money, keyed by festival id: private like the rest of the budget. */
+  festivalCosts?: FestivalCost[];
 }
 
 export type FestivalStatus = 'considering' | 'planned' | 'submitted' | 'accepted' | 'declined' | 'withdrawn';
@@ -804,7 +814,15 @@ export interface Festival {
   attend?: boolean;
   travel?: number;
   notes?: string;
+  /** What the festival gave you, for the poster and press kit: "Official Selection", "Winner: Best Short". */
+  laurel?: string;
 }
+
+/** A festival as everyone with Release access sees it: no fees, waiver, paid or travel. */
+export type FestivalInfo = Omit<Festival, 'deadlines' | 'waiver' | 'feePaid' | 'travel'> & { deadlines: Omit<FestivalDeadline, 'fee'>[] };
+
+/** A festival's money (budget key only). `id` is the festival's. */
+export interface FestivalCost { id: Id; fees: Record<Id, number>; waiver?: string; feePaid?: number; travel?: number }
 
 export type FundingKind = 'cash' | 'inkind' | 'deferral' | 'grant' | 'investor' | 'crowdfunding' | 'sponsor' | 'presale' | 'incentive' | 'loan' | 'other';
 export type FundingStatus = 'idea' | 'applied' | 'pledged' | 'received';
@@ -1244,7 +1262,20 @@ export interface Project {
   /** Story structure used for beat markers in the Scenes list (Reference → Story structures). */
   structure?: { frameworkId: string };
   /** "Start from a budget": the money, what you have, and the limits to write within (Write → Limits). */
+  /** The sample production (offers the tour). */
+  isSample?: boolean;
+  /** Currency and measurements (Settings → Project → Units & currency). Shared with everyone on the project. */
+  units?: ProjectUnits;
   writingPlan?: WritingPlan;
+  /** Release → Festivals (their money is in budget.festivalCosts). */
+  festivals?: FestivalInfo[];
+  /** Release → Press kit. */
+  pressKit?: PressKit;
+  /** Release → Social & BTS. */
+  socialPosts?: SocialPost[];
+  /** Release → Distribution: what you have to hand over, and who might release the film. */
+  deliverables?: Deliverable[];
+  outlets?: Outlet[];
   bible?: StoryBible;
   credits?: CreditsSettings;
   characterOptions?: CharacterOptions;
@@ -1294,4 +1325,105 @@ export interface WritingPlan {
   perLocation: number;
   /** The Limits panel in Write → Screenplay. */
   on: boolean;
+}
+
+// ---------------------------------------------------------------- release
+
+export interface PressKit {
+  logline?: string;
+  shortSynopsis?: string;
+  longSynopsis?: string;
+  directorStatement?: string;
+  /** Press-approved stills: media ids (storyboard images, BTS photos, uploads). */
+  stills: Id[];
+  posterId?: Id;
+  trailerUrl?: string;
+  website?: string;
+  /** Tech specs; empty ones are filled from the project when shown. */
+  specs: { runtime?: string; aspect?: string; camera?: string; sound?: string; color?: string; language?: string; country?: string; year?: string; genre?: string };
+  contact: { name?: string; email?: string; phone?: string };
+  /** People (by key) left out of the press kit. */
+  hidden?: string[];
+  /** Short bios written for the press kit, by person key (`cast:<id>` / `crew:<id>`). */
+  bios?: Record<string, string>;
+  /** Headshots (media ids), by person key. */
+  photos?: Record<string, Id>;
+  /** Laurel images festivals send (the wreaths), in display order. */
+  laurels?: PressLaurel[];
+}
+
+/** A laurel image: PNG or SVG kept as sent, with a version for dark backgrounds if there is one. */
+export interface PressLaurel {
+  id: Id;
+  imageId?: Id;
+  darkImageId?: Id;
+  /** The festival on Release → Festivals, when it's there. */
+  festivalId?: Id;
+  festival: string;
+  /** "Official Selection", "Winner: Best Short"… */
+  text: string;
+  year?: string;
+  include: boolean;
+}
+
+export type SocialStatus = 'idea' | 'drafted' | 'scheduled' | 'posted';
+export type SocialPlatform = 'instagram' | 'tiktok' | 'youtube' | 'x' | 'facebook' | 'bluesky' | 'threads' | 'linkedin' | 'other';
+export interface SocialPost {
+  id: Id;
+  date?: ISODate;
+  /** The milestone it's about ("casting announced", "first day", "wrap", "picture lock", "festival news"). */
+  milestone?: string;
+  platforms: SocialPlatform[];
+  caption: string;
+  /** Photos and clips (media ids). */
+  mediaIds: Id[];
+  /** People who appear in it, as person keys (`cast:<id>`, `crew:<id>`, `contact:<id>`): they need a signed release. */
+  people: string[];
+  status: SocialStatus;
+  url?: string;
+  /** Typed in from the platform after posting (Open Gate doesn't fetch stats). */
+  stats?: { views?: number; likes?: number; comments?: number };
+}
+
+export type DeliverableStatus = 'todo' | 'doing' | 'done' | 'na';
+export interface Deliverable {
+  id: Id;
+  name: string;
+  group: 'picture' | 'sound' | 'captions' | 'legal' | 'marketing' | 'other';
+  status: DeliverableStatus;
+  due?: ISODate;
+  /** A file kept with the project (media id) and its name. */
+  fileId?: Id;
+  fileName?: string;
+  notes?: string;
+}
+
+export type OutletKind = 'sales-agent' | 'distributor' | 'platform' | 'aggregator' | 'broadcaster' | 'self' | 'other';
+export type OutletStatus = 'researching' | 'contacted' | 'talking' | 'offer' | 'signed' | 'passed';
+export type ReleaseRight = 'festival' | 'theatrical' | 'streaming' | 'tv' | 'online' | 'educational' | 'airline' | 'trailer';
+export interface Outlet {
+  id: Id;
+  name: string;
+  kind: OutletKind;
+  status: OutletStatus;
+  /** What this release would use the film for (checked against Licenses). */
+  rights: ReleaseRight[];
+  territory?: string;
+  releaseDate?: ISODate;
+  contact?: string;
+  url?: string;
+  notes?: string;
+}
+
+// ---------------------------------------------------------------- units & currency
+
+export interface ProjectUnits {
+  /** ISO 4217 code. Amounts are never converted when it changes. */
+  currency: string;
+  /** "$" (narrow) or "CA$" (clear, for when "$" is ambiguous). */
+  symbolStyle: 'narrow' | 'clear';
+  /** Distances are stored in feet and shown in this unit. */
+  distance: 'ft' | 'm';
+  /** Number format (1,234.50 vs 1.234,50) and where the currency symbol goes. */
+  locale: string;
 }

@@ -33,9 +33,6 @@ export function FormatPrefs() {
         <label className="field"><span>Weeks start on</span>
           <select value={p.weekStart} onChange={(e) => setPrefs({ weekStart: Number(e.target.value) as 0 | 1 })}><option value={0}>Sunday</option><option value={1}>Monday</option></select>
         </label>
-        <label className="field"><span>Distances (Reference tools)</span>
-          <select value={p.units} onChange={(e) => setPrefs({ units: e.target.value as 'ft' | 'm' })}><option value="ft">Feet & inches</option><option value="m">Metres</option></select>
-        </label>
       </div>
       <p className="small">Looks like: <b>{formatDate(today)}</b> · <b>{formatDate(today, { year: 'numeric', month: 'long', day: 'numeric' })}</b> · <b>{formatClock12(7 * 60)}</b> – <b>{formatClock12(19 * 60 + 30)}</b></p>
     </div>

@@ -1,4 +1,8 @@
 import { usePrefs } from './prefs';
+import { Tour, TourOffer } from './tour/Tour';
+import { PlanBudgetSummary } from './components/PlanBudget';
+import { HelpDialogs, HelpMenu } from './help/HelpMenu';
+import { useTabLock } from './store/tabLock';
 import { BudgetCapBar } from './components/BudgetHelp';
 import { tabHidden, useSync } from './sync/state';
 import { useCallback, useEffect, useState } from 'react';
@@ -31,7 +35,10 @@ import { ShotDesignerTab } from './tabs/designer/ShotDesignerTab';
 import { GearTab } from './tabs/budget/GearTab';
 import { LicensesTab } from './tabs/budget/LicensesTab';
 import { FundingTab } from './tabs/budget/FundingTab';
-import { FestivalsTab } from './tabs/budget/FestivalsTab';
+import { FestivalsTab } from './tabs/release/FestivalsTab';
+import { PressKitTab } from './tabs/release/PressKitTab';
+import { DistributionTab } from './tabs/release/DistributionTab';
+import { SocialTab } from './tabs/release/SocialTab';
 import { PaperworkTab } from './tabs/budget/PaperworkTab';
 import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
 import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
@@ -54,7 +61,7 @@ import { AccessBanner } from './components/share/AccessBanner';
 import { startSync, stopSync, currentSync } from './sync/engine';
 import { saveToFile, loadFileState, useFile } from './io/fileSave';
 
-export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'reference' | 'exports' | 'settings';
+export type SectionId = 'write' | 'breakdown' | 'budget' | 'plan' | 'visualize' | 'shoot' | 'release' | 'reference' | 'exports' | 'settings';
 export type TabId =
   | 'screenplay' | 'av' | 'docs' | 'characters' | 'bible'
   | 'breakdown' | 'stripboard' | 'dood' | 'sides'
@@ -62,11 +69,12 @@ export type TabId =
   | 'contacts' | 'calendar' | 'tasks'
   | 'storyboard' | 'boards' | 'shots' | 'designer'
   | 'callsheets' | 'locations' | 'reports'
+  | 'presskit' | 'social' | 'distribution'
   | 'reference'
   | 'setup';
 
 export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label: string; hint: string }[] }[] = [
-  // In production order: write it, see it, break it down, plan the people and places, cost it, shoot it.
+  // In production order: write it, see it, break it down, plan the people and places, cost it, shoot it, release it.
   { id: 'write', label: 'Write', tabs: [
     { id: 'screenplay', label: 'Screenplay', hint: 'Write or import a screenplay' },
     { id: 'characters', label: 'Characters', hint: 'Character builder: traits, alignment, profile and continuity photos' },
@@ -95,7 +103,6 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'budget', label: 'Budget', tabs: [
     { id: 'budget', label: 'Budget', hint: 'Top sheet, accounts, targets, actuals and versions' },
     { id: 'funding', label: 'Funding', hint: 'How much to raise: from your breakdown to a funding goal, crowdfunding with rewards' },
-    { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and fees, and where each submission stands' },
     { id: 'gear', label: 'Gear', hint: 'Gear manifest: own, rent, borrow or buy — rentals become budget lines' },
     { id: 'expenses', label: 'Expenses', hint: 'Receipts and spending, imported from your bank or card' },
     { id: 'licenses', label: 'Licenses', hint: 'Music, stock footage and other clearances — fees, terms, credit lines, cue sheet' },
@@ -103,6 +110,13 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
   { id: 'shoot', label: 'Shoot', tabs: [
     { id: 'callsheets', label: 'Call Sheets', hint: 'Daily call sheets' },
     { id: 'sides', label: 'Script Sides', hint: 'Each day’s pages for cast and crew' },
+  ] },
+  // Marketing and distribution: it starts in prep, but it's where the film goes last.
+  { id: 'release', label: 'Release', tabs: [
+    { id: 'festivals', label: 'Festivals', hint: 'Festivals you’re aiming at: deadlines, dates and status, laurels; fees for people with the budget' },
+    { id: 'presskit', label: 'Press Kit', hint: 'EPK: logline, synopsis, stills, cast & crew, laurels, tech specs — as a PDF and a one-page website' },
+    { id: 'social', label: 'Social & BTS', hint: 'Content calendar tied to milestones, photos and clips, and a releases check for everyone shown' },
+    { id: 'distribution', label: 'Distribution', hint: 'Deliverables checklist, sales agents / distributors / platforms, and whether your licences cover them' },
   ] },
   { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: 'Story, camera, lenses, lighting, sound, data, production, guilds and unions — explainers, calculators and a library' }] },
   // Shown as buttons next to the sections (⤓ and ⚙), not as sections.
@@ -127,6 +141,8 @@ export function App() {
   usePrefs(); // date / clock / week-start preferences re-render everything
   const hiddenSync = useSync((s) => s.hidden);
   const saveState = useStore((s) => s.saveState);
+  // Read-only while another tab edits this project: re-render so every screen picks it up.
+  useTabLock((s) => s.readOnly);
   const phone = usePhone();
   const narrow = useNarrow();
   const phoneTabs = usePhoneTabs();
@@ -284,6 +300,7 @@ export function App() {
             <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
               {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
             </span>
+            <HelpMenu tab={tab} />
             {!tabHidden('reports') && <button className={`icon-btn settings-btn ${section === 'exports' ? 'active' : ''}`} title="Exports: every PDF, spreadsheet, calendar and the end credits" aria-label="Exports" onClick={() => setTab('reports')}>⤓</button>}
             <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Settings" onClick={() => setTab('setup')}>⚙</button>
           </div>
@@ -301,6 +318,9 @@ export function App() {
         </nav>
       )}
       <AccessBanner />
+      <HelpDialogs />
+      <Tour />
+      <TourOffer />
       {phone && <PhonePanels tab={tab} />}
       <main className={`tab-body ${sideHidden && !phone ? 'side-hidden' : ''}`}>
         <TabBoundary tab={tab}>
@@ -312,11 +332,15 @@ export function App() {
         {tab === 'dood' && <DoodView />}
         {tab === 'sides' && <SidesView />}
         {['budget', 'funding', 'festivals', 'gear', 'expenses', 'licenses'].includes(tab) && <BudgetCapBar />}
+        {['contacts', 'locations', 'paperwork', 'calendar', 'tasks'].includes(tab) && <PlanBudgetSummary />}
         {tab === 'budget' && <BudgetTab />}
         {tab === 'expenses' && <ExpensesTab />}
         {tab === 'gear' && <GearTab />}
         {tab === 'funding' && <FundingTab />}
         {tab === 'festivals' && <FestivalsTab />}
+        {tab === 'presskit' && <PressKitTab />}
+        {tab === 'social' && <SocialTab />}
+        {tab === 'distribution' && <DistributionTab />}
         {tab === 'licenses' && <LicensesTab />}
         {tab === 'paperwork' && <PaperworkTab />}
         {tab === 'contacts' && <ContactsTab />}

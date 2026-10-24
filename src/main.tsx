@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { startAutosave } from './store/project';
+import { startAutosave, startMoneyFormat } from './store/project';
 import { startTheme } from './theme';
 import { installWriteGuard } from './sync/guard';
 import { startFileAutosave } from './io/fileSave';
@@ -12,6 +12,7 @@ import { applyPrefs } from './prefs';
 import './styles.css';
 
 startAutosave();
+startMoneyFormat();
 startTheme();
 installWriteGuard();
 startFileAutosave();

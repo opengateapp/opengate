@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MoneyInput, NumberInput } from '../../components/NumberInput';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { GearItem, GearSource } from '../../model/types';
 import { newId } from '../../model/ids';
@@ -74,8 +75,8 @@ export function GearTab() {
           <div className="good"><span className="muted small">Gear you own saves</span><b>{$(t.ownSaves)}</b></div>
           <div className="good"><span className="muted small">Borrowed gear saves</span><b>{$(t.borrowSaves)}</b></div>
           <label className="gear-upkeep"><span className="muted small">Insurance & upkeep on owned gear</span>
-            <span className="row"><input type="number" min={0} max={100} step={1} className="cell-num" disabled={ro} value={p.budget.ownedGearPct ?? 0}
-              onChange={(e) => update((dr) => { dr.budget.ownedGearPct = Math.max(0, Number(e.target.value) || 0); syncGearLines(dr); }, null)} />% {t.upkeep > 0 && <span className="muted small">= {$(t.upkeep)}</span>}</span>
+            <span className="row"><NumberInput suffix="%" min={0} max={100} decimals={1} className="cell-num" disabled={ro} value={p.budget.ownedGearPct ?? 0}
+              onChange={(n) => update((dr) => { dr.budget.ownedGearPct = Math.max(0, n ?? 0); syncGearLines(dr); }, null)} /> {t.upkeep > 0 && <span className="muted small">= {$(t.upkeep)}</span>}</span>
           </label>
         </div>
       )}
@@ -95,7 +96,7 @@ export function GearTab() {
               ], { x: e.clientX, y: e.clientY }); }}>
                 <td data-label="Item"><input disabled={ro} value={g.name} onChange={(e) => set(g.id, { name: e.target.value })} />{g.fromPlan && <span className="muted small" title="Placed in the shot designer"> 🎥 from plan</span>}</td>
                 <td data-label="Category"><select disabled={ro} value={g.category} onChange={(e) => set(g.id, { category: e.target.value as GearItem['category'] }, 'Gear category')}>{GEAR_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></td>
-                <td data-label="Qty"><input type="number" min={1} className="cell-num" disabled={ro} value={g.qty} onChange={(e) => set(g.id, { qty: Math.max(1, Number(e.target.value) || 1) })} /></td>
+                <td data-label="Qty"><NumberInput min={1} decimals={0} className="cell-num" disabled={ro} value={g.qty} aria-label="Quantity" onChange={(n) => set(g.id, { qty: Math.max(1, n ?? 1) })} /></td>
                 <td data-label="Own / rent">
                   <div className="seg small" role="radiogroup" aria-label="Own or rent">
                     {SOURCES.map((s) => <button key={s} role="radio" aria-checked={g.source === s} disabled={ro} className={g.source === s ? 'active' : ''} onClick={() => set(g.id, { source: s }, 'Own / rent')}>{SOURCE_LABEL[s]}</button>)}
@@ -104,15 +105,15 @@ export function GearTab() {
                 {showCost && <>
                   <td data-label={g.source === 'buy' ? 'Price' : g.source === 'rent' ? 'Rate' : 'Rental value'}>
                     <span className="row nowrap">
-                      <input type="number" min={0} className="cell-num" disabled={ro} value={g.rate} onChange={(e) => set(g.id, { rate: Math.max(0, Number(e.target.value) || 0) })} />
-                      {g.source !== 'buy' && <select disabled={ro} value={g.rateUnit} onChange={(e) => set(g.id, { rateUnit: e.target.value as 'day' | 'week' }, 'Rate per')}><option value="day">/ day</option><option value="week">/ week</option></select>}
+                      <MoneyInput min={0} className="cell-num" disabled={ro} value={g.rate} aria-label={g.source === 'buy' ? 'Price' : 'Rate'} onChange={(n) => set(g.id, { rate: n ?? 0 })} />
+                      {g.source !== 'buy' && <select disabled={ro} value={g.rateUnit} aria-label="Rate per" onChange={(e) => set(g.id, { rateUnit: e.target.value as 'day' | 'week' }, 'Rate per')}><option value="day">/day</option><option value="week">/week</option></select>}
                     </span>
                   </td>
                   <td data-label="Days">
                     {g.source === 'buy' ? <span className="muted small">—</span> : (
                       <span className="row nowrap">
-                        <input type="number" min={0} className="cell-num" disabled={ro} value={days} title={g.days != null ? 'Typed' : 'Shoot days with the scenes it’s used in'}
-                          onChange={(e) => set(g.id, { days: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value) || 0) })} />
+                        <NumberInput min={0} decimals={1} suffix="days" className="cell-num" disabled={ro} value={days} title={g.days != null ? 'Typed' : 'Shoot days with the scenes it’s used in'}
+                          onChange={(n) => set(g.id, { days: n })} />
                         <span className="muted small">{daysLabel(g)}</span>
                         {g.days != null && !ro && <button className="link small" title="Count shoot days again" onClick={() => set(g.id, { days: undefined }, 'Days from schedule')}>auto</button>}
                       </span>

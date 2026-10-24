@@ -1,4 +1,5 @@
 import { uiZoom } from '../prefs';
+import { NumberInput } from '../components/NumberInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EditorState } from 'prosemirror-state';
 import { TextSelection } from 'prosemirror-state';
@@ -208,7 +209,7 @@ function BreakdownSheet({ scene, focusEl, onFocus }: { scene: DerivedScene; focu
             onBlur={(e) => { const v = parseEighths(e.target.value); setMeta((m) => { m.eighthsOverride = v && v !== scene.eighths ? v : undefined; }, 'Set page count'); }} />
         </label>
         <label className="field"><span>Est. minutes</span>
-          <input type="number" min={0} value={sceneMinutes(p, scene)} onChange={(e) => setMeta((m) => { m.estimatedMinutes = Number(e.target.value) || undefined; })} />
+          <NumberInput suffix="min" min={0} decimals={0} value={sceneMinutes(p, scene)} onChange={(n) => setMeta((m) => { m.estimatedMinutes = n || undefined; })} />
         </label>
         <label className="field"><span>Story day</span>
           <input type="number" min={1} value={meta.storyDay ?? ''} placeholder="–" title="Which day of the story (Write → Story Bible → Story days)" onChange={(e) => setMeta((m) => { m.storyDay = e.target.value ? Math.max(1, Number(e.target.value)) : undefined; }, 'Story day')} />

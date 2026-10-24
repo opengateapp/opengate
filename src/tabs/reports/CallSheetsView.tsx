@@ -6,7 +6,7 @@ import { Empty, toast } from '../../components/common';
 import { newId } from '../../model/ids';
 import { formatClock12, formatDate, formatEighths, parseClock } from '../../model/dates';
 import {
-  autofillCallSheet, ensureLayout, resolveCallSheet, infoValue, advanceSchedule, callDayLabel, parseCoords, sunriseSunset,
+  autofillCallSheet, ensureLayout, resolveCallSheet, infoValue, advanceSchedule, btsItems, callDayLabel, parseCoords, sunriseSunset,
   SECTION_LABELS, SECTION_TEMPLATES, type ResolvedCallSheet,
 } from '../../schedule/callsheet';
 import { buildDood, shootDays } from '../../schedule/dood';
@@ -421,6 +421,7 @@ function SectionView({ sec, index, count, r, day, edit }: { sec: CallSheetSectio
           )}
           {sec.kind === 'locations' && <LocationsSection r={r} edit={edit} />}
           {sec.kind === 'advance' && <AdvanceSection day={day} />}
+          {sec.kind === 'bts' && <BtsSection day={day} sec={sec} setText={(v) => setSec((s) => { s.text = v; })} />}
           {sec.kind === 'table' && <CustomTable sec={sec} setSec={setSec} />}
         </>
       )}
@@ -576,6 +577,18 @@ function LocationsSection({ r, edit }: { r: ResolvedCallSheet; edit: Edit }) {
       </table>
       <button className="cs-addrow" onClick={() => edit((s) => { s.locations.push({ id: newId(), name: '', address: '' }); }, 'Add location')}>+ Add new row</button>
     </>
+  );
+}
+
+function BtsSection({ day, sec, setText }: { day: ShootDay; sec: CallSheetSection; setText: (v: string) => void }) {
+  const p = useProject();
+  const planned = btsItems(p, day, { ...sec, text: '' });
+  return (
+    <div className="cs-pad">
+      <textarea className="cs-bts" value={sec.text ?? ''} placeholder={'One per line, e.g.\nWide of the projector rig before the first take\nCast photo at lunch (releases signed)'} onChange={(e) => setText(e.target.value)} />
+      {planned.length > 0 && <ul className="small">{planned.map((x, i) => <li key={i}>{x.what} <span className="muted">({x.why})</span></li>)}</ul>}
+      <p className="muted small">Social posts dated this shoot day are added from Release → Social.</p>
+    </div>
   );
 }
 

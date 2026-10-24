@@ -54,7 +54,18 @@ export function mediaIds(p: Project): string[] {
     ...budgetMediaIds(p),
     ...(p.characters ?? []).flatMap((c) => [c.portraitId, ...c.continuity.map((x) => x.imageId)]),
     ...(p.plans ?? []).map((pl) => pl.backgroundId),
+    ...releaseMediaIds(p),
   ].filter((x): x is string => !!x))];
+}
+
+/** Release: poster, stills and headshots in the press kit, social photos, deliverable files. */
+export function releaseMediaIds(p: Project): string[] {
+  const k = p.pressKit;
+  return [
+    k?.posterId, ...(k?.stills ?? []), ...Object.values(k?.photos ?? {}), ...(k?.laurels ?? []).flatMap((l) => [l.imageId, l.darkImageId]),
+    ...(p.socialPosts ?? []).flatMap((x) => x.mediaIds),
+    ...(p.deliverables ?? []).map((x) => x.fileId),
+  ].filter((x): x is string => !!x);
 }
 
 /** Gives a project new media ids (so a copy never shares image records with the original). */
@@ -75,6 +86,9 @@ function remapMedia(p: Project, remap: Map<string, string>): Project {
     },
     plans: p.plans?.map((pl) => ({ ...pl, backgroundId: re(pl.backgroundId) })),
     characters: (p.characters ?? []).map((c) => ({ ...c, portraitId: re(c.portraitId), continuity: c.continuity.map((x) => ({ ...x, imageId: re(x.imageId)! })) })),
+    pressKit: p.pressKit && { ...p.pressKit, posterId: re(p.pressKit.posterId), stills: p.pressKit.stills.map((x) => re(x)!), photos: p.pressKit.photos && Object.fromEntries(Object.entries(p.pressKit.photos).map(([k, v]) => [k, re(v)!])), laurels: p.pressKit.laurels?.map((l) => ({ ...l, imageId: re(l.imageId), darkImageId: re(l.darkImageId) })) },
+    socialPosts: p.socialPosts?.map((x) => ({ ...x, mediaIds: x.mediaIds.map((m) => re(m)!) })),
+    deliverables: p.deliverables?.map((x) => ({ ...x, fileId: re(x.fileId) })),
   };
 }
 

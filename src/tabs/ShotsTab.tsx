@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { DurationInput, LensInput } from '../components/NumberInput';
 import type { EditorState } from 'prosemirror-state';
 import { ScriptEditor } from '../components/ScriptEditor';
 import { session } from '../script/session';
@@ -171,10 +172,10 @@ export function ShotsTab() {
                         <td><input value={sh.name} placeholder={sh.quote.slice(0, 40)} onChange={(e) => setField(sh.id, 'name', e.target.value)} /></td>
                         <td><Select value={sh.shotType} options={SHOT_TYPES.map((t) => t.code)} onChange={(v) => setField(sh.id, 'shotType', v)} /></td>
                         <td><Select value={sh.angle} options={ANGLES} onChange={(v) => setField(sh.id, 'angle', v)} /></td>
-                        <td><Select value={sh.lens} options={LENSES} onChange={(v) => setField(sh.id, 'lens', v)} /></td>
+                        <td><LensInput value={sh.lens} options={LENSES} onChange={(v) => setField(sh.id, 'lens', v)} /></td>
                         <td><Select value={sh.move} options={MOVES} onChange={(v) => setField(sh.id, 'move', v)} /></td>
                         <td><input value={sh.subject} onChange={(e) => setField(sh.id, 'subject', e.target.value)} /></td>
-                        <td><input className="w-sm" value={sh.duration} onChange={(e) => setField(sh.id, 'duration', e.target.value)} /></td>
+                        <td><DurationInput compact className="w-sm" value={sh.duration} onChange={(v) => setField(sh.id, 'duration', v)} /></td>
                         <td><Select value={sh.priority} options={PRIORITIES} onChange={(v) => setField(sh.id, 'priority', v)} /></td>
                         <td className="actions">
                           <button className="icon-btn" title="All fields" onClick={() => setEditing(sh.id)}>⋯</button>
@@ -206,14 +207,14 @@ export function ShotsTab() {
             <Field label="Subject / character"><input value={editShot.subject} onChange={(e) => setField(editShot.id, 'subject', e.target.value)} /></Field>
             <Field label="Shot type"><Select value={editShot.shotType} options={SHOT_TYPES} onChange={(v) => setField(editShot.id, 'shotType', v)} /></Field>
             <Field label="Angle"><Select value={editShot.angle} options={ANGLES} onChange={(v) => setField(editShot.id, 'angle', v)} /></Field>
-            <Field label="Lens"><Select value={editShot.lens} options={LENSES} onChange={(v) => setField(editShot.id, 'lens', v)} /></Field>
+            <Field label="Lens"><LensInput value={editShot.lens} options={LENSES} onChange={(v) => setField(editShot.id, 'lens', v)} /></Field>
             <Field label="Camera move"><Select value={editShot.move} options={MOVES} onChange={(v) => setField(editShot.id, 'move', v)} /></Field>
             <Field label="Equipment"><Select value={editShot.equipment} options={EQUIPMENT} onChange={(v) => setField(editShot.id, 'equipment', v)} /></Field>
             <Field label="Focus"><Select value={editShot.focus} options={FOCUS} onChange={(v) => setField(editShot.id, 'focus', v)} /></Field>
             <Field label="Lighting"><Select value={editShot.lighting} options={LIGHTING} onChange={(v) => setField(editShot.id, 'lighting', v)} /></Field>
             <Field label="Sound"><Select value={editShot.sound} options={SOUND} onChange={(v) => setField(editShot.id, 'sound', v)} /></Field>
             <Field label="VFX / SFX"><input value={editShot.vfx} onChange={(e) => setField(editShot.id, 'vfx', e.target.value)} /></Field>
-            <Field label="Est. duration"><input value={editShot.duration} placeholder="e.g. 0:12" onChange={(e) => setField(editShot.id, 'duration', e.target.value)} /></Field>
+            <Field label="Est. duration"><DurationInput value={editShot.duration} onChange={(v) => setField(editShot.id, 'duration', v)} /></Field>
             <Field label="Priority"><Select value={editShot.priority} options={PRIORITIES} onChange={(v) => setField(editShot.id, 'priority', v)} /></Field>
             <Field label="Action" wide><textarea rows={2} value={editShot.action} onChange={(e) => setField(editShot.id, 'action', e.target.value)} /></Field>
             <Field label="Director notes" wide><textarea rows={2} value={editShot.notes} onChange={(e) => setField(editShot.id, 'notes', e.target.value)} /></Field>

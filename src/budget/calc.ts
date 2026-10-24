@@ -184,9 +184,15 @@ export function variance(target: number | undefined, estimate: number, actual: n
   };
 }
 
+/** The open project's currency, number format and symbol style (set by the app; Settings → Units & currency). */
+let projectMoney: { currency: string; locale: string; display: 'narrowSymbol' | 'symbol' } | null = null;
+export function setMoneyFormat(f: typeof projectMoney) { projectMoney = f; }
+
 export function money(n: number, currency = 'USD', cents = false): string {
+  // The project's currency wins: people without the budget can't read budget.currency.
+  const cur = projectMoney?.currency ?? currency;
   try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: cents ? 2 : 0, minimumFractionDigits: cents ? 2 : 0 }).format(n);
+    return new Intl.NumberFormat(projectMoney?.locale, { style: 'currency', currency: cur, currencyDisplay: projectMoney?.display ?? 'narrowSymbol', maximumFractionDigits: cents ? 2 : 0, minimumFractionDigits: cents ? 2 : 0 }).format(n);
   } catch {
     return (cents ? n.toFixed(2) : Math.round(n).toString());
   }

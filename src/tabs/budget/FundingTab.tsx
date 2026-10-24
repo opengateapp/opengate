@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { MoneyInput, NumberInput } from '../../components/NumberInput';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { CrowdPlan, FundingKind, FundingSource, FundingStatus, RewardTier } from '../../model/types';
 import { money, totals } from '../../budget/calc';
@@ -84,7 +85,7 @@ function FundingScreen() {
           {scheduled > 0
             ? <p>{scheduled} shoot day{scheduled === 1 ? '' : 's'} on the stripboard. The budget counts days from it.</p>
             : <p>Nothing is scheduled yet, so Open Gate estimates: <b>{facts.shootDays} day{facts.shootDays === 1 ? '' : 's'}</b> at
-                <label className="inline-num"> <input type="number" min={1} max={12} step={0.5} disabled={ro} value={ppd} aria-label="Pages per day" onChange={(e) => setPlan({ pagesPerDay: Math.max(0.5, Number(e.target.value) || DEFAULT_PAGES_PER_DAY) })} /> pages a day</label>
+                <label className="inline-num"> <NumberInput suffix="pp/day" min={0.5} max={12} decimals={1} disabled={ro} value={ppd} aria-label="Pages per day" onChange={(n) => setPlan({ pagesPerDay: Math.max(0.5, n ?? DEFAULT_PAGES_PER_DAY) })} /></label>
                 , grouping scenes by location. Shorts often shoot 2–5 pages a day; stunts, kids, animals and night work are slower.</p>}
           <button className="small" onClick={() => goto('stripboard')}>{scheduled ? 'Open Stripboard →' : 'Schedule it for real on the Stripboard →'}</button>
         </li>
@@ -154,7 +155,7 @@ function Sources({ ro, onEdit, onSet }: { ro: boolean; onEdit: (fn: (l: FundingS
         <div key={s.id} className={`fund-source st-${s.status}`}>
           <select disabled={ro} value={s.kind} aria-label="Kind" title={FUNDING_KINDS.find((k) => k.id === s.kind)?.hint} onChange={(e) => onSet(s.id, { kind: e.target.value as FundingKind }, 'Funding kind')}>{FUNDING_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
           <input disabled={ro} className="grow" value={s.name} placeholder="Who / what" aria-label="Source" onChange={(e) => onSet(s.id, { name: e.target.value })} />
-          <input disabled={ro} className="num" type="number" min={0} step={50} value={s.amount || ''} placeholder="0" aria-label="Amount" onChange={(e) => onSet(s.id, { amount: Number(e.target.value) || 0 })} />
+          <MoneyInput disabled={ro} className="num" min={0} value={s.amount || undefined} placeholder="0" aria-label="Amount" onChange={(n) => onSet(s.id, { amount: n ?? 0 })} />
           <select disabled={ro} value={s.status} aria-label="Status" onChange={(e) => onSet(s.id, { status: e.target.value as FundingStatus }, 'Funding status')}>{FUNDING_STATUSES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
           <input disabled={ro} type="date" value={s.date ?? ''} aria-label="Expected" title="When it arrives" onChange={(e) => onSet(s.id, { date: e.target.value || undefined })} />
           <input disabled={ro} className="fund-notes" value={s.notes ?? ''} placeholder="Notes" aria-label="Notes" onChange={(e) => onSet(s.id, { notes: e.target.value || undefined })} />
@@ -179,11 +180,14 @@ function Crowd({ ro, need }: { ro: boolean; need: number }) {
   const preset = PLATFORMS.find((x) => x.id === c.platform);
   const set = (patch: Partial<CrowdPlan>, label: string | null = null) => update((dr) => { dr.budget.funding = { ...dr.budget.funding, crowd: { ...(dr.budget.funding?.crowd ?? c), ...patch } }; }, label);
   const setTier = (id: string, patch: Partial<RewardTier>) => set({ tiers: c.tiers.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
-  const num = (v: number, onChange: (n: number) => void, label: string, step = 1) => <input disabled={ro} className="num" type="number" min={0} step={step} value={v} aria-label={label} onChange={(e) => onChange(Number(e.target.value) || 0)} />;
+  // Percentages get "%", money the currency, counts nothing.
+  const num = (v: number, onChange: (n: number) => void, label: string, unit?: '%' | '$') => unit === '$'
+    ? <MoneyInput disabled={ro} className="num" min={0} value={v} aria-label={label} onChange={(n) => onChange(n ?? 0)} />
+    : <NumberInput disabled={ro} className="num" min={0} suffix={unit} decimals={unit === '%' ? 1 : 0} value={v} aria-label={label} onChange={(n) => onChange(n ?? 0)} />;
   return (
     <div className="fund-crowd">
       <div className="row wrap fund-crowd-top">
-        <label className="check small">To net for the film {<input className="num" type="number" min={0} step={100} value={target === '' ? '' : target} placeholder={String(need)} aria-label="Amount to net" onChange={(e) => setTarget(e.target.value === '' ? '' : Number(e.target.value) || 0)} />}</label>
+        <label className="check small">To net for the film {<MoneyInput className="num" min={0} value={target === '' ? undefined : target} placeholder={String(need)} aria-label="Amount to net" onChange={(n) => setTarget(n ?? '')} />}</label>
         <label className="check small">Platform
           <select disabled={ro} value={c.platform} onChange={(e) => { const x = PLATFORMS.find((y) => y.id === e.target.value)!; set({ platform: x.id, feePct: x.feePct, processingPct: x.processingPct, perPledge: x.perPledge }, 'Crowdfunding platform'); }}>
             {PLATFORMS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
@@ -193,12 +197,12 @@ function Crowd({ ro, need }: { ro: boolean; need: number }) {
       </div>
       {preset && <p className="muted small">{preset.note} Checked October 2026.</p>}
       <div className="row wrap fund-crowd-fees">
-        <label className="check small">Platform % {num(c.feePct, (n) => set({ feePct: n }), 'Platform fee', 0.5)}</label>
-        <label className="check small">Processing % {num(c.processingPct, (n) => set({ processingPct: n }), 'Processing', 0.1)}</label>
-        <label className="check small">+ per pledge {num(c.perPledge, (n) => set({ perPledge: n }), 'Per pledge', 0.05)}</label>
-        <label className="check small" title="A pledge manager or fulfilment service, e.g. about 2% + 3.5% on extras with BackerKit">Pledge manager % {num(c.pledgeMgrPct, (n) => set({ pledgeMgrPct: n }), 'Pledge manager', 0.5)}</label>
-        <label className="check small" title="Money set aside for tax on rewards and income; ask an accountant">Tax reserve % {num(c.taxReservePct, (n) => set({ taxReservePct: n }), 'Tax reserve', 1)}</label>
-        <label className="check small" title="Pledges with no reward attached">No-reward pledges % {num(c.noRewardPct, (n) => set({ noRewardPct: Math.min(100, n) }), 'No-reward pledges', 5)}</label>
+        <label className="check small">Platform {num(c.feePct, (n) => set({ feePct: n }), 'Platform fee', '%')}</label>
+        <label className="check small">Processing {num(c.processingPct, (n) => set({ processingPct: n }), 'Processing', '%')}</label>
+        <label className="check small">+ per pledge {num(c.perPledge, (n) => set({ perPledge: n }), 'Per pledge', '$')}</label>
+        <label className="check small" title="A pledge manager or fulfilment service, e.g. about 2% + 3.5% on extras with BackerKit">Pledge manager {num(c.pledgeMgrPct, (n) => set({ pledgeMgrPct: n }), 'Pledge manager', '%')}</label>
+        <label className="check small" title="Money set aside for tax on rewards and income; ask an accountant">Tax reserve {num(c.taxReservePct, (n) => set({ taxReservePct: n }), 'Tax reserve', '%')}</label>
+        <label className="check small" title="Pledges with no reward attached">No-reward pledges {num(c.noRewardPct, (n) => set({ noRewardPct: Math.min(100, n) }), 'No-reward pledges', '%')}</label>
       </div>
 
       <table className="table fund-tiers cards-on-phone">
@@ -209,10 +213,10 @@ function Crowd({ ro, need }: { ro: boolean; need: number }) {
             return (
               <tr key={t.id}>
                 <td data-label="Perk"><input disabled={ro} value={t.name} aria-label="Reward" onChange={(e) => setTier(t.id, { name: e.target.value })} /></td>
-                <td data-label="Pledge" className="num">{num(t.price, (n) => setTier(t.id, { price: n }), 'Pledge')}</td>
+                <td data-label="Pledge" className="num">{num(t.price, (n) => setTier(t.id, { price: n }), 'Pledge', '$')}</td>
                 <td data-label="Backers" className="num">{num(t.backers, (n) => setTier(t.id, { backers: n }), 'Backers')}</td>
-                <td data-label="Cost to make" className="num">{num(t.costEach, (n) => setTier(t.id, { costEach: n }), 'Cost each', 0.5)}</td>
-                <td data-label="Postage" className="num">{num(t.shipEach, (n) => setTier(t.id, { shipEach: n }), 'Postage each', 0.5)}</td>
+                <td data-label="Cost to make" className="num">{num(t.costEach, (n) => setTier(t.id, { costEach: n }), 'Cost each', '$')}</td>
+                <td data-label="Postage" className="num">{num(t.shipEach, (n) => setTier(t.id, { shipEach: n }), 'Postage each', '$')}</td>
                 <td data-label="Keeps" className={`num ${tc && tc.margin < 0.5 ? 'warn-text' : ''}`} title="Share of the pledge left after the reward and fees">{tc ? `${Math.round(tc.margin * 100)}%` : '—'}</td>
                 <td>{!ro && <button className="icon-btn" aria-label="Delete reward" onClick={() => set({ tiers: c.tiers.filter((x) => x.id !== t.id) }, 'Delete reward')}>×</button>}</td>
               </tr>

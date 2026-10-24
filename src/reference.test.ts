@@ -53,8 +53,9 @@ describe('reference content', () => {
   it('every page has a tool that exists, and links to real library topics', () => {
     expect(new Set(PAGES.map((p) => p.id)).size).toBe(PAGES.length);
     for (const p of PAGES) {
-      for (const t of p.tool ? [p.tool].flat() : []) expect(t === 'frameworks' || t === 'arcs' || !!TOOLS[t]).toBe(true);
-      expect(learnMore(p.topics).length).toBeGreaterThan(0);
+      for (const t of p.tool ? [p.tool].flat() : []) expect(t === 'frameworks' || t === 'arcs' || t === 'faq' || !!TOOLS[t]).toBe(true);
+      // Help pages (the FAQ) are about Open Gate itself: no library links.
+      if (p.category !== 'help') expect(learnMore(p.topics).length).toBeGreaterThan(0);
     }
     expect(pageById('dof')?.title).toBe('Depth of field');
   });

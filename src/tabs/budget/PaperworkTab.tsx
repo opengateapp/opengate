@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { RateLink } from '../../components/PlanBudget';
+import { MoneyInput, NumberInput } from '../../components/NumberInput';
 import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { Clearance, ClearanceKind, ClearanceStatus, DealTerms, PaperDoc, PaperKind, PaperStatus, PersonRef, Project, TimeCard } from '../../model/types';
@@ -186,6 +188,7 @@ function PeopleView({ onOpenDoc }: { onOpenDoc: (id: string) => void }) {
               </div>
               {isOpen && (
                 <div className="person-body">
+                  {(x.ref.kind === 'cast' || x.ref.kind === 'crew' || x.ref.kind === 'location') && <div className="field"><span>{x.ref.kind === 'location' ? 'Fee' : 'Rate'}</span><RateLink target={x.ref as never} /></div>}
                   {x.group !== 'Location' && <div className="field"><span>Union</span><UnionPicker ro={ro} value={x} onChange={(patch) => setUnion(x, patch)} /></div>}
                   {x.group !== 'Location' && <div className="field"><span>Honorary societies (letters in the credits)</span><SocietiesPicker ro={ro} value={x} onChange={(patch) => setUnion(x, patch)} /></div>}
                   <ul className="doc-rows">
@@ -287,7 +290,6 @@ function DocCard({ doc, ro, open, everyone, onToggle, set, onRemove, onSign, onP
   const signed = !!doc.signature;
   const deal = doc.deal;
   const setDeal = (patch: Partial<DealTerms>, label: string | null = null) => set({ deal: { ...(deal ?? { rate: 0, per: 'day' }), ...patch } }, label);
-  const num = (v: string) => (v === '' ? undefined : Math.max(0, Number(v) || 0));
   const kindInfo = PAPER_KINDS.find((k) => k.id === doc.kind);
   const pool = everyone.filter((x) => (doc.kind === 'location' ? x.group === 'Location' : x.group !== 'Location'));
   return (
@@ -317,13 +319,13 @@ function DocCard({ doc, ro, open, everyone, onToggle, set, onRemove, onSign, onP
           </div>
           {doc.kind === 'deal' && (
             <div className="form-grid deal-grid">
-              <label className="field"><span>Rate</span><input type="number" min={0} disabled={ro} value={deal?.rate ?? 0} onChange={(e) => setDeal({ rate: num(e.target.value) ?? 0 })} /></label>
+              <label className="field"><span>Rate</span><MoneyInput min={0} disabled={ro} per={deal?.per === 'flat' ? 'flat' : deal?.per === 'week' ? 'week' : 'day'} value={deal?.rate ?? 0} onChange={(n) => setDeal({ rate: n ?? 0 })} /></label>
               <label className="field"><span>Per</span><select disabled={ro} value={deal?.per ?? 'day'} onChange={(e) => setDeal({ per: e.target.value as DealTerms['per'] }, 'Deal rate basis')}><option value="day">Day</option><option value="week">Week</option><option value="flat">Flat (whole job)</option></select></label>
-              <label className="field"><span>Kit / box fee</span><input type="number" min={0} disabled={ro} value={deal?.kitFee ?? ''} onChange={(e) => setDeal({ kitFee: num(e.target.value) })} /></label>
+              <label className="field"><span>Kit / box fee</span><MoneyInput min={0} disabled={ro} per={deal?.kitPer === 'flat' ? 'flat' : deal?.kitPer === 'week' ? 'week' : 'day'} value={deal?.kitFee} onChange={(n) => setDeal({ kitFee: n })} /></label>
               <label className="field"><span>Kit per</span><select disabled={ro} value={deal?.kitPer ?? 'day'} onChange={(e) => setDeal({ kitPer: e.target.value as DealTerms['per'] }, 'Kit basis')}><option value="day">Day</option><option value="week">Week</option><option value="flat">Flat</option></select></label>
-              <label className="field"><span>Guaranteed days</span><input type="number" min={0} disabled={ro} value={deal?.guaranteedDays ?? ''} onChange={(e) => setDeal({ guaranteedDays: num(e.target.value) })} /></label>
-              <label className="field"><span>Overtime after (hours)</span><input type="number" min={1} disabled={ro} value={deal?.otAfter ?? ''} placeholder={String(rulesOf(p).otAfter)} onChange={(e) => setDeal({ otAfter: num(e.target.value) })} /></label>
-              <label className="field"><span>Overtime ×</span><input type="number" min={1} step={0.25} disabled={ro} value={deal?.otMult ?? ''} placeholder="1.5" onChange={(e) => setDeal({ otMult: num(e.target.value) })} /></label>
+              <label className="field"><span>Guaranteed days</span><NumberInput suffix="days" min={0} decimals={1} disabled={ro} value={deal?.guaranteedDays} onChange={(n) => setDeal({ guaranteedDays: n })} /></label>
+              <label className="field"><span>Overtime after</span><NumberInput suffix="h" min={1} decimals={1} disabled={ro} value={deal?.otAfter} placeholder={String(rulesOf(p).otAfter)} onChange={(n) => setDeal({ otAfter: n })} /></label>
+              <label className="field"><span>Overtime pay</span><NumberInput suffix="×" min={1} decimals={2} disabled={ro} value={deal?.otMult} placeholder="1.5" onChange={(n) => setDeal({ otMult: n })} /></label>
               <label className="check field"><input type="checkbox" disabled={ro} checked={!!deal?.contractor} onChange={(e) => setDeal({ contractor: e.target.checked || undefined }, 'Contractor')} /> Contractor (W-9 / 1099)</label>
               <p className="muted small wide">The rate goes into {who?.name ?? 'this person'}’s budget line{deal?.kitFee ? ', and the kit fee becomes its own line' : ''}.</p>
             </div>
@@ -506,10 +508,10 @@ function TimeView() {
       <details className="payroll-rules">
         <summary>Overtime & meal rules</summary>
         <div className="form-grid">
-          <label className="field"><span>Overtime (1.5×) after hours</span><input type="number" min={1} disabled={ro} value={rules.otAfter} onChange={(e) => setRules({ otAfter: Math.max(1, Number(e.target.value) || 8) })} /></label>
-          <label className="field"><span>Double time after hours</span><input type="number" min={1} disabled={ro} value={rules.dtAfter} onChange={(e) => setRules({ dtAfter: Math.max(1, Number(e.target.value) || 12) })} /></label>
-          <label className="field"><span>Meal due within hours</span><input type="number" min={1} step={0.5} disabled={ro} value={rules.mealEvery} onChange={(e) => setRules({ mealEvery: Math.max(0, Number(e.target.value) || 6) })} /></label>
-          <label className="field"><span>Meal penalty amount (per ½ hour)</span><input type="number" min={0} disabled={ro} value={rules.mealPenalty} onChange={(e) => setRules({ mealPenalty: Math.max(0, Number(e.target.value) || 0) })} /></label>
+          <label className="field"><span>Overtime (1.5×) after</span><NumberInput suffix="h" min={1} decimals={1} disabled={ro} value={rules.otAfter} onChange={(n) => setRules({ otAfter: Math.max(1, n ?? 8) })} /></label>
+          <label className="field"><span>Double time after</span><NumberInput suffix="h" min={1} decimals={1} disabled={ro} value={rules.dtAfter} onChange={(n) => setRules({ dtAfter: Math.max(1, n ?? 12) })} /></label>
+          <label className="field"><span>Meal due within</span><NumberInput suffix="h" min={1} decimals={1} disabled={ro} value={rules.mealEvery} onChange={(n) => setRules({ mealEvery: Math.max(0, n ?? 6) })} /></label>
+          <label className="field"><span>Meal penalty</span><MoneyInput per="halfhour" min={0} disabled={ro} value={rules.mealPenalty} onChange={(n) => setRules({ mealPenalty: n ?? 0 })} /></label>
         </div>
         <p className="muted small">Union agreements set their own overtime and meal rules: check yours. The payroll CSV is a generic layout that payroll services can map on import; Open Gate doesn’t run payroll.</p>
       </details>

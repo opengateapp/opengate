@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useTabLock } from '../store/tabLock';
 import type { Project } from '../model/types';
 import { useStore, flushSave } from '../store/project';
 import { db } from '../store/db';
@@ -158,7 +159,7 @@ let lastWritten: Project | null = null;
 export function startFileAutosave(): () => void {
   return useStore.subscribe((s) => {
     const p = s.project;
-    if (!p || p === lastWritten || !useFile.getState().autosave || !useFile.getState().name) return;
+    if (!p || p === lastWritten || !useFile.getState().autosave || !useFile.getState().name || useTabLock.getState().readOnly) return;
     clearTimeout(timer);
     timer = setTimeout(async () => {
       const cur = useStore.getState().project;

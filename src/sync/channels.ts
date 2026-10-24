@@ -12,7 +12,7 @@ import type { Project } from '../model/types';
 export type RoomFormat = 1 | 2;
 export const CHANNELS_V1 = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'] as const;
 export const CHANNELS_V2 = ['script', 'screenplay', 'characters', 'bible', 'docs', 'av', 'breakdown', 'schedule', 'contacts', 'calendar', 'tasks',
-  'storyboard', 'boards', 'shots', 'designer', 'gear', 'callsheets', 'locations', 'settings', 'budget'] as const;
+  'storyboard', 'boards', 'shots', 'designer', 'gear', 'callsheets', 'locations', 'release', 'settings', 'budget'] as const;
 export type Channel = string;
 
 let format: RoomFormat = 1;
@@ -60,7 +60,7 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
   script: 'Script', write: 'Write', breakdown: 'Breakdown', plan: 'Plan', visualize: 'Visualize', shoot: 'Shoot', settings: 'Settings', budget: 'Budget',
   screenplay: 'Screenplay', characters: 'Characters', bible: 'Story Bible', docs: 'Docs', av: 'A/V scripts', schedule: 'Stripboard',
   contacts: 'Contacts', calendar: 'Calendar', tasks: 'Tasks', storyboard: 'Storyboards', boards: 'Mood boards', shots: 'Shot lists',
-  designer: 'Shot designer', gear: 'Gear', callsheets: 'Call sheets', locations: 'Locations',
+  designer: 'Shot designer', gear: 'Gear', callsheets: 'Call sheets', locations: 'Locations', release: 'Release',
 };
 
 /** Format 2: the tabs a link can grant, the channels each one writes, and what it needs to make sense. */
@@ -85,10 +85,11 @@ export const TAB_ACCESS: TabAccess[] = [
   { id: 'budget', label: 'Budget, Expenses, Licenses & Paperwork', section: 'Budget', channels: ['budget'] },
   { id: 'gear', label: 'Gear', section: 'Budget', channels: ['gear'] },
   { id: 'callsheets', label: 'Call Sheets', section: 'Shoot', channels: ['callsheets'], needs: ['stripboard', 'contacts', 'locations'] },
+  { id: 'release', label: 'Festivals, Press kit, Social & Distribution', section: 'Release', channels: ['release'] },
   { id: 'settings', label: 'Project settings', section: 'Settings', channels: ['settings'] },
 ];
 /** App tabs that show another tab's data (they follow its access). */
-export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', funding: 'budget', festivals: 'budget', reports: 'stripboard' };
+export const TAB_FOLLOWS: Record<string, string> = { dood: 'stripboard', sides: 'stripboard', expenses: 'budget', licenses: 'budget', paperwork: 'budget', funding: 'budget', festivals: 'release', presskit: 'release', social: 'release', distribution: 'release', reports: 'stripboard' };
 
 /** Tagging, shot marks and storyboards add highlights to the script, so these tabs may write marks to it. */
 export const MARKS_TABS = ['breakdown', 'shots', 'storyboard'];
@@ -98,7 +99,8 @@ export const ACCESS_PRESETS: { id: string; label: string; hint: string; access: 
   { id: 'cowriter', label: 'Co-writer', hint: 'Writes with you; sees the rest; no budget.', access: { screenplay: 'edit', characters: 'edit', bible: 'edit', docs: 'edit', av: 'edit', budget: 'hidden', gear: 'view' } },
   { id: 'ad', label: 'AD / scheduling', hint: 'Breakdown, stripboard, calendar, call sheets, contacts, locations, tasks.', access: { breakdown: 'edit', stripboard: 'edit', calendar: 'edit', callsheets: 'edit', contacts: 'edit', locations: 'edit', tasks: 'edit', budget: 'hidden' } },
   { id: 'dept', label: 'Department head', hint: 'Views everything; edits boards, shots, storyboards, gear and tasks.', access: { boards: 'edit', shots: 'edit', storyboard: 'edit', designer: 'edit', gear: 'edit', tasks: 'edit', budget: 'hidden' } },
-  { id: 'investor', label: 'Investor view', hint: 'Reads the script, story and budget; nothing else.', access: { screenplay: 'view', characters: 'view', bible: 'view', budget: 'view', ...Object.fromEntries(['docs', 'av', 'breakdown', 'stripboard', 'gear', 'contacts', 'calendar', 'tasks', 'storyboard', 'boards', 'shots', 'designer', 'callsheets', 'locations', 'settings'].map((t) => [t, 'hidden' as Access])) } },
+  { id: 'marketing', label: 'Marketing / festivals', hint: 'Festivals, press kit, social and distribution; sees the rest; no budget (festival fees stay private).', access: { release: 'edit', budget: 'hidden' } },
+  { id: 'investor', label: 'Investor view', hint: 'Reads the script, story and budget; nothing else.', access: { screenplay: 'view', characters: 'view', bible: 'view', budget: 'view', ...Object.fromEntries(['docs', 'av', 'breakdown', 'stripboard', 'gear', 'contacts', 'calendar', 'tasks', 'storyboard', 'boards', 'shots', 'designer', 'callsheets', 'locations', 'release', 'settings'].map((t) => [t, 'hidden' as Access])) } },
 ];
 
 /** A link's permissions from per-tab access: channels it may write, restricted channels it may read, and channels hidden from it. */
@@ -149,6 +151,8 @@ const KEY_CHANNEL: Record<string, Channel> = {
   contacts: 'plan', tasks: 'plan', events: 'plan', cast: 'plan', crew: 'plan',
   shots: 'visualize', gear: 'visualize', plans: 'visualize', storyboard: 'visualize', storyboardSettings: 'visualize', boards: 'visualize',
   callSheets: 'shoot', locations: 'shoot',
+  // Rooms shared before Release keep its data with Plan.
+  festivals: 'plan', pressKit: 'plan', socialPosts: 'plan', deliverables: 'plan', outlets: 'plan',
   budget: 'budget',
 };
 
@@ -161,6 +165,7 @@ const KEY_CHANNEL_V2: Record<string, Channel> = {
   contacts: 'contacts', cast: 'contacts', crew: 'contacts', events: 'calendar', tasks: 'tasks',
   storyboard: 'storyboard', storyboardSettings: 'storyboard', boards: 'boards', shots: 'shots', plans: 'designer', gear: 'gear',
   callSheets: 'callsheets', locations: 'locations',
+  festivals: 'release', pressKit: 'release', socialPosts: 'release', deliverables: 'release', outlets: 'release',
   budget: 'budget',
 };
 
@@ -169,9 +174,9 @@ export function channelOf(key: string, f: RoomFormat = format): Channel {
   return (f === 2 ? KEY_CHANNEL_V2 : KEY_CHANNEL)[key] ?? 'settings';
 }
 
-const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts']);
+const COLLECTIONS = new Set(['drafts', 'sceneVariants', 'characters', 'relationships', 'gear', 'plans', 'categories', 'elements', 'cast', 'locations', 'crew', 'shots', 'events', 'storyboard', 'contacts', 'tasks', 'docs', 'avScripts', 'festivals', 'socialPosts', 'deliverables', 'outlets']);
 const RECORDS = new Set(['sceneMeta', 'callSheets', 'characterMap']);
-const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses', 'paperwork', 'clearances', 'timecards', 'agreements', 'fundingSources', 'festivals'];
+const BUDGET_LISTS = ['accounts', 'lines', 'fringes', 'scenarios', 'expenses', 'licenses', 'paperwork', 'clearances', 'timecards', 'agreements', 'fundingSources', 'festivals', 'festivalCosts'];
 
 /** Which project field an entry key belongs to. */
 export function fieldOf(entryKey: string): string {
@@ -276,7 +281,7 @@ export function describeEntry(entryKey: string, value: unknown): string {
     sceneNumbersLocked: 'Scene numbering', elements: 'Breakdown elements', sceneMeta: 'Scene details', categories: 'Breakdown tags',
     schedule: entryKey.startsWith('schedule.days') ? 'Stripboard day' : 'Schedule settings', contacts: 'Contacts', tasks: 'Tasks', events: 'Calendar events',
     cast: 'Cast', crew: 'Crew', shots: 'Shots', storyboard: 'Storyboard frames', storyboardSettings: 'Storyboard layout', boards: entryKey.startsWith('boardItems') ? 'Board item' : 'Boards',
-    callSheets: 'Call sheets', locations: 'Locations', createdAt: 'Project info', characters: 'Characters', drafts: 'Script drafts', revision: 'Script revisions', sceneVariants: 'Scene variants', sceneVariantActive: 'Scene variants', autoDrafts: 'Draft settings', structure: 'Story structure', writingPlan: 'Writing to a budget', bible: 'Story Bible', credits: 'End credits', relationships: 'Relationships', characterMap: 'Relationship map', characterOptions: 'Character builder settings', gear: 'Gear', plans: 'Shot designer plans',
+    callSheets: 'Call sheets', locations: 'Locations', createdAt: 'Project info', characters: 'Characters', drafts: 'Script drafts', revision: 'Script revisions', sceneVariants: 'Scene variants', sceneVariantActive: 'Scene variants', autoDrafts: 'Draft settings', structure: 'Story structure', writingPlan: 'Writing to a budget', festivals: 'Festivals', pressKit: 'Press kit', socialPosts: 'Social posts', deliverables: 'Deliverables', outlets: 'Distribution', bible: 'Story Bible', credits: 'End credits', relationships: 'Relationships', characterMap: 'Relationship map', characterOptions: 'Character builder settings', gear: 'Gear', plans: 'Shot designer plans',
     budget: entryKey.startsWith('budget.lines') ? 'Budget line' : entryKey.startsWith('budget.expenses') ? 'Expense' : entryKey.startsWith('budget.accounts') ? 'Budget account'
       : entryKey.startsWith('budget.scenarios') ? 'Budget scenario' : entryKey.startsWith('budget.fringes') ? 'Fringe' : 'Budget settings',
   };

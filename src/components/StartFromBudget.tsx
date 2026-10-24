@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { MoneyInput } from './NumberInput';
 import type { Draft } from 'immer';
 import type { Project, WritingHave, WritingKind, WritingLimitsSet, WritingPlan } from '../model/types';
 import { newProject } from '../model/defaults';
@@ -63,7 +64,7 @@ export function StartFromBudget({ onClose, onCreate }: { onClose: () => void; /*
     <>
       <p>Know how much you can spend, but not what to write? Tell us the money and what you have. You’ll get limits to write within: shoot days, locations, speaking roles and pages.</p>
       {onCreate && <label className="field"><span>Working title</span><input value={title} placeholder="Untitled Screenplay" onChange={(e) => setTitle(e.target.value)} /></label>}
-      <label className="field"><span>Your money, all in (USD)</span><input inputMode="decimal" value={money} placeholder="e.g. 10000" onChange={(e) => setMoney(e.target.value)} autoFocus /></label>
+      <label className="field"><span>Your money, all in</span><MoneyInput value={amount || undefined} placeholder="e.g. 10,000" onChange={(n) => setMoney(n ? String(n) : '')} /></label>
       <div className="field"><span>What are you making?</span>
         <div className="row wrap">{KINDS.map((k) => <button key={k.id} className={kind === k.id ? 'active' : ''} aria-pressed={kind === k.id} onClick={() => setKind(k.id)}>{k.label}</button>)}</div>
       </div>

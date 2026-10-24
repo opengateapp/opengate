@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { issueUrl } from '../help/feedback';
+import { FaqView } from '../help/FaqView';
 import { create } from 'zustand';
 import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
@@ -115,6 +117,7 @@ function RefPageView({ page }: { page: RefPage }) {
       {tools.map((t) => {
         if (t === 'frameworks') return <Frameworks key={t} />;
         if (t === 'arcs') return <Arcs key={t} />;
+        if (t === 'faq') return <FaqView key={t} />;
         const Tool = TOOLS[t];
         return Tool ? <div key={t} className="tool-card"><Tool /></div> : null;
       })}
@@ -259,7 +262,7 @@ function Library() {
       {RESOURCE_TYPES.filter((t) => list.some((r) => r.type === t.id)).map((t) => (
         <section key={t.id}><h4>{t.label}</h4><ul className="res-list">{list.filter((r) => r.type === t.id).map((r) => <ResourceItem key={r.id} r={r} />)}</ul></section>
       ))}
-      <p className="muted small">Know a great resource? <a href="https://github.com/opengateapp/opengate/issues/new?title=Suggest%20a%20resource" target="_blank" rel="noreferrer noopener">Suggest it on GitHub</a>.</p>
+      <p className="muted small">Know a great resource? <a href={issueUrl('resource')} target="_blank" rel="noreferrer noopener">Suggest it on GitHub</a>.</p>
     </article>
   );
 }

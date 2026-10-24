@@ -1,29 +1,38 @@
-import { useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { LAUREL_KINDS, emptyPressKit } from '../../release/pressKit';
+import { prepareLaurel } from '../../release/pressKitExport';
+import { putMedia } from '../../store/media';
+import { MoneyInput } from '../../components/NumberInput';
 import { useProject, useStore } from '../../store/project';
 import type { Festival, FestivalDeadline, FestivalStatus, FestivalTier, PremiereRule } from '../../model/types';
 import { money } from '../../budget/calc';
 import {
   FESTIVAL_STATUSES, FESTIVAL_TIERS, PREMIERE_RULES, aimedFee, budgeted, daysUntil, festivalTotals, newDeadline, newFestival, nextDeadline,
-  parseFestivalCsv, parseFestivalPaste, premiereWarnings, syncFestivalLines, type PasteResult,
+  parseFestivalCsv, parseFestivalPaste, premiereWarnings, joinFestivals, needsFestivalLines, syncFestivalLines, writeFestivals, type PasteResult,
 } from '../../budget/festivals';
 import { formatDate, todayISO } from '../../model/dates';
 import { newId } from '../../model/ids';
-import { canEdit, useSync } from '../../sync/state';
+import { canEdit, canWrite, useSync } from '../../sync/state';
 import { useNarrow } from '../../ui/responsive';
 import { toast } from '../../components/common';
 import { deletedToast } from '../../components/deleted';
 import { More } from '../../components/More';
 import { Hint } from '../../components/Hint';
 import { RefLink } from '../ReferenceTab';
-import { BudgetHidden } from './BudgetTab';
 
-// Budget → Festivals: the festivals you're aiming at, with deadlines, dates and fees. Planned fees
-// and travel become lines in Festivals & Marketing. You type or paste festivals in; Open Gate
-// doesn't fetch FilmFreeway or festival sites (FilmFreeway's terms forbid scraping).
+// Release → Festivals: the festivals you're aiming at, with deadlines, dates and status. Shared
+// with the budget: people who can see the budget also see (and edit) fees, waivers, paid and
+// travel, which become lines in Festivals & Marketing; everyone else sees no money at all. You
+// type or paste festivals in; Open Gate doesn't fetch FilmFreeway or festival sites (FilmFreeway's
+// terms forbid scraping).
+
+/** Money is shown (and editable, when `write`) only to people with the budget. */
+const Money = createContext({ show: true, write: true });
 
 export function FestivalsTab() {
-  const visible = useSync((s) => s.write === null || s.admin || s.budget);
-  return visible ? <FestivalsScreen /> : <BudgetHidden />;
+  const show = useSync((s) => s.write === null || s.admin || s.budget);
+  useSync((s) => s.write);
+  return <Money.Provider value={{ show, write: show && canWrite('budget') }}><FestivalsScreen /></Money.Provider>;
 }
 
 type Sort = 'name' | 'tier' | 'premiere' | 'event' | 'deadline' | 'fee' | 'status';
@@ -33,9 +42,10 @@ function FestivalsScreen() {
   const p = useProject();
   const update = useStore((s) => s.update);
   useSync((s) => s.write);
-  const ro = !canEdit('budget');
+  const ro = !canEdit('festivals');
+  const m = useContext(Money);
   const $ = (n: number) => money(n, p.budget.currency);
-  const list = p.budget.festivals ?? [];
+  const list = useMemo(() => joinFestivals(p), [p.festivals, p.budget.festivals, p.budget.festivalCosts]); // eslint-disable-line react-hooks/exhaustive-deps
   const today = todayISO();
   const totals = useMemo(() => festivalTotals(list, today), [list, today]);
   const clashes = useMemo(() => premiereWarnings(list), [list]);
@@ -44,7 +54,9 @@ function FestivalsScreen() {
   const [status, setStatus] = useState<FestivalStatus | ''>('');
   const [paste, setPaste] = useState(false);
 
-  const edit = (fn: (l: Festival[]) => void, label: string | null = 'Edit festivals') => update((dr) => { dr.budget.festivals ??= []; fn(dr.budget.festivals as Festival[]); syncFestivalLines(dr); }, label);
+  const edit = (fn: (l: Festival[]) => void, label: string | null = 'Edit festivals') => update((dr) => { const l = joinFestivals(dr); fn(l); writeFestivals(dr, l, m.write); }, label);
+  // Someone without the budget added the first festivals: give the budget its festival lines.
+  useEffect(() => { if (m.write && needsFestivalLines(p)) update((dr) => syncFestivalLines(dr), null); }, [m.write, p.festivals]); // eslint-disable-line react-hooks/exhaustive-deps
   const add = (f: Festival, label = 'Add festival') => edit((l) => { l.push(f); }, label);
 
   const shown = useMemo(() => {
@@ -80,7 +92,7 @@ function FestivalsScreen() {
         <More label="Sort, filter and import">
           <label className="check small keep-open">Sort
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-              <option value="deadline">Next deadline</option><option value="event">Festival date</option><option value="tier">Tier</option><option value="status">Status</option><option value="name">Name</option><option value="fee">Fee</option>
+              <option value="deadline">Next deadline</option><option value="event">Festival date</option><option value="tier">Tier</option><option value="status">Status</option><option value="name">Name</option>{m.show && <option value="fee">Fee</option>}
             </select>
           </label>
           <label className="check small keep-open">Show
@@ -93,13 +105,16 @@ function FestivalsScreen() {
       </div>
 
       <div className="fund-cards fest-summary">
+        {m.show && <>
         <div><span className="muted small">Entry fees planned</span><b>{$(totals.planned)}</b><span className="muted small">{totals.byStatus.planned + totals.byStatus.submitted + totals.byStatus.accepted} festivals · paid so far {$(totals.paid)}</span></div>
         <div><span className="muted small">Festival travel</span><b>{$(totals.travel)}</b><span className="muted small">for the festivals you plan to attend</span></div>
+        </>}
+        {!m.show && <div><span className="muted small">Festivals</span><b>{list.length}</b><span className="muted small">{totals.byStatus.submitted} submitted · {totals.byStatus.accepted} accepted</span></div>}
         <div className={next && next.days <= 14 ? 'fund-raise' : ''}><span className="muted small">Next deadline</span>
-          {next ? <><b>{next.days === 0 ? 'Today' : `${next.days} day${next.days === 1 ? '' : 's'}`}</b><span className="muted small">{next.festival.name || 'Festival'}: {next.deadline.label} {fmt(next.deadline.date)} · {$(next.deadline.fee)}</span></> : <><b>—</b><span className="muted small">No open deadlines on planned festivals</span></>}
+          {next ? <><b>{next.days === 0 ? 'Today' : `${next.days} day${next.days === 1 ? '' : 's'}`}</b><span className="muted small">{next.festival.name || 'Festival'}: {next.deadline.label} {fmt(next.deadline.date)}{m.show ? ` · ${$(next.deadline.fee)}` : ''}</span></> : <><b>—</b><span className="muted small">No open deadlines on planned festivals</span></>}
         </div>
       </div>
-      <p className="muted small"><Hint>{'Fees for planned, submitted and accepted festivals go into the budget as “Festival submissions” (Festivals & Marketing). Open Gate doesn’t pull from FilmFreeway: its terms don’t allow automated reading of the site. Copy the dates and fees from a festival’s page and paste them here instead; you still submit on FilmFreeway.'}</Hint></p>
+      <p className="muted small"><Hint>{(m.show ? 'Fees for planned, submitted and accepted festivals go into the budget as “Festival submissions” (Festivals & Marketing). ' : 'Fees and travel are kept with the budget, which isn’t shared with you. ') + 'Open Gate doesn’t pull from FilmFreeway: its terms don’t allow automated reading of the site. Copy the dates and fees from a festival’s page and paste them here instead; you still submit on FilmFreeway.'}</Hint></p>
 
       {clashes.map(({ festival, before }) => (
         <p key={festival.id} className="fund-warn">⚠ {festival.name || 'A festival'} wants a {PREMIERE_RULES.find((r) => r.id === festival.premiere)?.label.toLowerCase()}, but {before.name || 'another festival'} screens first ({fmt(before.eventStart)}). Screening there may rule you out. <RefLink page="festivals" /></p>
@@ -111,6 +126,7 @@ function FestivalsScreen() {
           : shown.length > 0 && <FestivalTable list={shown} ro={ro} today={today} edit={edit} sort={sort} setSort={(c) => setSort(c)} />}
         {!list.length && <p className="muted pad"><Hint>{'No festivals yet. Add one, paste a festival’s dates and fees from FilmFreeway or its website, or import a spreadsheet. Double-click here to add one.'}</Hint></p>}
       </div>
+      <datalist id="laurel-kinds">{LAUREL_KINDS.map((x) => <option key={x} value={x} />)}</datalist>
       {paste && <PasteDialog onClose={() => setPaste(false)} onAdd={(f) => { add(f, 'Paste festival'); setPaste(false); toast(`Added ${f.name || 'the festival'} with ${f.deadlines.length} deadline${f.deadlines.length === 1 ? '' : 's'}.`); }} />}
     </div>
   );
@@ -122,12 +138,13 @@ type Edit = (fn: (l: Festival[]) => void, label?: string | null) => void;
 function useFestival(f: Festival, edit: Edit, today: string) {
   const p = useProject();
   const update = useStore((s) => s.update);
+  const m = useContext(Money);
   const $ = (n: number) => money(n, p.budget.currency);
   const set = (patch: Partial<Festival>, label: string | null = null) => edit((l) => { const x = l.find((y) => y.id === f.id); if (x) Object.assign(x, patch); }, label);
   const setDl = (id: string, patch: Partial<FestivalDeadline>) => set({ deadlines: f.deadlines.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
   const next = nextDeadline(f, today);
   const fee = aimedFee(f, today);
-  const submit = () => set({ status: 'submitted', submittedOn: today, feePaid: f.feePaid ?? fee }, 'Mark submitted');
+  const submit = () => set({ status: 'submitted', submittedOn: today, ...(m.write ? { feePaid: f.feePaid ?? fee } : {}) }, 'Mark submitted');
   const toExpense = () => update((dr) => {
     const line = dr.budget.lines.find((l) => l.link?.kind === 'festival');
     const acc = line?.accountId ?? dr.budget.accounts.find((a) => a.code === '5100')?.id ?? dr.budget.accounts[0].id;
@@ -137,12 +154,12 @@ function useFestival(f: Festival, edit: Edit, today: string) {
   const actions = (
     <More label="Festival actions" always>
       {(f.status === 'considering' || f.status === 'planned') && <button onClick={submit}>Mark submitted today</button>}
-      {(f.status === 'submitted' || f.status === 'accepted') && !hasExpense && <button onClick={toExpense}>Add the fee to Expenses</button>}
+      {m.write && (f.status === 'submitted' || f.status === 'accepted') && !hasExpense && <button onClick={toExpense}>Add the fee to Expenses</button>}
       <button onClick={() => edit((l) => { l.push({ ...f, id: newId(), name: `${f.name} (copy)`, deadlines: f.deadlines.map((d) => ({ ...d, id: newId() })), status: 'considering', submittedOn: undefined, feePaid: undefined }); }, 'Duplicate festival')}>Duplicate</button>
       <button className="danger-text" onClick={() => { edit((l) => { const i = l.findIndex((x) => x.id === f.id); if (i >= 0) l.splice(i, 1); }, 'Delete festival'); deletedToast(f.name || 'festival'); }}>Delete</button>
     </More>
   );
-  return { $, set, setDl, next, fee, actions };
+  return { $, set, setDl, next, fee, actions, m };
 }
 
 const statusSelect = (f: Festival, ro: boolean, set: (p: Partial<Festival>, l?: string | null) => void) => (
@@ -159,7 +176,7 @@ function Deadlines({ f, ro, today, h }: { f: Festival; ro: boolean; today: strin
   return (
     <div className="festival-deadlines-wrap">
       <table className="table compact festival-deadlines">
-        <thead><tr><th>Aim</th><th>Deadline</th><th>Date</th><th className="num">Fee</th><th /></tr></thead>
+        <thead><tr><th>Aim</th><th>Deadline</th><th>Date</th>{h.m.show && <th className="num">Fee</th>}<th /></tr></thead>
         <tbody>
           {[...f.deadlines].sort((a, b) => (a.date || '9').localeCompare(b.date || '9')).map((d) => {
             const past = !!d.date && d.date < today;
@@ -169,7 +186,7 @@ function Deadlines({ f, ro, today, h }: { f: Festival; ro: boolean; today: strin
                 <td><input disabled={ro} type="radio" name={`aim-${f.id}`} checked={f.aim === d.id} aria-label={`Aim for the ${d.label} deadline`} onChange={() => h.set({ aim: d.id }, 'Aim for deadline')} /></td>
                 <td><input disabled={ro} value={d.label} aria-label="Deadline name" onChange={(e) => h.setDl(d.id, { label: e.target.value })} /></td>
                 <td><input disabled={ro} type="date" value={d.date} aria-label="Deadline date" onChange={(e) => h.setDl(d.id, { date: e.target.value })} />{days !== null && !past && days <= 30 && <span className="small fest-days"> {days === 0 ? 'today' : `${days}d`}</span>}</td>
-                <td className="num"><input disabled={ro} className="num" type="number" min={0} step={1} value={d.fee || ''} placeholder="0" aria-label="Fee" onChange={(e) => h.setDl(d.id, { fee: Number(e.target.value) || 0 })} /></td>
+                {h.m.show && <td className="num"><MoneyInput disabled={ro || !h.m.write} className="num" min={0} value={d.fee || undefined} placeholder="0" aria-label="Fee" onChange={(n) => h.setDl(d.id, { fee: n ?? 0 })} /></td>}
                 <td>{!ro && <button className="icon-btn" aria-label="Delete deadline" onClick={() => h.set({ deadlines: f.deadlines.filter((x) => x.id !== d.id), aim: f.aim === d.id ? undefined : f.aim }, 'Delete deadline')}>×</button>}</td>
               </tr>
             );
@@ -182,22 +199,47 @@ function Deadlines({ f, ro, today, h }: { f: Festival; ro: boolean; today: strin
 }
 
 function Extras({ f, ro, h }: { f: Festival; ro: boolean; h: ReturnType<typeof useFestival> }) {
-  const { set } = h;
+  const { set, m } = h;
+  const mro = ro || !m.write;
   return (
     <>
       <div className="festival-meta">
-        <input disabled={ro} className="festival-waiver" value={f.waiver ?? ''} placeholder="Fee waiver code / note" aria-label="Fee waiver" onChange={(e) => set({ waiver: e.target.value || undefined })} />
+        {m.show && <input disabled={mro} className="festival-waiver" value={f.waiver ?? ''} placeholder="Fee waiver code / note" aria-label="Fee waiver" onChange={(e) => set({ waiver: e.target.value || undefined })} />}
         <label className="check small"><input disabled={ro} type="checkbox" checked={!!f.attend} onChange={(e) => set({ attend: e.target.checked }, 'Attend festival')} /> Attend</label>
-        {f.attend && <label className="check small">Travel <input disabled={ro} className="num" type="number" min={0} step={50} value={f.travel ?? ''} placeholder="0" aria-label="Travel budget" onChange={(e) => set({ travel: Number(e.target.value) || 0 })} /></label>}
+        {m.show && f.attend && <label className="check small">Travel <MoneyInput disabled={mro} className="num" min={0} value={f.travel} placeholder="0" aria-label="Travel budget" onChange={(n) => set({ travel: n ?? 0 })} /></label>}
         {(f.status !== 'considering' && f.status !== 'planned') && <>
           <label className="check small">Submitted <input disabled={ro} type="date" value={f.submittedOn ?? ''} onChange={(e) => set({ submittedOn: e.target.value || undefined })} /></label>
-          <label className="check small">Fee paid <input disabled={ro} className="num" type="number" min={0} value={f.feePaid ?? ''} placeholder="0" aria-label="Fee paid" onChange={(e) => set({ feePaid: e.target.value === '' ? undefined : Number(e.target.value) || 0 })} /></label>
+          {m.show && <label className="check small">Fee paid <MoneyInput disabled={mro} className="num" min={0} value={f.feePaid} placeholder="0" aria-label="Fee paid" onChange={(n) => set({ feePaid: n })} /></label>}
         </>}
+        {f.status === 'accepted' && <label className="check small">Laurel <input disabled={ro} className="festival-laurel" list="laurel-kinds" value={f.laurel ?? ''} placeholder="Official Selection" aria-label="Laurel" onChange={(e) => set({ laurel: e.target.value || undefined })} /></label>}
+        {f.status === 'accepted' && !ro && <LaurelImageButton f={f} />}
         <label className="check small">Notified by <input disabled={ro} type="date" value={f.notifyDate ?? ''} onChange={(e) => set({ notifyDate: e.target.value || undefined })} /></label>
       </div>
       <input disabled={ro} className="festival-notes" value={f.notes ?? ''} placeholder="Notes (screening format, DCP, contact…)" aria-label="Notes" onChange={(e) => set({ notes: e.target.value || undefined })} />
     </>
   );
+}
+
+/** "Add laurel image": saves the festival's wreath into Release → Press kit → Laurels. */
+function LaurelImageButton({ f }: { f: Festival }) {
+  const p = useProject();
+  const update = useStore((s) => s.update);
+  const has = (p.pressKit?.laurels ?? []).some((l) => l.festivalId === f.id && l.imageId);
+  const add = async (file?: File) => {
+    if (!file) return;
+    try {
+      const id = await putMedia(p.id, await prepareLaurel(file));
+      update((dr) => {
+        dr.pressKit ??= emptyPressKit();
+        const l = (dr.pressKit.laurels ??= []);
+        const same = l.find((x) => x.festivalId === f.id);
+        if (same) same.imageId = id;
+        else l.push({ id: newId(), imageId: id, festivalId: f.id, festival: f.name.replace(/\s*\(fictional\)\s*$/i, ''), text: f.laurel || 'Official Selection', year: f.eventStart?.slice(0, 4), include: true });
+      }, 'Add laurel image');
+      toast('Saved to Press kit → Laurels.');
+    } catch (e) { toast((e as Error).message); }
+  };
+  return <label className="link small" title="The wreath the festival sent (PNG or SVG); it goes to Press kit → Laurels">{has ? '✓ Laurel image · replace' : '＋ Add laurel image'}<input type="file" accept="image/*" hidden onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ''; }} /></label>;
 }
 
 const datesInputs = (f: Festival, ro: boolean, set: (p: Partial<Festival>) => void) => (
@@ -220,7 +262,7 @@ function FestivalCard({ f, ro, today, edit }: { f: Festival; ro: boolean; today:
         <input disabled={ro} className="festival-name" value={f.name} placeholder="Festival name" aria-label="Festival name" onChange={(e) => h.set({ name: e.target.value })} />
         {f.url && <a className="icon-link" href={f.url} target="_blank" rel="noreferrer noopener" title="Open the festival’s page">↗</a>}
         {statusSelect(f, ro, h.set)}
-        <span className="festival-fee" title="What entering costs (the budget uses this)">{h.$(h.fee)}</span>
+        {h.m.show && <span className="festival-fee" title="What entering costs (the budget uses this)">{h.$(h.fee)}</span>}
         {!ro && h.actions}
       </div>
       <div className="festival-meta">
@@ -239,12 +281,13 @@ type Col = Sort;
 
 /** Desktop: one row per festival; click a row to open its deadlines and details underneath. */
 function FestivalTable({ list, ro, today, edit, sort, setSort }: { list: Festival[]; ro: boolean; today: string; edit: Edit; sort: Col; setSort: (c: Col) => void }) {
+  const m = useContext(Money);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const th = (c: Col, label: string, cls = '') => <th className={`${cls} ${sort === c ? 'sorted' : ''}`} aria-sort={sort === c ? 'ascending' : 'none'}><button className="link th-sort" onClick={() => setSort(c)}>{label}{sort === c ? ' ↑' : ''}</button></th>;
   return (
     <table className="table festival-table">
-      <thead><tr><th aria-label="Open" />{th('name', 'Festival')}{th('tier', 'Tier')}{th('premiere', 'Premiere', 'col-premiere')}{th('event', 'Festival dates')}{th('deadline', 'Next deadline')}{th('fee', 'Fee', 'num')}{th('status', 'Status')}<th className="col-travel">Travel</th><th aria-label="Actions" /></tr></thead>
+      <thead><tr><th aria-label="Open" />{th('name', 'Festival')}{th('tier', 'Tier')}{th('premiere', 'Premiere', 'col-premiere')}{th('event', 'Festival dates')}{th('deadline', 'Next deadline')}{m.show && th('fee', 'Fee', 'num')}{th('status', 'Status')}<th className="col-travel">{m.show ? 'Travel' : 'Attend'}</th><th aria-label="Actions" /></tr></thead>
       {list.map((f) => <FestivalRow key={f.id} f={f} ro={ro} today={today} edit={edit} open={open.has(f.id)} toggle={() => toggle(f.id)} />)}
     </table>
   );
@@ -266,14 +309,14 @@ function FestivalRow({ f, ro, today, edit, open, toggle }: { f: Festival; ro: bo
         <td className="col-premiere">{premiereSelect(f, ro, h.set)}</td>
         <td className="nowrap">{range}</td>
         <td>{h.next ? <><b>{h.next.label}</b> <span className="muted small">{fmt(h.next.date)}</span> <span className={`small ${days !== null && days <= 14 ? 'fest-days' : 'muted'}`}>{days === 0 ? 'today' : `in ${days} days`}</span></> : last ? <span className="muted small">Closed ({fmt(last.date)})</span> : <span className="muted small">No deadlines</span>}</td>
-        <td className="num"><b>{h.$(h.fee)}</b>{f.waiver && <span className="muted small" title={f.waiver}> waived</span>}</td>
+        {h.m.show && <td className="num"><b>{h.$(h.fee)}</b>{f.waiver && <span className="muted small" title={f.waiver}> waived</span>}</td>}
         <td>{statusSelect(f, ro, h.set)}</td>
-        <td className="nowrap col-travel">{f.attend ? `✓ ${h.$(f.travel ?? 0)}` : <span className="muted">—</span>}</td>
+        <td className="nowrap col-travel">{f.attend ? (h.m.show ? `✓ ${h.$(f.travel ?? 0)}` : '✓') : <span className="muted">—</span>}{f.laurel && <span className="chip small" title="Laurel">🏆 {f.laurel}</span>}</td>
         <td>{!ro && h.actions}</td>
       </tr>
       {open && (
         <tr className="festival-detail"><td />
-          <td colSpan={9}>
+          <td colSpan={h.m.show ? 9 : 8}>
             <div className="festival-detail-grid">
               <div>
                 <label className="field"><span>Festival name</span><input disabled={ro} value={f.name} placeholder="Festival name" onChange={(e) => h.set({ name: e.target.value })} /></label>
@@ -293,6 +336,7 @@ function FestivalRow({ f, ro, today, edit, open, toggle }: { f: Festival; ro: bo
 }
 
 function PasteDialog({ onClose, onAdd }: { onClose: () => void; onAdd: (f: Festival) => void }) {
+  const m = useContext(Money);
   const [text, setText] = useState('');
   const [res, setRes] = useState<PasteResult | null>(null);
   const today = todayISO();
@@ -325,12 +369,12 @@ function PasteDialog({ onClose, onAdd }: { onClose: () => void; onAdd: (f: Festi
             </div>
             {f.category && <label className="field"><span>Category (fees are for this one)</span><input value={f.category} onChange={(e) => setF({ category: e.target.value })} /></label>}
             <table className="table compact festival-deadlines">
-              <thead><tr><th>Deadline</th><th>Date</th><th className="num">Fee</th></tr></thead>
+              <thead><tr><th>Deadline</th><th>Date</th>{m.write && <th className="num">Fee</th>}</tr></thead>
               <tbody>{f.deadlines.map((d) => (
                 <tr key={d.id} className={d.date && d.date < today ? 'past' : ''}>
                   <td><input value={d.label} onChange={(e) => setDl(d.id, { label: e.target.value })} /></td>
                   <td><input type="date" value={d.date} onChange={(e) => setDl(d.id, { date: e.target.value })} /></td>
-                  <td className="num"><input className="num" type="number" min={0} value={d.fee || ''} onChange={(e) => setDl(d.id, { fee: Number(e.target.value) || 0 })} /></td>
+                  {m.write && <td className="num"><MoneyInput className="num" min={0} value={d.fee || undefined} placeholder="0" aria-label="Fee" onChange={(n) => setDl(d.id, { fee: n ?? 0 })} /></td>}
                 </tr>
               ))}</tbody>
             </table>

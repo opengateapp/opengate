@@ -1,4 +1,5 @@
 import { CREW } from './crew';
+import { FAQ_PAGE } from './faq';
 import { CHECKED, GUILDS, LEGAL_NOTE, type Guild } from './guilds';
 import { MONEY_PAGES } from './money';
 import { LEGAL_PAGES } from './legal';
@@ -6,9 +7,10 @@ import { LEGAL_PAGES } from './legal';
 // Reference pages: short plain-language explainers written for Open Gate, a quick-reference
 // table where it helps, an interactive tool, and links to where it's used in the app.
 
-export type RefCategory = 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'money' | 'legal' | 'crew' | 'guilds' | 'post';
+export type RefCategory = 'help' | 'story' | 'camera' | 'lenses' | 'lighting' | 'audio' | 'video' | 'grip' | 'production' | 'money' | 'legal' | 'crew' | 'guilds' | 'post';
 
 export const CATEGORIES: { id: RefCategory; label: string; icon: string; hint: string }[] = [
+  { id: 'help', label: 'Help & FAQ', icon: '?', hint: 'Questions about Open Gate: data, sharing, why it works the way it does' },
   { id: 'story', label: 'Story', icon: '✎', hint: 'Structures, character arcs, script format' },
   { id: 'camera', label: 'Camera', icon: '◉', hint: 'Sensors, frame rates, exposure, aspect ratios' },
   { id: 'lenses', label: 'Lenses', icon: '◎', hint: 'Focal length, depth of field, stops, mounts' },
@@ -24,7 +26,7 @@ export const CATEGORIES: { id: RefCategory; label: string; icon: string; hint: s
   { id: 'post', label: 'Post', icon: '✂', hint: 'Editing, deliverables' },
 ];
 
-export type ToolId = 'dof' | 'fov' | 'crop' | 'exposure' | 'shutter' | 'kelvin' | 'falloff' | 'storage' | 'audio' | 'battery' | 'power' | 'phone' | 'frameworks' | 'arcs';
+export type ToolId = 'dof' | 'fov' | 'crop' | 'exposure' | 'shutter' | 'kelvin' | 'falloff' | 'storage' | 'audio' | 'battery' | 'power' | 'phone' | 'frameworks' | 'arcs' | 'faq';
 
 export interface RefPage {
   id: string;
@@ -285,6 +287,7 @@ export const PAGES: RefPage[] = [
     topics: ['production'], keywords: d.roles.map((r) => r[0]).join(' ').toLowerCase(),
   })),
   // ---------- Guilds & Unions ----------
+  FAQ_PAGE,
   ...MONEY_PAGES,
   ...LEGAL_PAGES,
   ...GUILDS.map(guildPage),

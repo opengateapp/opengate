@@ -20,7 +20,7 @@ function at(el: PlanElement, pos: number): { x: number; y: number; rot: number }
 }
 
 /** SVG markup of a plan. `cameraId` is highlighted; `pos` is its move position. */
-export function planSvg(plan: ScenePlan, cameraId?: string, pos = 0): { svg: string; w: number; h: number } {
+export function planSvg(plan: ScenePlan, cameraId?: string, pos = 0, distance: 'ft' | 'm' = 'ft'): { svg: string; w: number; h: number } {
   const els = plan.elements;
   const pts = els.flatMap((e) => [{ x: e.x, y: e.y }, ...(e.path ?? [])]);
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
@@ -79,15 +79,20 @@ export function planSvg(plan: ScenePlan, cameraId?: string, pos = 0): { svg: str
     label(p.x, p.y - 1.2, `${e.label.replace(/^Camera\s+/i, '')} · ${e.focal ?? 35}mm`, mine ? ACCENT : DIM, mine ? 0.95 : 0.7);
   }
   // Scale bar
-  out.push(`<line x1="${x0 + 1}" y1="${y1 - 1}" x2="${x0 + 6}" y2="${y1 - 1}" stroke="${INK}" stroke-width="0.1"/>`);
-  label(x0 + 3.5, y1 - 1.4, '5 ft', INK, 0.6);
+  // Plans are in feet; in metres the bar is 2 m long.
+  const bar = scaleBar(distance);
+  out.push(`<line x1="${x0 + 1}" y1="${y1 - 1}" x2="${x0 + 1 + bar.len}" y2="${y1 - 1}" stroke="${INK}" stroke-width="0.1"/>`);
+  label(x0 + 1 + bar.len / 2, y1 - 1.4, bar.label, INK, 0.6);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${W} ${H}" width="${Math.round(W * 40)}" height="${Math.round(H * 40)}">${out.join('')}</svg>`;
   return { svg, w: W, h: H };
 }
 
 /** The plan as a PNG (white background), ready to store as a panel's set plan image. */
-export async function planPng(plan: ScenePlan, cameraId?: string, pos = 0, width = 1600): Promise<Blob> {
-  const { svg, w, h } = planSvg(plan, cameraId, pos);
+/** The scale bar: 5 ft, or 2 m (plans are drawn in feet). */
+export const scaleBar = (distance: 'ft' | 'm') => (distance === 'm' ? { len: 2 * 3.28084, label: '2 m' } : { len: 5, label: '5 ft' });
+
+export async function planPng(plan: ScenePlan, cameraId?: string, pos = 0, width = 1600, distance: 'ft' | 'm' = 'ft'): Promise<Blob> {
+  const { svg, w, h } = planSvg(plan, cameraId, pos, distance);
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   try {
     const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not draw the plan.')); i.src = url; });

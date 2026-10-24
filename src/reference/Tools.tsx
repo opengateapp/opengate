@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { canEdit } from '../sync/state';
+import { unitsOf } from '../model/units';
+import { useStore } from '../store/project';
+import { NumberInput } from '../components/NumberInput';
 import { SENSORS } from '../visualize/plan';
 import { setPrefs, usePrefs } from '../prefs';
 import {
@@ -9,10 +13,10 @@ import type { ToolId } from './topics';
 
 // Interactive tools on Reference pages. Each is self-contained; units follow the user's choice.
 
-function Num({ label, value, onChange, step = 1, min = 0, suffix }: { label: string; value: number; onChange: (n: number) => void; step?: number; min?: number; suffix?: string }) {
+function Num({ label, value, onChange, min = 0, suffix, hint }: { label: string; value: number; onChange: (n: number) => void; step?: number; min?: number; suffix?: string; hint?: string }) {
   return (
-    <label className="field tool-num"><span>{label}</span>
-      <span className="row nowrap"><input type="number" inputMode="decimal" step={step} min={min} value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} />{suffix && <span className="muted small">{suffix}</span>}</span>
+    <label className="field tool-num" title={hint}><span>{label}</span>
+      <NumberInput min={min} decimals={3} grouping={false} suffix={suffix} value={value} onChange={(n) => onChange(n ?? 0)} />
     </label>
   );
 }
@@ -25,9 +29,13 @@ function SensorPick({ value, onChange }: { value: string; onChange: (id: string)
 const sensor = (id: string) => SENSORS.find((s) => s.id === id) ?? SENSORS[1];
 const F_STOPS = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22];
 
+/** Distances follow the project (Settings → Units & currency); without a project, this device's choice. */
 function useUnits(): ['ft' | 'm', (u: 'ft' | 'm') => void] {
-  const u = usePrefs((s) => s.units);
-  return [u, (x) => setPrefs({ units: x })];
+  const p = useStore((s) => s.project);
+  const update = useStore((s) => s.update);
+  const dev = usePrefs((s) => s.units);
+  const u = p ? unitsOf(p).distance : dev;
+  return [u, (x) => (p && canEdit('units') ? update((dr) => { dr.units = { ...unitsOf(dr as never), distance: x }; }, 'Distances') : setPrefs({ units: x }))];
 }
 function UnitsSeg({ u, set }: { u: 'ft' | 'm'; set: (u: 'ft' | 'm') => void }) {
   return <div className="seg small">{(['ft', 'm'] as const).map((x) => <button key={x} className={u === x ? 'active' : ''} onClick={() => set(x)}>{x === 'ft' ? 'Feet' : 'Metres'}</button>)}</div>;
@@ -162,12 +170,13 @@ function KelvinTool() {
 }
 
 function FalloffTool() {
+  const [units] = useUnits();
   const [d1, setD1] = useState(5);
   const [d2, setD2] = useState(10);
   const r = falloff(d1, d2);
   return (
     <div className="tool">
-      <div className="tool-inputs"><Num label="Light at" value={d1} onChange={setD1} step={0.5} suffix="distance" /><Num label="Moved to" value={d2} onChange={setD2} step={0.5} suffix="distance" /></div>
+      <div className="tool-inputs"><Num label="Light at" value={d1} onChange={setD1} step={0.5} suffix={units} /><Num label="Moved to" value={d2} onChange={setD2} step={0.5} suffix={units} /></div>
       <div className="tool-outputs"><Out label="Brightness" value={`${(r.ratio * 100).toFixed(0)}%`} big /><Out label="Change" value={`${r.stops >= 0 ? '−' : '+'}${Math.abs(r.stops).toFixed(1)} stops`} /></div>
     </div>
   );
@@ -184,7 +193,7 @@ function StorageTool() {
         <Num label="Bitrate" value={mbps} onChange={setMbps} suffix="Mbit/s" />
         <Num label="Footage per day" value={hours} onChange={setHours} step={0.5} suffix="hours" />
         <Num label="Card size" value={card} onChange={setCard} suffix="GB" />
-        <Num label="Backup copies" value={copies} onChange={setCopies} suffix="(3-2-1)" />
+        <Num label="Backup copies" value={copies} onChange={setCopies} suffix="copies" hint="The 3-2-1 rule: 3 copies, on 2 kinds of media, 1 kept somewhere else" />
       </div>
       <div className="tool-outputs">
         <Out label="Per hour" value={`${gbPerHour(mbps).toFixed(0)} GB`} />

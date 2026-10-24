@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { scaleBar } from '../../visualize/planImage';
+import { NumberInput, useUnits } from '../../components/NumberInput';
+import { showDistance, storeDistance } from '../../model/units';
 import type { Draft } from 'immer';
 import { useDerived, useProject, useStore } from '../../store/project';
 import type { PlanElement, PlanElementKind, Project, ScenePlan } from '../../model/types';
@@ -29,6 +32,7 @@ const DRAG_KIND = 'application/x-opengate-plan-kind';
 type View = { x: number; y: number; w: number };
 
 export function ShotDesignerTab() {
+  const distance = useUnits().distance;
   const p = useProject();
   const d = useDerived();
   const update = useStore((s) => s.update);
@@ -334,7 +338,7 @@ export function ShotDesignerTab() {
             ))}
             {plan?.elements.map((el) => <ElementView key={el.id} el={el} selected={el.id === sel} onDown={(e, kind) => onDown(e, { id: el.id, kind })} onMenu={(at) => itemMenu(el, at)} />)}
             <g className="scale-bar" transform={`translate(${view.x + 1} ${view.y + view.w * aspect - 1.2})`}>
-              <line x1={0} y1={0} x2={5} y2={0} /><text x={2.5} y={-0.4} textAnchor="middle">5 ft</text>
+              <line x1={0} y1={0} x2={scaleBar(distance).len} y2={0} /><text x={scaleBar(distance).len / 2} y={-0.4} textAnchor="middle">{scaleBar(distance).label}</text>
             </g>
           </svg>
           {!plan?.elements.length && (
@@ -414,6 +418,7 @@ function ElementView({ el, selected, onDown, onMenu }: { el: PlanElement; select
 }
 
 function Inspector({ el, ro, scene, onSet, onRemove, onAddPoint }: { el: PlanElement; ro: boolean; scene: { id: string; number: string }; onSet: (patch: Partial<PlanElement>, label?: string | null) => void; onRemove: () => void; onAddPoint: () => void }) {
+  const dist = useUnits().distance;
   const p = useProject();
   const d = useDerived();
   const sc = d.sceneById.get(scene.id);
@@ -438,7 +443,7 @@ function Inspector({ el, ro, scene, onSet, onRemove, onAddPoint }: { el: PlanEle
               <option value="">Other</option>
               {FOCALS.map((f) => <option key={f} value={f}>{f}mm</option>)}
             </select>
-            <input type="number" className="cell-num small" disabled={ro} value={el.focal ?? 35} onChange={(e) => onSet({ focal: Math.max(4, Number(e.target.value) || 35) })} /> mm
+            <NumberInput suffix="mm" className="cell-num small" min={4} decimals={1} disabled={ro} value={el.focal ?? 35} aria-label="Focal length" onChange={(n) => onSet({ focal: Math.max(4, n ?? 35) })} />
           </div>
         </label>
         <label className="field"><span>Sensor</span>
@@ -452,18 +457,18 @@ function Inspector({ el, ro, scene, onSet, onRemove, onAddPoint }: { el: PlanEle
         <label className="field"><span>Type</span>
           <select disabled={ro} value={el.lightType} onChange={(e) => onSet({ lightType: e.target.value }, 'Light type')}>{LIGHT_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
         </label>
-        <label className="field"><span>Colour temperature — {el.kelvin ?? 5600}K {(el.kelvin ?? 5600) <= 3400 ? '(tungsten)' : (el.kelvin ?? 5600) >= 5000 ? '(daylight)' : ''}</span>
-          <input type="range" min={2000} max={10000} step={100} disabled={ro} value={el.kelvin ?? 5600} onChange={(e) => onSet({ kelvin: Number(e.target.value) })} />
+        <label className="field"><span>Colour temperature {(el.kelvin ?? 5600) <= 3400 ? '(tungsten)' : (el.kelvin ?? 5600) >= 5000 ? '(daylight)' : ''}</span>
+          <span className="row nowrap"><input type="range" min={2000} max={10000} step={100} disabled={ro} value={el.kelvin ?? 5600} aria-label="Colour temperature" onChange={(e) => onSet({ kelvin: Number(e.target.value) })} /><NumberInput suffix="K" className="cell-num small" min={1000} max={20000} decimals={0} grouping={false} disabled={ro} value={el.kelvin ?? 5600} aria-label="Kelvin" onChange={(n) => n && onSet({ kelvin: n })} /></span>
         </label>
       </>}
       {(el.kind === 'prop' || el.kind === 'wall' || el.kind === 'door' || el.kind === 'window') && (
         <div className="row">
-          <label className="field"><span>Length (ft)</span><input type="number" className="cell-num small" disabled={ro} value={el.w ?? 3} onChange={(e) => onSet({ w: Math.max(0.25, Number(e.target.value) || 1) })} /></label>
-          <label className="field"><span>Depth (ft)</span><input type="number" className="cell-num small" disabled={ro} value={el.h ?? 0.5} onChange={(e) => onSet({ h: Math.max(0.1, Number(e.target.value) || 0.5) })} /></label>
+          <label className="field"><span>Length</span><NumberInput suffix={dist} className="cell-num small" decimals={2} disabled={ro} value={showDistance(el.w ?? 3, dist)} onChange={(n) => n && onSet({ w: Math.max(0.25, storeDistance(n, dist)) })} /></label>
+          <label className="field"><span>Depth</span><NumberInput suffix={dist} className="cell-num small" decimals={2} disabled={ro} value={showDistance(el.h ?? 0.5, dist)} onChange={(n) => n && onSet({ h: Math.max(0.1, storeDistance(n, dist)) })} /></label>
         </div>
       )}
-      <label className="field"><span>Facing — {Math.round(((el.rot % 360) + 360) % 360)}°</span>
-        <input type="range" min={-180} max={180} step={5} disabled={ro} value={((el.rot + 540) % 360) - 180} onChange={(e) => onSet({ rot: Number(e.target.value) })} />
+      <label className="field"><span>Facing</span>
+        <span className="row nowrap"><input type="range" min={-180} max={180} step={5} disabled={ro} value={((el.rot + 540) % 360) - 180} aria-label="Facing" onChange={(e) => onSet({ rot: Number(e.target.value) })} /><NumberInput suffix="°" className="cell-num small" min={0} max={359} decimals={0} disabled={ro} value={Math.round(((el.rot % 360) + 360) % 360)} aria-label="Facing in degrees" onChange={(n) => n != null && onSet({ rot: n })} /></span>
       </label>
       {(el.kind === 'camera' || el.kind === 'actor') && (
         <div className="field"><span>Movement {el.path?.length ? `· ${el.path.length} point${el.path.length > 1 ? 's' : ''}` : ''}</span>
@@ -479,6 +484,7 @@ function Inspector({ el, ro, scene, onSet, onRemove, onAddPoint }: { el: PlanEle
 }
 
 function PlanSummary({ plan, onSelect, onBg, ro }: { plan?: ScenePlan; onSelect: (id: string) => void; onBg: (patch: Partial<ScenePlan>) => void; ro: boolean }) {
+  const dist = useUnits().distance;
   const p = useProject();
   const cams = plan?.elements.filter((e) => e.kind === 'camera') ?? [];
   return (
@@ -500,8 +506,8 @@ function PlanSummary({ plan, onSelect, onBg, ro }: { plan?: ScenePlan; onSelect:
       {plan?.backgroundId && (
         <>
           <h4>Set drawing</h4>
-          <label className="field"><span>Width — {plan.bgWidth ?? 40} ft</span><input type="range" min={10} max={200} disabled={ro} value={plan.bgWidth ?? 40} onChange={(e) => onBg({ bgWidth: Number(e.target.value) })} /></label>
-          <label className="field"><span>Opacity</span><input type="range" min={0.1} max={1} step={0.05} disabled={ro} value={plan.bgOpacity ?? 0.6} onChange={(e) => onBg({ bgOpacity: Number(e.target.value) })} /></label>
+          <label className="field"><span>Width — {showDistance(plan.bgWidth ?? 40, dist)} {dist}</span><input type="range" min={10} max={200} disabled={ro} value={plan.bgWidth ?? 40} onChange={(e) => onBg({ bgWidth: Number(e.target.value) })} /></label>
+          <label className="field"><span>Opacity — {Math.round((plan.bgOpacity ?? 0.6) * 100)}%</span><input type="range" min={0.1} max={1} step={0.05} disabled={ro} value={plan.bgOpacity ?? 0.6} onChange={(e) => onBg({ bgOpacity: Number(e.target.value) })} /></label>
         </>
       )}
       <p className="muted small"><Hint>{'Tip: double-click the grid to add something right there. R turns the selected item; Delete removes it. Cameras and lights also go on the gear list (Budget → Gear).'}</Hint></p>

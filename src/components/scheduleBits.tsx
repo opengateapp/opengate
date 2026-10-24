@@ -1,4 +1,5 @@
 import { useChangedScenes } from '../script/useChangedScenes';
+import { NumberInput } from './NumberInput';
 import { useState } from 'react';
 import type { BannerKind, DerivedScene, ShootDay } from '../model/types';
 import { useDerived, useProject, useStore } from '../store/project';
@@ -94,7 +95,7 @@ export function BannerDialog({ day, bannerId, onClose }: { day: ShootDay; banner
           </select>
         </Field>
         <Field label="Title"><input value={b.title} onChange={(e) => setB({ ...b, title: e.target.value })} /></Field>
-        <Field label="Duration (min)"><input type="number" min={0} value={b.minutes} onChange={(e) => setB({ ...b, minutes: Number(e.target.value) || 0 })} /></Field>
+        <Field label="Duration"><NumberInput suffix="min" min={0} decimals={0} value={b.minutes} onChange={(n) => setB({ ...b, minutes: n ?? 0 })} /></Field>
         <Field label="Fixed start (optional)"><input type="time" value={b.customStart ?? ''} onChange={(e) => setB({ ...b, customStart: e.target.value })} /></Field>
         <Field label="Note" wide><input value={b.note ?? ''} onChange={(e) => setB({ ...b, note: e.target.value })} /></Field>
         <Field label="Color" wide>

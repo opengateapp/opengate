@@ -1,4 +1,5 @@
 import type { Category, ColorSlot, Project, Schedule } from './types';
+import { regionDefaults } from './units';
 import { newId } from './ids';
 import { newBudget } from '../budget/accounts';
 import { addDays, dateRange, todayISO } from './dates';
@@ -80,6 +81,8 @@ export function emptySchedule(start = todayISO(), lengthDays = 14): Schedule {
 
 export function newProject(title = 'Untitled Screenplay'): Project {
   const now = new Date().toISOString();
+  // New projects start with the creator's region: currency, distances, number format.
+  const units = regionDefaults();
   return {
     schemaVersion: SCHEMA_VERSION,
     id: newId(),
@@ -106,7 +109,12 @@ export function newProject(title = 'Untitled Screenplay'): Project {
     docs: [],
     avScripts: [],
     boards: [],
-    budget: newBudget(),
+    festivals: [],
+    socialPosts: [],
+    deliverables: [],
+    outlets: [],
+    units,
+    budget: { ...newBudget(), currency: units.currency },
     characters: [],
     relationships: [],
     characterMap: {},

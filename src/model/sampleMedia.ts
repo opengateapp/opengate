@@ -91,6 +91,10 @@ export async function addSampleMedia(p: Project): Promise<Project> {
           mood.items.push(item);
         });
       }
+      // Press kit stills and the poster: the location photos and mood-board drawings (stand-ins for real stills).
+      if (dr.pressKit) { dr.pressKit.stills = [photos.arrival, photos.booth, photos.diner, board[0]]; dr.pressKit.posterId = board[0]; }
+      const bts = dr.socialPosts?.find((x) => x.milestone === 'First shoot day');
+      if (bts) bts.mediaIds = [photos.booth];
     });
   } catch {
     return p;

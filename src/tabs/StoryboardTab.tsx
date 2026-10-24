@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { unitsOf } from '../model/units';
 import { useDerived, useProject, useStore } from '../store/project';
 import { Empty, toast } from '../components/common';
 import { askText } from '../components/dialogs';
@@ -97,7 +98,7 @@ export function StoryboardTab() {
     const f = planFor(panel);
     if (!f) return;
     try {
-      await setImage(panel, await planPng(f.plan, f.cameraId, f.pos), 'ref');
+      await setImage(panel, await planPng(f.plan, f.cameraId, f.pos, 1600, unitsOf(useStore.getState().project).distance), 'ref');
       if (!quiet) toast(f.cameraId ? 'Set plan added — this shot’s camera is highlighted' : 'Set plan added (no camera in the plan is this shot yet)');
     } catch (e) { toast((e as Error).message); }
   };

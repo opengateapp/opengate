@@ -3,6 +3,7 @@ import { toast } from '../components/common';
 import { CHANNEL_LABELS, LOCAL_ONLY, channelOf } from './channels';
 import { canWrite } from './state';
 import { currentSync } from './engine';
+import { useTabLock } from '../store/tabLock';
 
 // In a shared project, changes outside what your link allows are refused before they
 // happen (the relay would refuse them too), with a short note saying why.
@@ -18,7 +19,7 @@ export function installWriteGuard() {
       if (!canWrite(ch)) {
         if (Date.now() - lastToast > 2500) {
           lastToast = Date.now();
-          toast(`View only: your link doesn't allow changes to ${CHANNEL_LABELS[ch]}.`);
+          toast(useTabLock.getState().readOnly ? 'Read only: this project is open in another tab. Choose “Use it here” to edit in this one.' : `View only: your link doesn't allow changes to ${CHANNEL_LABELS[ch]}.`);
         }
         return false;
       }

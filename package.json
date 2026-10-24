@@ -1,7 +1,7 @@
 {
   "name": "open-gate",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Open-source, local-first production management: screenplay, breakdown, shot list, stripboard and calendar in one synced project.",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "faq": "UPDATE_FAQ=1 vitest run src/faqReadme.test.ts"
   },
   "dependencies": {
     "dexie": "4.0.8",

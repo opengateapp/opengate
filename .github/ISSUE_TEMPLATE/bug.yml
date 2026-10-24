@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in Open Gate didn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. **Issues are public**: please don't include private details from your project (names, script text, money).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see? Include any error message.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The clicks or keys that lead to it, one per line.
+      placeholder: |
+        1. Open Budget
+        2. …
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or a safe summary
+      description: Drag screenshots here. In the app, Help → Report a bug can copy a summary with counts only (no names or text).
+  - type: input
+    id: version
+    attributes:
+      label: App version
+  - type: input
+    id: environment
+    attributes:
+      label: Web or desktop, browser, system, screen size
+  - type: input
+    id: tab
+    attributes:
+      label: Tab you were on

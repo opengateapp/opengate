@@ -25,7 +25,7 @@ interface Attachment { c: string; perms: Perms }
 
 const CHANNELS_V1 = ['script', 'write', 'breakdown', 'plan', 'visualize', 'shoot', 'settings', 'budget'];
 const CHANNELS_V2 = ['script', 'screenplay', 'characters', 'bible', 'docs', 'av', 'breakdown', 'schedule', 'contacts', 'calendar', 'tasks',
-  'storyboard', 'boards', 'shots', 'designer', 'gear', 'callsheets', 'locations', 'settings', 'budget'];
+  'storyboard', 'boards', 'shots', 'designer', 'gear', 'callsheets', 'locations', 'release', 'settings', 'budget'];
 const CHANNELS = [...new Set([...CHANNELS_V1, ...CHANNELS_V2])];
 const RESTRICTED = ['budget'];
 /** Format-1 section names → the format-2 channels they cover. */

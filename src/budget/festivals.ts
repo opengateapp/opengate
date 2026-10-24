@@ -1,5 +1,5 @@
 import type { Draft } from 'immer';
-import type { BudgetLine, Festival, FestivalDeadline, FestivalStatus, FestivalTier, PremiereRule, Project } from '../model/types';
+import type { BudgetLine, Festival, FestivalCost, FestivalDeadline, FestivalInfo, FestivalStatus, FestivalTier, PremiereRule, Project } from '../model/types';
 import { newId } from '../model/ids';
 import { addDays, diffDays, todayISO } from '../model/dates';
 import { parseCsv } from './expenses';
@@ -81,11 +81,93 @@ export function premiereWarnings(list: Festival[]): { festival: Festival; before
   return out;
 }
 
+// ---------------------------------------------------------------- the list and its money
+
+// Release → Festivals is shared: the list (Project.festivals) syncs on the release channel, and
+// each festival's money (fees, waiver, paid, travel) stays in the budget (budget.festivalCosts).
+// The app works on the joined Festival. Lists saved before Release (budget.festivals) are still
+// read, and moved over the first time someone with the budget edits festivals.
+
+type HasFestivals = Pick<Project, 'festivals' | 'budget'>;
+
+const costOfLegacy = (f: Festival): FestivalCost => ({ id: f.id, fees: Object.fromEntries(f.deadlines.map((d) => [d.id, d.fee])), waiver: f.waiver, feePaid: f.feePaid, travel: f.travel });
+
+/** A festival without its money. */
+export function festivalInfo(f: Festival): FestivalInfo {
+  const { waiver: _w, feePaid: _p, travel: _t, deadlines, ...rest } = f;
+  return { ...rest, deadlines: deadlines.map(({ fee: _f, ...d }) => d) };
+}
+
+/** A festival's money, or undefined when there isn't any. */
+export function festivalCost(f: Festival): FestivalCost | undefined {
+  const fees = Object.fromEntries(f.deadlines.filter((d) => d.fee).map((d) => [d.id, d.fee]));
+  if (!Object.keys(fees).length && !f.waiver && f.feePaid == null && !f.travel) return undefined;
+  const c: FestivalCost = { id: f.id, fees };
+  if (f.waiver) c.waiver = f.waiver;
+  if (f.feePaid != null) c.feePaid = f.feePaid;
+  if (f.travel) c.travel = f.travel;
+  return c;
+}
+
+/** The list with its money (fees are 0 for people who can't see the budget). */
+export function joinFestivals(p: HasFestivals): Festival[] {
+  const legacy = (p.budget.festivals ?? []) as Festival[];
+  const legacyById = new Map(legacy.map((f) => [f.id, f]));
+  const costs = new Map((p.budget.festivalCosts ?? []).map((c) => [c.id, c]));
+  const out: Festival[] = ((p.festivals ?? []) as FestivalInfo[]).map((f) => {
+    const old = legacyById.get(f.id);
+    const c = costs.get(f.id) ?? (old ? costOfLegacy(old) : undefined);
+    const j: Festival = { ...f, deadlines: f.deadlines.map((d) => ({ ...d, fee: c?.fees[d.id] ?? 0 })) };
+    if (c?.waiver) j.waiver = c.waiver;
+    if (c?.feePaid != null) j.feePaid = c.feePaid;
+    if (c?.travel) j.travel = c.travel;
+    return j;
+  });
+  const have = new Set(out.map((f) => f.id));
+  for (const f of legacy) if (!have.has(f.id)) out.push(f);
+  return out;
+}
+
+/**
+ * Writes the edited list back. With the budget (`money`), its money goes to festivalCosts, the
+ * old copy is retired and the budget's festival lines follow; without it, money is left as it is.
+ */
+export function writeFestivals(dr: Draft<Project>, list: Festival[], money: boolean) {
+  dr.festivals = list.map(festivalInfo);
+  if (!money) return;
+  dr.budget.festivalCosts = list.map(festivalCost).filter((c): c is FestivalCost => !!c);
+  dr.budget.festivals = [];
+  syncFestivalLines(dr);
+}
+
+/** Moves a saved project's old list over (projects that aren't shared; shared rooms move on the first budget edit). */
+export function moveLegacyFestivals(p: Project) {
+  if (!p.budget.festivals?.length) return;
+  const list = joinFestivals(p);
+  p.festivals = list.map(festivalInfo);
+  p.budget = { ...p.budget, festivalCosts: list.map(festivalCost).filter((c): c is FestivalCost => !!c), festivals: [] };
+}
+
+/** The budget's festival lines' items, worked out from the shared list (so Release-only edits show up). */
+export function festivalLineItems(p: HasFestivals, kind: 'festival' | 'festivalTravel', today = todayISO()): { id: string; description: string; qty: number; rate: number }[] {
+  const list = joinFestivals(p).filter(budgeted);
+  return kind === 'festival'
+    ? list.map((f) => ({ id: `fest-${f.id}`, description: `${f.name || 'Festival'}${f.status === 'submitted' || f.status === 'accepted' ? ' (entered)' : ''}`, qty: 1, rate: aimedFee(f, today) }))
+    : list.filter((f) => f.attend).map((f) => ({ id: `travel-${f.id}`, description: f.name || 'Festival', qty: 1, rate: f.travel ?? 0 }));
+}
+
+/** Whether the budget is missing its festival lines (someone without the budget added the first festivals). */
+export function needsFestivalLines(p: HasFestivals): boolean {
+  const list = joinFestivals(p);
+  const has = (k: string) => p.budget.lines.some((l) => l.link?.kind === k);
+  return (list.length > 0 && !has('festival')) || (list.length === 0 && has('festival')) || (list.some((f) => budgeted(f) && f.attend) && !has('festivalTravel'));
+}
+
 // ---------------------------------------------------------------- budget lines
 
 /** Keeps "Festival submissions" and "Festival travel" lines in 5100 in step with the list. */
 export function syncFestivalLines(d: Draft<Project>, today = todayISO()) {
-  const list = (d.budget.festivals ?? []) as Festival[];
+  const list = joinFestivals(d as unknown as Project);
   const acc = d.budget.accounts.find((a) => a.code === '5100') ?? d.budget.accounts.find((a) => a.group === 'other') ?? d.budget.accounts[0];
   const upsert = (kind: 'festival' | 'festivalTravel', description: string, items: { description: string; rate: number }[]) => {
     let line = d.budget.lines.find((l) => l.link?.kind === kind);
@@ -95,7 +177,7 @@ export function syncFestivalLines(d: Draft<Project>, today = todayISO()) {
       line = d.budget.lines.find((l) => !l.link && l.description.trim().toLowerCase() === description.toLowerCase());
       if (!line) { line = { id: newId(), accountId: acc.id, description, qty: 1, units: 'flat', x: 1, rate: 0, fringeIds: [] } as BudgetLine; d.budget.lines.push(line); }
     }
-    Object.assign(line, { description, qty: 1, units: 'flat', x: 1, link: { kind, auto: true }, notes: 'From Budget → Festivals.' });
+    Object.assign(line, { description, qty: 1, units: 'flat', x: 1, link: { kind, auto: true }, notes: 'From Release → Festivals.' });
     line.items = items.map((it) => ({ id: newId(), description: it.description, qty: 1, rate: it.rate }));
   };
   upsert('festival', 'Festival submissions', list.filter(budgeted).map((f) => ({ description: `${f.name || 'Festival'}${f.status === 'submitted' || f.status === 'accepted' ? ' (entered)' : ''}`, rate: aimedFee(f, today) })));
