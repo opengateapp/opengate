@@ -4,8 +4,9 @@ import type { SocialPost } from '../../model/types';
 import { useProject } from '../../store/project';
 import { getMedia } from '../../store/media';
 import { download, safeName } from '../../io/files';
+import { mediaExt, socialCalendarFiles } from '../../io/exports';
 import { PLATFORMS } from '../../release/social';
-import { SITE_URL, bufferCsv, calendarCsv, composeUrl } from '../../release/socialShare';
+import { SITE_URL, composeUrl } from '../../release/socialShare';
 import type { Person } from '../../paperwork/paperwork';
 import { askConfirm } from '../../components/dialogs';
 import { toast } from '../../components/common';
@@ -13,14 +14,13 @@ import { toast } from '../../components/common';
 // Share a prepared post: the phone's share sheet, compose pages filled in, copy and download.
 // Open Gate never signs in to a platform; the platform's own app or site publishes the post.
 
-const ext = (type: string) => ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' }[type] ?? type.split('/')[1] ?? 'bin');
 
 async function files(post: SocialPost): Promise<File[]> {
   const out: File[] = [];
   let i = 1;
   for (const id of post.mediaIds) {
     const b = await getMedia(id);
-    if (b) out.push(new File([b], `${safeName(post.milestone || 'post')} ${i++}.${ext(b.type)}`, { type: b.type }));
+    if (b) out.push(new File([b], `${safeName(post.milestone || 'post')} ${i++}.${mediaExt(b.type)}`, { type: b.type }));
   }
   return out;
 }
@@ -91,21 +91,7 @@ export function ExportCalendar({ posts }: { posts: SocialPost[] }) {
     setBusy(true);
     try {
       const z = new JSZip();
-      const names = new Map<string, string>();
-      for (const x of posts) {
-        let i = 1;
-        for (const id of x.mediaIds) {
-          if (names.has(id)) continue;
-          const b = await getMedia(id);
-          if (!b) continue;
-          const n = `media/${x.date ?? 'undated'} ${safeName(x.milestone || 'post')} ${i++}.${ext(b.type)}`;
-          names.set(id, n);
-          z.file(n, b);
-        }
-      }
-      z.file('calendar.csv', calendarCsv(posts, (id) => names.get(id)));
-      z.file('buffer.csv', bufferCsv(posts));
-      z.file('README.txt', 'calendar.csv: every post, with its media file names (in media/).\r\nbuffer.csv: for Buffer\'s bulk upload (Text, Image URL, Tags, Posting Time). Image URL is empty because your media isn\'t online: add images in Buffer, or put the files somewhere public and paste their links.\r\nOther tools (Hootsuite, Later, Meta Business Suite): use their own template and copy the columns from calendar.csv.\r\n');
+      for (const f of await socialCalendarFiles(posts)) z.file(f.path, f.data);
       download(`${safeName(p.title)} social calendar.zip`, await z.generateAsync({ type: 'blob' }));
     } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };

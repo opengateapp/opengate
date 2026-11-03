@@ -9,7 +9,7 @@ import { money } from '../../budget/calc';
 import { parseCsv, guessMapping, rowsToExpenses, type CsvMapping } from '../../budget/expenses';
 import { putMedia, getMedia, deleteMedia } from '../../store/media';
 import { canWrite, useSync } from '../../sync/state';
-import { csv } from '../../io/reports';
+import { expensesCsv } from '../../io/exports';
 import { download, safeName } from '../../io/files';
 import { askConfirm } from '../../components/dialogs';
 import { toast } from '../../components/common';
@@ -89,14 +89,7 @@ function ExpensesScreen() {
     if (parsed.length < 2) { toast('That file has no rows to import'); return; }
     setImporting({ rows: parsed, map: guessMapping(parsed[0]), accountId: filter || lastAccount, name: f.name });
   };
-  const exportCsv = () => {
-    const acc = new Map(b.accounts.map((a) => [a.id, accountLabel(a)]));
-    const line = new Map(b.lines.map((l) => [l.id, l.description]));
-    download(`${safeName(p.title)} - expenses.csv`, csv([
-      ['Date', 'Vendor', 'Description', 'Account', 'Line', 'Amount', 'Paid', 'Method'],
-      ...[...b.expenses].sort((a, c) => a.date.localeCompare(c.date)).map((e) => [e.date, e.vendor, e.description, acc.get(e.accountId), e.lineId ? line.get(e.lineId) : '', e.amount.toFixed(2), e.paid ? 'yes' : 'no', e.method]),
-    ]), 'text/csv');
-  };
+  const exportCsv = () => download(`${safeName(p.title)} - expenses.csv`, expensesCsv(p), 'text/csv');
 
   const accountOptions = GROUPS.map((g) => (
     <optgroup key={g.id} label={g.label}>
