@@ -92,6 +92,7 @@ describe('Export everything', () => {
     expect(safeSegment('..')).toBe('Untitled');
     expect(safeSegment('name. ')).toBe('name');
     expect(safeSegment('CON')).toBe('CON_');
+    expect(safeSegment('Deal memo \u2014 Nora\u2019s \u201cdeal\u201d.pdf', 'x', true)).toBe("Deal memo - Nora's deal.pdf");
     expect(safeSegment('aux.txt', 'x', true)).toBe('aux_.txt');
     expect(safeSegment('a'.repeat(200) + '.pdf', 'x', true)).toBe('a'.repeat(76) + '.pdf');
     expect(projectFolderName('')).toBe('Untitled Project');
@@ -134,7 +135,11 @@ describe('Export everything', () => {
     expect(names).toContain('New film/06_DOCUMENTS/CALL_SHEETS/');
     expect(names).toContain('New film/00_MEDIA/CAMERA/');
     expect(names).toContain('New film/New film.opengate');
-    expect(names.filter((n) => !n.endsWith('/') && n.includes('06_DOCUMENTS') && !n.includes('PRESS_KIT'))).toEqual([]);
+    expect(names.filter((n) => !n.endsWith('/') && n.includes('06_DOCUMENTS'))).toEqual([]);
+    // A new screenplay has one blank scene heading: still nothing to export.
+    const blank = { ...p, scriptDoc: { type: 'doc', content: [{ type: 'sceneHeading', attrs: { sceneId: 'x' } }] } };
+    const again = await build(blank);
+    expect(again.names.filter((n) => !n.endsWith('/') && n.includes('06_DOCUMENTS'))).toEqual([]);
   });
 
   it('copies media, draws frames and exports drafts', async () => {

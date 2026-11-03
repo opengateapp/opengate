@@ -20,7 +20,8 @@ const clip = (s: string, n: number) => edges([...s].slice(0, n).join(''));
 
 /** One folder or file name that's safe on every system and can't leave its folder. */
 export function safeSegment(name: string, fallback = 'Untitled', isFile = false): string {
-  const clean = name.normalize('NFC').replace(UNSAFE, '').replace(/\s+/g, ' ').trim();
+  // Plain dashes and apostrophes: some unzip tools stop at typographic ones. Accents stay.
+  const clean = name.normalize('NFC').replace(/[\u2012-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/\u2026/g, '...').replace(/[\u201c\u201d]/g, '').replace(UNSAFE, '').replace(/\s+/g, ' ').trim();
   const m = isFile ? clean.match(/^(.*)(\.[a-zA-Z0-9]{1,8})$/) : null;
   const ext = m ? m[2] : '';
   const base = clip(edges(m ? m[1] : clean), MAX_NAME - ext.length) || fallback;
@@ -106,7 +107,7 @@ export async function buildProjectFolder(p: Project, d: Derived, o: FolderOption
   const ctx: BuildContext = { p, d, media: o.media ?? getMedia, render: o.render ?? renderFrame, tick };
 
   for (const [i, item] of run.entries()) {
-    o.onProgress?.({ done: i, total: run.length, label: `Building ${item.label.toLowerCase()}` });
+    o.onProgress?.({ done: i, total: run.length, label: `Building ${item.label.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())}` });
     await tick();
     try {
       const files = await item.build(ctx);

@@ -15,6 +15,7 @@ import { creditsCsv, creditsFcpxml, creditsJsx, creditsText } from '../../credit
 import { payrollCsv, timecardsCsv, contractorCsv } from '../../paperwork/timecards';
 import { clearanceReportCsv } from '../../paperwork/clearanceScan';
 import { clearanceLogCsv, cueSheetCsv } from '../../budget/licenses';
+import { pressKitView } from '../../release/pressKit';
 import { pressKitHtmlFile, pressKitPdfFile } from '../../release/pressKitExport';
 import { buildStoryboardPdf, renderFrame } from '../../tabs/storyboard/render';
 
@@ -37,7 +38,7 @@ export type ItemGroup = 'project' | 'scripts' | 'notes' | 'characters' | 'storyb
 
 export const GROUP_LABEL: Record<ItemGroup, string> = {
   project: 'Project file', scripts: 'Scripts', notes: 'Treatments & notes', characters: 'Characters', storyboards: 'Storyboards', shots: 'Shot lists', breakdown: 'Breakdown', schedule: 'Schedule',
-  callsheets: 'Call sheets', contacts: 'Contacts', locations: 'Locations', budget: 'Budget', contracts: 'Releases & contracts', reference: 'Reference', release: 'Release',
+  callsheets: 'Call sheets', contacts: 'Contacts', locations: 'Locations', budget: 'Budget & gear', contracts: 'Releases & contracts', reference: 'Reference', release: 'Release',
 };
 
 export interface FolderItem {
@@ -65,7 +66,8 @@ export const limitedAccess = () => !budgetVisible() || TAB_ACCESS.some((t) => ta
 const pdfOf = (x: { output(kind: 'blob'): Blob }) => x.output('blob');
 const hasScript = (d: Derived) => d.blocks.some((b) => b.text.trim());
 const noScript = (_: Project, d: Derived) => (hasScript(d) ? undefined : 'The script is empty');
-const noScenes = (_: Project, d: Derived) => (d.scenes.length ? undefined : 'No scenes yet');
+const noScenes = (_: Project, d: Derived) => (d.scenes.length && hasScript(d) ? undefined : 'No scenes yet');
+const noPressKit = (p: Project, d: Derived) => { const v = pressKitView(p, d); return v.logline || v.shortSynopsis || v.longSynopsis || v.people.length || v.stills.length || v.posterId ? undefined : 'The press kit is empty'; };
 const noDays = (p: Project) => (shootDays(p).length ? undefined : 'No shoot days yet');
 const file = (name: string, data: Blob | string, ...folders: string[]): FolderFile => ({ path: [...folders, name], data });
 
@@ -288,8 +290,8 @@ export const ITEMS: FolderItem[] = [
       ];
     },
   },
-  { id: 'press-pdf', label: 'Press kit PDF', group: 'release', folder: 'RELEASE/PRESS_KIT', tabs: ['release'], build: async ({ p, d }) => [file('Press kit.pdf', await pressKitPdfFile(p, d))] },
-  { id: 'press-html', label: 'Press kit web page', group: 'release', folder: 'RELEASE/PRESS_KIT', tabs: ['release'], build: async ({ p, d }) => [file('Press kit.html', await pressKitHtmlFile(p, d))] },
+  { id: 'press-pdf', label: 'Press kit PDF', group: 'release', folder: 'RELEASE/PRESS_KIT', tabs: ['release'], empty: noPressKit, build: async ({ p, d }) => [file('Press kit.pdf', await pressKitPdfFile(p, d))] },
+  { id: 'press-html', label: 'Press kit web page', group: 'release', folder: 'RELEASE/PRESS_KIT', tabs: ['release'], empty: noPressKit, build: async ({ p, d }) => [file('Press kit.html', await pressKitHtmlFile(p, d))] },
   {
     id: 'press-stills', label: 'Press stills and poster', group: 'release', folder: 'RELEASE/PRESS_KIT', tabs: ['release'], empty: (p) => (p.pressKit?.stills?.length || p.pressKit?.posterId ? undefined : 'No stills or poster yet'),
     media: (p) => [p.pressKit?.posterId, ...(p.pressKit?.stills ?? [])],
