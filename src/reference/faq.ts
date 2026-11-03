@@ -17,7 +17,7 @@ export const FAQ: Faq[] = [
   { id: 'different', group: 'About Open Gate', q: 'How is it different from other production software?', a: 'Many production tools are paid subscriptions that keep your project on their servers and need an account. Open Gate is free, works without an account, keeps your project on your device, works offline, and covers the whole pipeline in one app.' },
   // ---- Your data and privacy
   { id: 'where', group: 'Your data and privacy', q: 'Where is my project stored?', a: 'On your device, in your browser’s storage. It isn’t on our servers unless you share it, and then only encrypted.' },
-  { id: 'backup', group: 'Your data and privacy', q: 'How do I back it up?', a: 'Save a .opengate project file regularly (⌘S, or Save in the project menu) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser.', links: [{ label: 'Settings → Data & backups', tab: 'setup' }] },
+  { id: 'backup', group: 'Your data and privacy', q: 'How do I back it up?', a: 'Save a .opengate project file regularly (⌘S, or File → Save) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser.', links: [{ label: 'Settings → Data & backups', tab: 'setup' }] },
   { id: 'account', group: 'Your data and privacy', q: 'Do I need an account?', a: 'No. No account means nothing to sign up for, no password to leak, and no profile about you for anyone to sell.' },
   { id: 'sharing', group: 'Your data and privacy', q: 'How does sharing work without accounts?', a: 'You send an invite link. Your project is encrypted on your device (AES-256), and the key is in the part of the link after the “#”, which browsers never send to the server. The relay that passes updates between collaborators only stores encrypted data it can’t read. The budget, paperwork and festival fees have their own separate key, so you choose who sees money.' },
   { id: 'offline', group: 'Your data and privacy', q: 'Does it work offline?', a: 'Yes. Once it’s loaded (or installed), you can work without internet, and shared projects catch up when you’re back online.' },
@@ -37,7 +37,7 @@ export const FAQ: Faq[] = [
   { id: 'export-all', group: 'Using it', q: 'Can I export the whole project at once?', a: 'Yes. Shoot → Exports → Export everything saves one ZIP named after the project: your script, schedules, call sheets, contacts, budget, paperwork, press kit and the rest, sorted into folders, plus a copy of the project file. Pick a folder layout, and untick anything you don’t want to include. It holds contracts, contact details and your budget unless you untick them, so check before sending it to someone. If your access to a shared project is limited, you only get what you can see, and no project file.', links: [{ label: 'Open Exports', tab: 'reports' }] },
   { id: 'future', group: 'Using it', q: 'What happens to my work if Open Gate stops being developed?', a: 'Your project files stay on your device and keep working. The format is open and the code is open source, so anyone can keep it going.' },
   // ---- Feedback
-  { id: 'feedback', group: 'Feedback', q: 'How do I report a bug or suggest a feature?', a: 'Help (?) → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.' },
+  { id: 'feedback', group: 'Feedback', q: 'How do I report a bug or suggest a feature?', a: 'Help → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.' },
   { id: 'help-out', group: 'Feedback', q: 'Can I help?', a: 'Yes: report bugs, suggest resources for the Reference library, or contribute code on GitHub.', links: [{ label: 'Open Gate on GitHub', url: 'https://github.com/opengateapp/opengate' }] },
 ];
 
@@ -53,7 +53,7 @@ const TAB_NAMES: Record<string, string> = { setup: 'Settings', calendar: 'Plan �
 
 /** The FAQ as Markdown, for the README on GitHub (kept in step by a test: run `npm run faq` after changing it). */
 export function faqMarkdown(): string {
-  const out: string[] = ['## FAQ', '', 'What you’re getting into, in plain words. The same answers are in the app under **Help (?) → FAQ**.', ''];
+  const out: string[] = ['## FAQ', '', 'What you’re getting into, in plain words. The same answers are in the app under **Help → FAQ**.', ''];
   for (const g of FAQ_GROUPS) {
     out.push(`### ${g}`, '');
     for (const f of FAQ.filter((x) => x.group === g)) {

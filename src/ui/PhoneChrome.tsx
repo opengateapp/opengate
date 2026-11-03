@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { openFaq } from '../help/HelpMenu';
 import { helpItems } from '../help/HelpMenu';
 import { useStore } from '../store/project';
 import { useSync } from '../sync/state';
@@ -8,7 +7,7 @@ import { useTheme, type ThemeMode } from '../theme';
 import { runEdit } from '../components/EditMenu';
 import { ShareBar } from '../components/share/ShareBar';
 import { SyncIssues } from '../components/SyncIssues';
-import { ProjectMenuItems } from '../components/ProjectMenu';
+import { goHome, ProjectMenuItems } from '../components/ProjectMenu';
 import { ImportDialog } from '../components/ImportDialog';
 import { MoreMenu } from '../components/More';
 import { Logo } from '../components/Logo';
@@ -62,9 +61,6 @@ export function PhoneTopbar({ sections, allSections, tab, setTab, saveState }: {
             ))}
           </div>
           <hr />
-          <button onClick={() => go('reports')}>⤓ Exports</button>
-          <button onClick={() => go('setup')}>⚙ Settings</button>
-          <button onClick={() => openFaq()}>? Help &amp; FAQ</button>
           <div className="menu-note">{saveState === 'saved' ? 'All changes saved on this device' : saveState === 'saving' ? 'Saving…' : 'Unsaved changes'}</div>
         </MoreMenu>
       </header>
@@ -95,6 +91,7 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
     <>
       <div className="sheet-scrim" onClick={onClose} />
       <nav className="drawer" aria-label="Sections">
+        <button className="drawer-home" onClick={() => { onClose(); void goHome(); }}>← Home</button>
         <div className="drawer-head">
           <Logo className="topbar-logo" />
           <input className="project-title" value={title} aria-label="Project title" onChange={(e) => update((d) => { d.title = e.target.value; }, null)} />
@@ -102,7 +99,7 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
         </div>
         {status !== 'off' && <div className={`drawer-sync s-${status}`}>{status === 'live' ? '● Connected' : status === 'offline' ? '○ Offline — saved here, will sync later' : status === 'connecting' ? '◌ Connecting…' : '⚠ Not syncing'}</div>}
         <div className="drawer-sections">
-          {list.filter((s) => s.id !== 'settings' && s.id !== 'exports').map((s) => (
+          {list.filter((s) => s.id !== 'settings' && s.id !== 'exports' && s.id !== 'reference').map((s) => (
             <div key={s.id} className={`drawer-section ${open.includes(s.id) ? 'open' : ''}`}>
               <button className="drawer-section-head" aria-expanded={open.includes(s.id)} onClick={() => toggle(s.id)}>
                 <span>{s.label}</span>
@@ -118,7 +115,17 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
           ))}
         </div>
         <div className="drawer-sections drawer-extra">
+          <button className={tab === 'reference' ? 'active' : ''} onClick={() => onPick('reference')}><b>Reference</b><span>Guides, gear and learning links</span></button>
           <button className={tab === 'reports' ? 'active' : ''} onClick={() => onPick('reports')}><b>⤓ Exports</b><span>Every PDF, spreadsheet, calendar and the end credits</span></button>
+        </div>
+        <details className="drawer-project">
+          <summary>File</summary>
+          <div className="menu-list">
+            <ProjectMenuItems onDone={onClose} onImport={onImport} />
+          </div>
+        </details>
+        <div className="drawer-sections drawer-extra">
+          <button className={tab === 'setup' ? 'active' : ''} onClick={() => onPick('setup')}><b>⚙ Settings</b><span>This project (shared) and this device (yours)</span></button>
         </div>
         <div className="drawer-sections drawer-extra drawer-help">
           <span className="muted small">? Help</span>
@@ -134,12 +141,6 @@ function Drawer({ sections, allSections, tab, onPick, onClose, onImport }: { sec
             {lite ? 'Open Gate Lite · Customize tabs…' : 'Phone layout…'}
           </button>
         </div>
-        <details className="drawer-project">
-          <summary>Project</summary>
-          <div className="menu-list">
-            <ProjectMenuItems onDone={onClose} onImport={onImport} />
-          </div>
-        </details>
       </nav>
     </>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useStore } from '../store/project';
 import { toast } from './common';
 import { getBoardClipboard } from './clipboard';
@@ -72,32 +72,32 @@ const ITEMS: { cmd: Parameters<typeof runEdit>[0]; label: string; key: string }[
   { cmd: 'selectAll', label: 'Select all', key: `${MOD}A` },
 ];
 
-export function EditMenu() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+/** The ↶ ↷ buttons, which stay in the bar. Also remembers the last field, for the Edit menu. */
+export function UndoRedo() {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
   useEffect(() => {
     const focus = (e: FocusEvent) => { if (isField(e.target as Element)) lastField = e.target as HTMLElement; };
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('focusin', focus);
-    document.addEventListener('mousedown', close);
-    return () => { document.removeEventListener('focusin', focus); document.removeEventListener('mousedown', close); };
+    return () => document.removeEventListener('focusin', focus);
   }, []);
   // onMouseDown + preventDefault keeps focus (and the text selection) where it was.
-  const act = (cmd: Parameters<typeof runEdit>[0]) => (e: React.MouseEvent) => { e.preventDefault(); runEdit(cmd); if (cmd !== 'undo' && cmd !== 'redo') setOpen(false); };
+  const act = (cmd: 'undo' | 'redo') => (e: React.MouseEvent) => { e.preventDefault(); runEdit(cmd); };
   return (
-    <div className="edit-menu" ref={ref}>
-      <button className="icon-btn" title={`Undo (${MOD}Z)`} onMouseDown={act('undo')} disabled={!canUndo && !target()}>↶</button>
-      <button className="icon-btn" title={`Redo (⇧${MOD}Z)`} onMouseDown={act('redo')} disabled={!canRedo && !target()}>↷</button>
-      <button className="edit-btn" onMouseDown={(e) => { e.preventDefault(); setOpen(!open); }}>Edit ▾</button>
-      {open && (
-        <div className="menu right">
-          {ITEMS.map((i) => (
-            <button key={i.cmd} onMouseDown={act(i.cmd)}><span>{i.label}</span><kbd>{i.key}</kbd></button>
-          ))}
-        </div>
-      )}
+    <div className="edit-menu">
+      <button className="icon-btn" title={`Undo (${MOD}Z)`} aria-label="Undo" onMouseDown={act('undo')} disabled={!canUndo && !target()}>↶</button>
+      <button className="icon-btn" title={`Redo (⇧${MOD}Z)`} aria-label="Redo" onMouseDown={act('redo')} disabled={!canRedo && !target()}>↷</button>
     </div>
+  );
+}
+
+/** The Edit menu's items. */
+export function EditMenuItems({ onDone }: { onDone: () => void }) {
+  return (
+    <>
+      {ITEMS.map((i) => (
+        <button key={i.cmd} onMouseDown={(e) => { e.preventDefault(); runEdit(i.cmd); onDone(); }} onClick={(e) => { if (e.detail === 0) { runEdit(i.cmd); onDone(); } }}><span>{i.label}</span><kbd>{i.key}</kbd></button>
+      ))}
+    </>
   );
 }

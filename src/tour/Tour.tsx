@@ -63,7 +63,7 @@ export function TourOffer() {
   return (
     <div className="tour-card tour-offer" role="status">
       <b>Take a tour of the sample?</b>
-      <p className="small">A few minutes through every section, stopping at the problems left in on purpose. You can start it later from Help (?).</p>
+      <p className="small">A few minutes through every section, stopping at the problems left in on purpose. You can start it later from Help.</p>
       <div className="row"><button className="small" onClick={done}>Not now</button><span className="spacer" /><button className="small primary" onClick={() => { done(); startTour(); }}>Take the tour</button></div>
     </div>
   );

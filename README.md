@@ -13,7 +13,7 @@ Free, open-source production management in one synced project: **write** the scr
 <!-- faq:start -->
 ## FAQ
 
-What you’re getting into, in plain words. The same answers are in the app under **Help (?) → FAQ**.
+What you’re getting into, in plain words. The same answers are in the app under **Help → FAQ**.
 
 ### About Open Gate
 
@@ -41,7 +41,7 @@ On your device, in your browser’s storage. It isn’t on our servers unless yo
 
 **How do I back it up?**
 
-Save a .opengate project file regularly (⌘S, or Save in the project menu) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser. (in the app: Settings)
+Save a .opengate project file regularly (⌘S, or File → Save) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser. (in the app: Settings)
 
 **Do I need an account?**
 
@@ -115,7 +115,7 @@ Your project files stay on your device and keep working. The format is open and 
 
 **How do I report a bug or suggest a feature?**
 
-Help (?) → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.
+Help → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.
 
 **Can I help?**
 
@@ -169,8 +169,8 @@ No accounts. Projects are shared through a small relay you deploy once for free 
 | **Release** | **Festivals** (deadlines, status and laurels, shared with the budget's fees) · **Press Kit** (EPK as a PDF and a one-page website) · **Social & BTS** (content calendar, share links, releases check) · **Distribution** (deliverables, outlets, licence check) |
 | **Shoot** | **Call Sheets** (editable page: company + key contacts, logo, times with live lunch / sunrise / sunset / weather, hospital, map, big call time; sections you can hide, reorder, rename or add; Download / Send PDF) · **Script Sides** |
 | **Reference** | A small film school: story, camera, lenses, lighting, audio, data, production, crew roles, **Guilds & Unions** (what each union and honorary society does, its agreements and rules, researched from official sources), and a library |
-| ⤓ | **Exports**: every PDF, spreadsheet, calendar and the end credits, in one place |
-| ⚙ | Project settings: production info, cast roster details, crew, categories, strip colors |
+| **Exports** | Every PDF, spreadsheet, calendar and the end credits, in one place |
+| **Settings** | Production info, cast roster details, crew, categories, strip colors |
 
 Drag-and-drop and double-click-to-add work throughout: drop images onto boards, storyboards and locations; drop `.vcf` cards onto Contacts; drag strips, shots, A/V rows and tasks to reorder; drag tasks onto calendar days; double-click empty space on a board, stripboard day, shot list, A/V script, task list, contacts table or side list to add something there.
 

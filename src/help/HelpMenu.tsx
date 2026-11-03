@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { create } from 'zustand';
 import changelog from '../../CHANGELOG.md?raw';
 import { useStore, getDerived } from '../store/project';
@@ -7,7 +7,7 @@ import { openReference } from '../tabs/ReferenceTab';
 import { appContext, issueUrl, safeSummary, type IssueKind } from './feedback';
 import { FaqView } from './FaqView';
 
-// Help: the "?" menu next to ⤓ and ⚙, and the same links in Settings → About, the Home footer
+// Help: the Help menu in the top bar, and the same links in Settings → About, Home
 // and the phone drawer. Feedback opens GitHub issue forms after a note that they're public.
 
 type Dialog = { kind: 'feedback'; issue: IssueKind; tab?: string } | { kind: 'news' } | { kind: 'faq' } | null;
@@ -30,32 +30,6 @@ export function helpItems(tab?: string): HelpItem[] {
     { id: 'tour', label: 'Tour of the sample production', hint: 'A walk through every section, stopping at the problems to fix', run: () => (useStore.getState().project?.isSample ? window.dispatchEvent(new Event('opengate:tour')) : toast('The tour walks through the sample production: open it from Home → Try the sample production.')), project: true },
     { id: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Settings → Keyboard shortcuts', run: () => { goto('setup'); setTimeout(() => window.dispatchEvent(new CustomEvent('opengate:settings', { detail: 'shortcuts' })), 0); }, project: true },
   ];
-}
-
-/** The "?" in the top bar. */
-export function HelpMenu({ tab }: { tab: string }) {
-  const [open, setOpen] = useState(false);
-  const btn = useRef<HTMLButtonElement>(null);
-  // Escape closes the menu and puts focus back on "?".
-  useEffect(() => {
-    if (!open) return;
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); btn.current?.focus(); } };
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
-  }, [open]);
-  return (
-    <span className="help-menu">
-      <button ref={btn} className={`icon-btn settings-btn ${open ? 'active' : ''}`} title="Help, FAQ and feedback" aria-label="Help" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((x) => !x)}>?</button>
-      {open && (
-        <>
-          <div className="help-backdrop" onClick={() => setOpen(false)} />
-          <div className="section-flyout help-flyout" role="menu" aria-label="Help">
-            {helpItems(tab).map((it) => <button key={it.id} role="menuitem" onClick={() => { setOpen(false); it.run(); }}><b>{it.label}</b><span>{it.hint}</span></button>)}
-          </div>
-        </>
-      )}
-    </span>
-  );
 }
 
 /** The same links as a list (Settings → About, Home, the phone drawer). */

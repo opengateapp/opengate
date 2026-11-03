@@ -30,6 +30,14 @@ export function useNarrow(): boolean {
   return useSyncExternalStore(subNarrow, getNarrow, () => false);
 }
 
+const COMPACT_QUERY = '(max-width: 1280px)';
+const subCompact = subscribe(COMPACT_QUERY);
+const getCompact = matches(COMPACT_QUERY);
+/** True on smaller desktop windows: the project sidebar starts as icons. */
+export function useCompactDesktop(): boolean {
+  return useSyncExternalStore(subCompact, getCompact, () => false);
+}
+
 const subTouch = subscribe('(pointer: coarse)');
 const getTouch = matches('(pointer: coarse)');
 /** True when the main pointer is a finger (no hover, no precise drag-and-drop). */
