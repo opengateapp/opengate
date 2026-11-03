@@ -35,6 +35,19 @@ function load(): ThemePrefs {
 }
 
 const COLOR = /^#[0-9a-f]{6}$/i;
+
+function contrast(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => { const c = parseInt(hex.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** Text on an accent-colored background: white if it's readable (4.5:1), otherwise dark. */
+export function accentText(accent: string): string {
+  return ['#ffffff', '#18181b'].find((c) => contrast(c, accent) >= 4.5) ?? '#000000';
+}
 function cleanPalette(p: unknown): Palette {
   const out: Palette = {};
   if (p && typeof p === 'object') {
@@ -105,7 +118,7 @@ export function paletteCss(which: 'light' | 'dark', pal: Palette): string {
   if (pal.bg) vars.push(`--bg:${pal.bg}`);
   if (pal.panel) vars.push(`--panel:${pal.panel}`);
   if (pal.text) vars.push(`--text:${pal.text}`);
-  if (pal.accent) vars.push(`--accent:${pal.accent}`);
+  if (pal.accent) vars.push(`--accent:${pal.accent}`, `--accent-text:${accentText(pal.accent)}`);
   if (pal.logo) vars.push(`--logo:${pal.logo}`);
   if (pal.panel || pal.text) {
     vars.push('--panel-2:color-mix(in srgb, var(--panel) 92%, var(--text))', '--border:color-mix(in srgb, var(--panel) 80%, var(--text))', '--muted:color-mix(in srgb, var(--text) 58%, var(--panel))');
