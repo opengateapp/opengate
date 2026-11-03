@@ -1,10 +1,11 @@
 import { DOMSerializer, Node as PMNode } from 'prosemirror-model';
 import type { jsPDF } from 'jspdf';
-import type { AVScript, Contact, ContactKind, DocFile, Project, SocialPost } from '../model/types';
+import type { AVScript, Contact, ContactKind, DocFile, Festival, Project, SocialPost } from '../model/types';
 import type { Derived } from '../script/derive';
 import { blocksToLines } from '../script/schema';
 import { docSchema } from '../script/docSchema';
 import { accountLabel } from '../budget/accounts';
+import { joinFestivals } from '../budget/festivals';
 import { GEAR_CATEGORIES, SOURCE_LABEL, gearCost, gearTotals } from '../budget/gear';
 import type { Societied } from '../paperwork/societies';
 import { unionBadge, type Unioned } from '../paperwork/unions';
@@ -99,8 +100,9 @@ export const contactsVcf = (rows: ContactRow[]) => rows.map(toVCard).join('\r\n'
 export const contactsCsv = (rows: ContactRow[]) => csv([['Group', 'Name', 'Role', 'Company', 'Phone', 'Email', 'Union'], ...rows.map((r) => [r.group, r.name, r.role, r.company, r.phone, r.email, unionBadge(r)])]);
 
 // ── Locations ──
-export function locationsCsv(p: Project): string {
-  return csv([['Real location', 'Script set', 'Address', 'Status', 'Contact', 'Phone', 'Email', 'Permit', 'Parking', 'Power', 'Restrooms', 'Hospital', 'Fee', 'Notes'], ...p.locations.map((l) => [l.realName, l.setName, l.address, l.status ?? '', l.contactName ?? '', l.contactPhone ?? '', l.contactEmail ?? '', l.permit ?? '', l.parking ?? '', l.power ?? '', l.restrooms ?? '', l.nearestHospital ?? '', [l.feeAmount != null ? `${l.feeAmount} ${l.feePer === 'flat' ? 'flat' : 'per day'}` : '', l.fee ?? ''].filter(Boolean).join(' · '), l.notes ?? ''])]);
+export function locationsCsv(p: Project, withFee = true): string {
+  const rows: (string | undefined)[][] = [['Real location', 'Script set', 'Address', 'Status', 'Contact', 'Phone', 'Email', 'Permit', 'Parking', 'Power', 'Restrooms', 'Hospital', 'Fee', 'Notes'], ...p.locations.map((l) => [l.realName, l.setName, l.address, l.status ?? '', l.contactName ?? '', l.contactPhone ?? '', l.contactEmail ?? '', l.permit ?? '', l.parking ?? '', l.power ?? '', l.restrooms ?? '', l.nearestHospital ?? '', [l.feeAmount != null ? `${l.feeAmount} ${l.feePer === 'flat' ? 'flat' : 'per day'}` : '', l.fee ?? ''].filter(Boolean).join(' · '), l.notes ?? ''])];
+  return csv(withFee ? rows : rows.map((r) => r.filter((_, i) => i !== 12)));
 }
 
 // ── Budget ──
@@ -123,18 +125,29 @@ export function gearCsv(p: Project): string {
   ]);
 }
 
+// ── Festivals ──
+/** The festival list; fees, waivers and travel only for people who can see the budget. */
+export function festivalsCsv(p: Project, withMoney: boolean): string {
+  const list = joinFestivals(p);
+  const when = (f: Festival) => f.deadlines.map((x) => [x.label, x.date, withMoney && x.fee ? String(x.fee) : ''].filter(Boolean).join(' ')).join(' · ');
+  return csv([
+    ['Name', 'Status', 'Tier', 'Premiere', 'Category', 'Location', 'Event start', 'Event end', 'Deadlines', 'Submitted', 'Notified', 'Laurel', 'Link', 'Notes', ...(withMoney ? ['Waiver', 'Fee paid', 'Travel'] : [])],
+    ...list.map((f) => [f.name, f.status, f.tier, f.premiere ?? '', f.category ?? '', f.location ?? '', f.eventStart ?? '', f.eventEnd ?? '', when(f), f.submittedOn ?? '', f.notifyDate ?? '', f.laurel ?? '', f.url ?? '', f.notes ?? '', ...(withMoney ? [f.waiver ?? '', f.feePaid ?? '', f.travel ?? ''] : [])]),
+  ]);
+}
+
 // ── Social calendar ──
 export const mediaExt = (type: string) => ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' }[type] ?? type.split('/')[1] ?? 'bin');
 
 /** The calendar's files for scheduling tools: the media, a general CSV, a Buffer CSV and a note. */
-export async function socialCalendarFiles(posts: SocialPost[]): Promise<{ path: string; data: Blob | string }[]> {
+export async function socialCalendarFiles(posts: SocialPost[], loadMedia: (id: string) => Promise<Blob | null | undefined> = getMedia): Promise<{ path: string; data: Blob | string }[]> {
   const files: { path: string; data: Blob | string }[] = [];
   const names = new Map<string, string>();
   for (const x of posts) {
     let i = 1;
     for (const id of x.mediaIds) {
       if (names.has(id)) continue;
-      const b = await getMedia(id);
+      const b = await loadMedia(id);
       if (!b) continue;
       const n = `media/${x.date ?? 'undated'} ${safeName(x.milestone || 'post')} ${i++}.${mediaExt(b.type)}`;
       names.set(id, n);
