@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.0 — 2026-11-03
+
+- **A new Home page:** a sidebar with Open Gate, Project Folders and Resources. On phones it becomes a compact bar at the top.
+  - **Open Gate:** the ways to start a project are now cards, with Recent projects and the credits below.
+  - **Drop a project file** anywhere in that section to open it.
+  - **Project Folders:** what the free tool does, and a link to its new page.
+  - **Resources:** coming soon, with what it will be and why it isn't open yet.
+- **Project Folders has its own page:** build a folder layout and add it to your right-click menu on Mac or Windows, with nothing to download: https://opengateapp.github.io/projectfolders/
+- **Export everything:** now links to Project Folders.
+
 ## v0.7.0 — 2026-11-03
 
 - **Export everything:** one button on Shoot → Exports saves the whole project into one ZIP named after it, sorted into folders.
