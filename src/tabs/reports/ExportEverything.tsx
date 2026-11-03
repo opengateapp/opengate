@@ -7,6 +7,7 @@ import { download } from '../../io/files';
 import { Cancelled, WARN_BYTES, buildProjectFolder, defaultSelection, likelySize, mediaSizes, type FolderProgress, type FolderResult } from '../../io/projectFolder/build';
 import { GROUP_LABEL, availableItems, type ItemGroup, type ItemState } from '../../io/projectFolder/items';
 import { LAYOUTS, layoutById, topFolders } from '../../io/projectFolder/layouts';
+import { PROJECT_FOLDERS_URL } from '../../model/links';
 
 // Exports → Export everything: the whole project in one ZIP, sorted into a Project Folders layout.
 
@@ -132,6 +133,7 @@ export function ExportEverything() {
           {result.skipped.length > 0 && <p className="warn ee-warn">Skipped: {result.skipped.map((x) => `${x.label} (${x.reason})`).join('; ')}.</p>}
         </div>
       )}
+      <p className="muted small">Want this layout on every new folder? <a href={PROJECT_FOLDERS_URL} target="_blank" rel="noreferrer noopener">Get Project Folders ↗</a></p>
     </section>
   );
 }
