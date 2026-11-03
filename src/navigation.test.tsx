@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ProjectMenu } from './components/ProjectMenu';
+import { ProjectSidebar } from './components/ProjectSidebar';
 import { newProject } from './model/defaults';
 import { useStore } from './store/project';
 import { saveProject } from './store/db';
@@ -78,5 +79,55 @@ describe('Home and File', () => {
     await fileItems(host);
     await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(host.querySelector('.menu')).toBeNull();
+  });
+
+  it('the row has File, Edit, View and Help, one open at a time', async () => {
+    const host = await mount();
+    const menu = (name: string) => [...host.querySelectorAll<HTMLButtonElement>('.menu-btn')].find((b) => b.textContent === name)!;
+    expect([...host.querySelectorAll('.menu-btn')].map((b) => b.textContent)).toEqual(['File', 'Edit', 'View', 'Help']);
+    await act(async () => { menu('Edit').click(); });
+    expect(host.querySelector('.menu')!.textContent).toContain('Paste');
+    await act(async () => { menu('View').click(); });
+    expect(host.querySelectorAll('.menu')).toHaveLength(1);
+    expect(host.querySelector('.menu')!.textContent).toContain('System');
+    await act(async () => { menu('Help').click(); });
+    expect(host.querySelector('.menu')!.textContent).toContain('FAQ');
+  });
+});
+
+describe('the project sidebar', () => {
+  const sections = [
+    { id: 'write', label: 'Write', tabs: [{ id: 'screenplay', label: 'Screenplay', hint: '' }, { id: 'docs', label: 'Docs', hint: '' }] },
+    { id: 'plan', label: 'Plan', tabs: [{ id: 'paperwork', label: 'Paperwork', hint: '' }] },
+    { id: 'reference', label: 'Reference', tabs: [{ id: 'reference', label: 'Reference', hint: '' }] },
+  ];
+  async function side(collapsed: boolean) {
+    const setTab = vi.fn();
+    const onToggle = vi.fn();
+    const host = document.body.appendChild(document.createElement('div'));
+    await act(async () => { root = createRoot(host); root.render(<ProjectSidebar sections={sections} tab="docs" setTab={setTab} firstTabIn={(s) => s.tabs[0].id} collapsed={collapsed} onToggle={onToggle} />); });
+    return { host, setTab, onToggle };
+  }
+  const named = (host: HTMLElement, name: string) => [...host.querySelectorAll<HTMLButtonElement>('button')].find((b) => (b.textContent === name || b.getAttribute('aria-label') === name))!;
+
+  it('opens the current section; other sections open on click, and tabs go there', async () => {
+    const { host, setTab } = await side(false);
+    expect(host.querySelector('[aria-current="page"]')!.textContent).toBe('Docs');
+    expect(named(host, 'Paperwork')).toBeUndefined();
+    await act(async () => { named(host, 'Plan').click(); });
+    expect(host.textContent).toContain('private');
+    expect(setTab).not.toHaveBeenCalled();
+    await act(async () => { named(host, 'Screenplay').click(); });
+    expect(setTab).toHaveBeenCalledWith('screenplay');
+    await act(async () => { named(host, 'Reference').click(); });
+    expect(setTab).toHaveBeenCalledWith('reference');
+  });
+
+  it('collapsed, a section icon goes to its tab, and the toggle says what it does', async () => {
+    const { host, setTab, onToggle } = await side(true);
+    await act(async () => { host.querySelector<HTMLButtonElement>('button[aria-label="Plan"]')!.click(); });
+    expect(setTab).toHaveBeenCalledWith('paperwork');
+    await act(async () => { host.querySelector<HTMLButtonElement>('button[aria-label="Expand sidebar"]')!.click(); });
+    expect(onToggle).toHaveBeenCalled();
   });
 });

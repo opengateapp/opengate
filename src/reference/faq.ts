@@ -37,7 +37,7 @@ export const FAQ: Faq[] = [
   { id: 'export-all', group: 'Using it', q: 'Can I export the whole project at once?', a: 'Yes. Shoot → Exports → Export everything saves one ZIP named after the project: your script, schedules, call sheets, contacts, budget, paperwork, press kit and the rest, sorted into folders, plus a copy of the project file. Pick a folder layout, and untick anything you don’t want to include. It holds contracts, contact details and your budget unless you untick them, so check before sending it to someone. If your access to a shared project is limited, you only get what you can see, and no project file.', links: [{ label: 'Open Exports', tab: 'reports' }] },
   { id: 'future', group: 'Using it', q: 'What happens to my work if Open Gate stops being developed?', a: 'Your project files stay on your device and keep working. The format is open and the code is open source, so anyone can keep it going.' },
   // ---- Feedback
-  { id: 'feedback', group: 'Feedback', q: 'How do I report a bug or suggest a feature?', a: 'Help (?) → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.' },
+  { id: 'feedback', group: 'Feedback', q: 'How do I report a bug or suggest a feature?', a: 'Help → Report a bug, or Send feedback. It opens a GitHub form with your app version filled in. GitHub posts are public, so don’t include private project details. You need a free GitHub account to post.' },
   { id: 'help-out', group: 'Feedback', q: 'Can I help?', a: 'Yes: report bugs, suggest resources for the Reference library, or contribute code on GitHub.', links: [{ label: 'Open Gate on GitHub', url: 'https://github.com/opengateapp/opengate' }] },
 ];
 
@@ -53,7 +53,7 @@ const TAB_NAMES: Record<string, string> = { setup: 'Settings', calendar: 'Plan �
 
 /** The FAQ as Markdown, for the README on GitHub (kept in step by a test: run `npm run faq` after changing it). */
 export function faqMarkdown(): string {
-  const out: string[] = ['## FAQ', '', 'What you’re getting into, in plain words. The same answers are in the app under **Help (?) → FAQ**.', ''];
+  const out: string[] = ['## FAQ', '', 'What you’re getting into, in plain words. The same answers are in the app under **Help → FAQ**.', ''];
   for (const g of FAQ_GROUPS) {
     out.push(`### ${g}`, '');
     for (const f of FAQ.filter((x) => x.group === g)) {

@@ -1,7 +1,7 @@
 import { usePrefs } from './prefs';
 import { Tour, TourOffer } from './tour/Tour';
 import { PlanBudgetSummary } from './components/PlanBudget';
-import { HelpDialogs, HelpMenu } from './help/HelpMenu';
+import { HelpDialogs } from './help/HelpMenu';
 import { useTabLock } from './store/tabLock';
 import { BudgetCapBar } from './components/BudgetHelp';
 import { tabHidden, useSync } from './sync/state';
@@ -40,21 +40,20 @@ import { PressKitTab } from './tabs/release/PressKitTab';
 import { DistributionTab } from './tabs/release/DistributionTab';
 import { SocialTab } from './tabs/release/SocialTab';
 import { PaperworkTab } from './tabs/budget/PaperworkTab';
-import { ReferenceTab, useRefFocus } from './tabs/ReferenceTab';
-import { CATEGORIES as REF_CATEGORIES, PAGES as REF_PAGES } from './reference/topics';
+import { ReferenceTab } from './tabs/ReferenceTab';
 import { CategoryStyles } from './components/CategoryStyles';
 import { ProjectMenu } from './components/ProjectMenu';
+import { ProjectSidebar } from './components/ProjectSidebar';
 import { SyncIssues } from './components/SyncIssues';
 import { PinterestReceiver } from './tabs/boards/PinterestReceiver';
 import { DialogHost } from './components/dialogs';
-import { EditMenu } from './components/EditMenu';
-import { usePhone, useNarrow } from './ui/responsive';
+import { UndoRedo } from './components/EditMenu';
+import { usePhone, useNarrow, useCompactDesktop } from './ui/responsive';
 import { usePhoneTabs, visibleSections, registerSections } from './ui/phoneTabs';
 import { PhoneTopbar } from './ui/PhoneChrome';
 import { PhonePanels } from './ui/PhonePanels';
 import { ActionSheetHost } from './components/ActionSheet';
 import { TabBoundary } from './components/TabBoundary';
-import { ThemeToggle } from './components/ThemeToggle';
 import { JoinHandler } from './sync/JoinHandler';
 import { ShareBar } from './components/share/ShareBar';
 import { AccessBanner } from './components/share/AccessBanner';
@@ -128,7 +127,6 @@ export const SECTIONS: { id: SectionId; label: string; tabs: { id: TabId; label:
 const SIDE_TABS = new Set<string>(['screenplay', 'av', 'docs', 'characters', 'bible', 'breakdown', 'stripboard', 'calendar', 'boards', 'designer', 'callsheets', 'locations', 'reference', 'setup']);
 
 /** Section names when the top bar is tight. */
-const SHORT_LABELS: Partial<Record<SectionId, string>> = { breakdown: 'Brkdwn', visualize: 'Visual', reference: 'Ref' };
 
 const ALL_TABS = SECTIONS.flatMap((s) => s.tabs.map((t) => t.id));
 registerSections(SECTIONS);
@@ -167,6 +165,11 @@ export function App() {
   // Hide the side panel to give the work more room (remembered per tab on this device).
   const [hiddenSides, setHiddenSides] = useState<string[]>(() => { try { return JSON.parse(localStorageGet('sideHidden') ?? '[]'); } catch { return []; } });
   const sideHidden = hiddenSides.includes(tab);
+  // The project sidebar: open or icons, remembered on this device; until you choose, smaller windows start with icons.
+  const compact = useCompactDesktop();
+  const [sidebarChoice, setSidebarChoice] = useState<string | null>(() => localStorageGet('sidebar'));
+  const sidebarCollapsed = sidebarChoice ? sidebarChoice === 'icons' : compact;
+  const toggleSidebar = () => { const next = sidebarCollapsed ? 'open' : 'icons'; localStorageSet('sidebar', next); setSidebarChoice(next); };
   const toggleSide = () => setHiddenSides((h) => { const next = h.includes(tab) ? h.filter((x) => x !== tab) : [...h, tab]; localStorageSet('sideHidden', JSON.stringify(next)); return next; });
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === '\\' && SIDE_TABS.has(tab)) { e.preventDefault(); toggleSide(); } };
@@ -257,56 +260,21 @@ export function App() {
         <PhoneTopbar sections={shown} allSections={SECTIONS} tab={tab} setTab={setTab as never} saveState={saveState} />
       ) : (
         <header className="topbar">
-          <ProjectMenu />
-          <nav className="tabs sections" aria-label="Sections">
-            {allowed.filter((x) => x.id !== 'settings' && x.id !== 'exports').map((x) => (
-              <div key={x.id} className="section-wrap">
-                <button className={section === x.id ? 'tab active' : 'tab'} title={x.label} onClick={(e) => { setTab(lastTabIn(x)); (e.currentTarget as HTMLElement).blur(); }} aria-haspopup="menu">
-                  <span className="tab-full">{x.label}</span><span className="tab-short" aria-hidden>{SHORT_LABELS[x.id] ?? x.label}</span>
-                </button>
-                {/* Hover (or keyboard focus) shows the section's tabs so you can jump straight to one. */}
-                {x.id === 'reference' ? (
-                  // Categories only (the pages are in Reference's own sidebar); each opens its first page.
-                  <div className="section-flyout ref-flyout" role="menu">
-                    {REF_CATEGORIES.map((c) => {
-                      const pages = REF_PAGES.filter((pg) => pg.category === c.id);
-                      return (
-                        <button key={c.id} role="menuitem" disabled={!pages.length} onClick={(e) => { useRefFocus.setState({ page: pages[0].id, section: undefined, n: Date.now() }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
-                          <b><span aria-hidden>{c.icon}</span> {c.label} <span className="muted small">{pages.length}</span></b><span>{c.hint}</span>
-                        </button>
-                      );
-                    })}
-                    <button role="menuitem" onClick={(e) => { useRefFocus.setState({ page: 'library', section: undefined, n: Date.now() }); setTab('reference'); (e.currentTarget as HTMLElement).blur(); }}>
-                      <b><span aria-hidden>❖</span> Learn-more library</b><span>Channels, sites, books, podcasts and free tools</span>
-                    </button>
-                  </div>
-                ) : (
-                <div className="section-flyout" role="menu">
-                  {x.tabs.map((t) => (
-                    <button key={t.id} role="menuitem" className={tab === t.id ? 'active' : ''} onClick={(e) => { setTab(t.id); (e.currentTarget as HTMLElement).blur(); }}>
-                      <b>{t.label}</b><span>{t.hint}</span>
-                    </button>
-                  ))}
-                </div>
-                )}
-              </div>
-            ))}
-          </nav>
+          <ProjectMenu tab={tab} view={{ sidebarCollapsed, toggleSidebar, sidePanel: SIDE_TABS.has(tab) ? { hidden: sideHidden, toggle: toggleSide } : undefined }} />
           <div className="topbar-right">
+            <UndoRedo />
             <ShareBar />
-            <ThemeToggle />
-            <EditMenu />
             <SyncIssues onGo={setTab} />
             <span className={`save-state ${saveState}`} title={file.name ? `Saved in this browser${file.savedAt ? ` · last written to ${file.name} at ${new Date(file.savedAt).toLocaleTimeString()}` : ''}${file.autosave ? ' · autosaving to the file' : ''}` : 'Saved in this browser. ⌘S saves a file too.'}>
               {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : 'Unsaved'}{file.name && file.autosave && !file.needsPermission ? ' · file' : ''}
             </span>
-            <HelpMenu tab={tab} />
-            {!tabHidden('reports') && <button className={`icon-btn settings-btn ${section === 'exports' ? 'active' : ''}`} title="Exports: every PDF, spreadsheet, calendar and the end credits" aria-label="Exports" onClick={() => setTab('reports')}>⤓</button>}
-            <button className={`icon-btn settings-btn ${section === 'settings' ? 'active' : ''}`} title="Settings" onClick={() => setTab('setup')}>⚙</button>
           </div>
         </header>
       )}
-      {(sec.tabs.length > 1 || (!phone && SIDE_TABS.has(tab))) && (
+      <div className="app-body">
+      {!narrow && <ProjectSidebar sections={allowed} tab={tab} setTab={setTab as (t: string) => void} firstTabIn={lastTabIn as never} collapsed={sidebarCollapsed} onToggle={toggleSidebar} />}
+      <div className="app-main">
+      {narrow && (sec.tabs.length > 1 || (!phone && SIDE_TABS.has(tab))) && (
         <nav className="subtabs" aria-label={`${sec.label} tabs`}>
           {!phone && SIDE_TABS.has(tab) && (
             <button className={`subtab side-toggle ${sideHidden ? 'on' : ''}`} title={`${sideHidden ? 'Show' : 'Hide'} the side panel (${navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+'}\\)`} aria-pressed={sideHidden} onClick={toggleSide}>{sideHidden ? '⇥' : '⇤'}</button>
@@ -359,6 +327,8 @@ export function App() {
         {tab === 'reference' && <ReferenceTab />}
         </TabBoundary>
       </main>
+      </div>
+      </div>
     </div>
   );
 }

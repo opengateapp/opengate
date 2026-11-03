@@ -8,6 +8,9 @@ import { fdxText, fountainText } from '../io/exports';
 import { Logo } from './Logo';
 import { toast } from './common';
 import { tabHidden } from '../sync/state';
+import { EditMenuItems } from './EditMenu';
+import { helpItems } from '../help/HelpMenu';
+import { useTheme, type ThemeMode } from '../theme';
 
 /** Saves and goes back to the home page. If the save fails, the project stays open. */
 export async function goHome() {
@@ -18,23 +21,34 @@ export async function goHome() {
   useStore.getState().close();
 }
 
-export function ProjectMenu() {
+/** What the View menu controls (the app owns these). */
+export interface ViewControls { sidebarCollapsed: boolean; toggleSidebar: () => void; sidePanel?: { hidden: boolean; toggle: () => void } }
+
+type MenuId = 'file' | 'edit' | 'view' | 'help';
+const MENUS: { id: MenuId; label: string }[] = [{ id: 'file', label: 'File' }, { id: 'edit', label: 'Edit' }, { id: 'view', label: 'View' }, { id: 'help', label: 'Help' }];
+const THEMES: { id: ThemeMode; label: string }[] = [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'system', label: 'System' }];
+
+/** Logo (goes Home), project title and the File, Edit, View and Help menus. */
+export function ProjectMenu({ tab, view }: { tab?: string; view?: ViewControls }) {
   const title = useStore((s) => s.project?.title ?? '');
   const update = useStore((s) => s.update);
-  const [open, setOpen] = useState(false);
+  const mode = useTheme((s) => s.mode);
+  const setMode = useTheme((s) => s.setMode);
+  const [open, setOpen] = useState<MenuId | null>(null);
   const [importing, setImporting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const btn = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
+  const close = () => setOpen(null);
 
   useEffect(() => {
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    const outside = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(null); };
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
   }, []);
-  // Escape closes the menu and puts focus back on File.
+  // Escape closes the menu and puts focus back on its button.
   useEffect(() => {
     if (!open) return;
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); btn.current?.focus(); } };
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(null); opener.current?.focus(); } };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [open]);
@@ -43,15 +57,36 @@ export function ProjectMenu() {
     <div className="project-menu" ref={ref}>
       <button className="logo" onClick={() => void goHome()} aria-label="Home" title="Home (saves this project first)"><Logo className="topbar-logo" /></button>
       <input className="project-title" value={title} onChange={(e) => update((d) => { d.title = e.target.value; }, null)} aria-label="Project title" />
-      <div className="menu-wrap">
-        <button ref={btn} className="file-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>File ▾</button>
-        {open && (
-          <div className="menu" role="menu">
-            <input className="project-title file-title" value={title} onChange={(e) => update((d) => { d.title = e.target.value; }, null)} aria-label="Project title" />
-            <ProjectMenuItems onDone={() => setOpen(false)} onImport={() => setImporting(true)} />
+      <nav className="menu-row" aria-label="Menus">
+        {MENUS.map((m) => (
+          <div key={m.id} className="menu-wrap">
+            <button
+              className={`menu-btn ${m.id === 'file' ? 'file-btn' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={open === m.id}
+              // Keeps focus (and the text selection) where it was, for Edit's commands.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => { opener.current = e.currentTarget; setOpen(open === m.id ? null : m.id); }}
+              onMouseEnter={(e) => { if (open && open !== m.id) { opener.current = e.currentTarget; setOpen(m.id); } }}
+            >{m.label}</button>
+            {open === m.id && (
+              <div className="menu" role="menu" aria-label={m.label}>
+                {m.id === 'file' && <ProjectMenuItems onDone={close} onImport={() => setImporting(true)} />}
+                {m.id === 'edit' && <EditMenuItems onDone={close} />}
+                {m.id === 'view' && (
+                  <>
+                    {THEMES.map((t) => <button key={t.id} role="menuitemradio" aria-checked={mode === t.id} onClick={() => { setMode(t.id); close(); }}><span>{t.label}</span>{mode === t.id && <span aria-hidden>✓</span>}</button>)}
+                    {view && <hr />}
+                    {view && <button onClick={() => { view.toggleSidebar(); close(); }}>{view.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</button>}
+                    {view?.sidePanel && <button onClick={() => { view.sidePanel!.toggle(); close(); }}><span>{view.sidePanel.hidden ? 'Show side panel' : 'Hide side panel'}</span><kbd>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl+'}\</kbd></button>}
+                  </>
+                )}
+                {m.id === 'help' && helpItems(tab).map((it) => <button key={it.id} title={it.hint} onClick={() => { close(); it.run(); }}>{it.label}</button>)}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        ))}
+      </nav>
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </div>
   );

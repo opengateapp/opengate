@@ -317,7 +317,7 @@ function guildPage(g: Guild): RefPage {
     ? [{ tab: 'paperwork', label: 'Plan → Paperwork' }, { tab: 'setup', label: 'Settings → Unions & Societies' }]
     : g.kind === 'union'
       ? [{ tab: 'contacts', label: 'Union field: Plan → Contacts' }, { tab: 'setup', label: 'Production agreement: Settings → Unions & Societies' }, { tab: 'budget', label: 'Union fringes: Budget' }, { tab: 'paperwork', label: 'Plan → Paperwork' }]
-      : [{ tab: 'contacts', label: 'Societies field: Plan → Contacts' }, { tab: 'reports', label: 'End credits: ⤓ Exports' }];
+      : [{ tab: 'contacts', label: 'Societies field: Plan → Contacts' }, { tab: 'reports', label: 'End credits: Exports' }];
   return {
     id: `guild-${g.id}`, category: 'guilds', title: g.kind === 'overview' ? g.name : `${g.abbr}${g.abbr !== g.name ? ` — ${g.name}` : ''}`,
     lead: g.kind === 'overview' ? g.summary.split('. ')[0] + '.' : g.kind === 'union' ? `Union · ${g.region}` : `Honorary society${g.letters ? ` · letters: ${g.letters}` : ''}`,
