@@ -41,7 +41,7 @@ On your device, in your browser’s storage. It isn’t on our servers unless yo
 
 **How do I back it up?**
 
-Save a .opengate project file regularly (⌘S, or Save in the project menu) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser. (in the app: Settings)
+Save a .opengate project file regularly (⌘S, or File → Save) and keep it somewhere safe; a cloud folder of your choice works. Settings → Data & backups downloads every project at once. Clearing your browser’s site data deletes the projects stored in that browser. (in the app: Settings)
 
 **Do I need an account?**
 

@@ -7,35 +7,57 @@ import { saveToFile, saveIndependentCopy, setFileAutosave, reconnectFile, useFil
 import { fdxText, fountainText } from '../io/exports';
 import { Logo } from './Logo';
 import { toast } from './common';
+import { tabHidden } from '../sync/state';
+
+/** Saves and goes back to the home page. If the save fails, the project stays open. */
+export async function goHome() {
+  session.flush();
+  try { await flushSave(); } catch (e) { toast(`Couldn't save, so this project stays open: ${(e as Error).message}`); return; }
+  session.reset();
+  try { localStorage.removeItem('slateline.last'); } catch { /* ignore */ }
+  useStore.getState().close();
+}
 
 export function ProjectMenu() {
-  const title = useStore((s) => s.project!.title);
+  const title = useStore((s) => s.project?.title ?? '');
   const update = useStore((s) => s.update);
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
+  // Escape closes the menu and puts focus back on File.
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); btn.current?.focus(); } };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [open]);
 
   return (
     <div className="project-menu" ref={ref}>
-      <button className="logo" onClick={() => setOpen(!open)} aria-haspopup="menu" title="Open Gate menu"><Logo className="topbar-logo" /></button>
+      <button className="logo" onClick={() => void goHome()} aria-label="Home" title="Home (saves this project first)"><Logo className="topbar-logo" /></button>
       <input className="project-title" value={title} onChange={(e) => update((d) => { d.title = e.target.value; }, null)} aria-label="Project title" />
-      {open && (
-        <div className="menu" role="menu">
-          <ProjectMenuItems onDone={() => setOpen(false)} onImport={() => setImporting(true)} />
-        </div>
-      )}
+      <div className="menu-wrap">
+        <button ref={btn} className="file-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>File ▾</button>
+        {open && (
+          <div className="menu" role="menu">
+            <input className="project-title file-title" value={title} onChange={(e) => update((d) => { d.title = e.target.value; }, null)} aria-label="Project title" />
+            <ProjectMenuItems onDone={() => setOpen(false)} onImport={() => setImporting(true)} />
+          </div>
+        )}
+      </div>
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </div>
   );
 }
 
-/** The project actions (all projects, import, export, save…), shared by the menu and the phone drawer. */
+/** The File actions (save, import, export), shared by the menu and the phone drawer. */
 export function ProjectMenuItems({ onDone, onImport }: { onDone: () => void; onImport: () => void }) {
   const file = useFile();
   const run = (fn: () => void | Promise<void>) => async () => {
@@ -58,14 +80,6 @@ export function ProjectMenuItems({ onDone, onImport }: { onDone: () => void; onI
 
   return (
     <>
-      <button onClick={run(async () => { await flushSave(); session.reset(); try { localStorage.removeItem('slateline.last'); } catch { /* ignore */ } useStore.getState().close(); })}>All projects…</button>
-      <hr />
-      <button onClick={run(() => onImport())}>Import screenplay…</button>
-      <hr />
-      <button onClick={run(() => exportScript('pdf'))}>Export screenplay PDF</button>
-      <button onClick={run(() => exportScript('fountain'))}>Export Fountain</button>
-      <button onClick={run(() => exportScript('fdx'))}>Export Final Draft (.fdx)</button>
-      <hr />
       <button onClick={run(() => { void saveToFile(false); })}><span>Save</span><kbd>⌘S</kbd></button>
       <button onClick={run(() => { void saveToFile(true); })}><span>{fileAccessSupported() ? 'Save As…' : 'Download project file'}</span><kbd>⇧⌘S</kbd></button>
       <button onClick={run(() => { void saveIndependentCopy(); })} title="A copy that isn't connected to the shared project — for archiving or starting a new version">Save independent copy…</button>
@@ -76,6 +90,13 @@ export function ProjectMenuItems({ onDone, onImport }: { onDone: () => void; onI
       )}
       {file.name && file.needsPermission && <button onClick={run(() => { void reconnectFile(); })}>Allow saving to {file.name} again…</button>}
       {file.savedAt && <div className="menu-note">Last written to the file {new Date(file.savedAt).toLocaleString()}</div>}
+      <hr />
+      <button onClick={run(() => onImport())}>Import screenplay…</button>
+      <hr />
+      <button onClick={run(() => exportScript('pdf'))}>Export screenplay PDF</button>
+      <button onClick={run(() => exportScript('fountain'))}>Export Fountain</button>
+      <button onClick={run(() => exportScript('fdx'))}>Export Final Draft (.fdx)</button>
+      {!tabHidden('reports') && <button onClick={run(() => { window.dispatchEvent(new CustomEvent('opengate:goto', { detail: 'reports' })); })}>All exports…</button>}
     </>
   );
 }
