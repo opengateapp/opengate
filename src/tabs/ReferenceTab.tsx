@@ -8,7 +8,7 @@ import { CATEGORIES, PAGES, pageById, type RefCategory, type RefPage } from '../
 import { TOOLS } from '../reference/Tools';
 import { ARC_GUIDE, FRAMEWORKS, placeBeats, type Framework } from '../reference/story';
 import { LIBRARY, RESOURCE_TYPES, TOPIC_LABELS, learnMore, type Resource, type ResourceType } from '../reference/library';
-import { templateDoc } from './DocsTab';
+import { templateDoc } from '../script/docSchema';
 import { budgetVisible, canEdit, useSync } from '../sync/state';
 import { toast } from '../components/common';
 import { getMedia, putMedia } from '../store/media';

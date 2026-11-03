@@ -1,6 +1,7 @@
 import type { Project } from '../model/types';
 import { getMedia } from '../store/media';
 import { getDerived } from '../store/project';
+import type { Derived } from '../script/derive';
 import { download, safeName } from '../io/files';
 import { pressKitHtml, pressKitView, type PressKitView } from './pressKit';
 
@@ -60,13 +61,23 @@ async function imagesFor(v: PressKitView): Promise<Map<string, string>> {
   return out;
 }
 
-export async function exportPressKit(p: Project, kind: 'pdf' | 'html') {
-  const v = pressKitView(p, getDerived());
+export async function pressKitHtmlFile(p: Project, d: Derived): Promise<string> {
+  const v = pressKitView(p, d);
+  return pressKitHtml(v, await imagesFor(v));
+}
+
+export async function pressKitPdfFile(p: Project, d: Derived): Promise<Blob> {
+  const v = pressKitView(p, d);
   const images = await imagesFor(v);
-  const name = `${safeName(v.title)} - press kit`;
-  if (kind === 'html') { download(`${name}.html`, pressKitHtml(v, images), 'text/html'); return; }
   // PDFs can't hold SVG: draw SVG laurels into PNGs (transparent) first.
   for (const [id, url] of images) if (url.startsWith('data:image/svg')) { const png = await svgToPng(url); if (png) images.set(id, png); else images.delete(id); }
   const { pressKitPdf } = await import('../pdf/pressKitPdf');
-  download(`${name}.pdf`, pressKitPdf(v, images).output('blob'));
+  return pressKitPdf(v, images).output('blob');
+}
+
+export async function exportPressKit(p: Project, kind: 'pdf' | 'html') {
+  const d = getDerived();
+  const name = `${safeName(pressKitView(p, d).title)} - press kit`;
+  if (kind === 'html') download(`${name}.html`, await pressKitHtmlFile(p, d), 'text/html');
+  else download(`${name}.pdf`, await pressKitPdfFile(p, d));
 }

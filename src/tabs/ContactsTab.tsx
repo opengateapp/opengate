@@ -5,7 +5,7 @@ import { useDerived, useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import type { Contact, ContactKind } from '../model/types';
 import { download, safeName } from '../io/files';
-import { csv } from '../io/reports';
+import { contactRows, contactsCsv, contactsVcf, type ContactRow } from '../io/exports';
 import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
 import { Hint } from '../components/Hint';
@@ -23,7 +23,7 @@ const KINDS: { id: ContactKind; label: string }[] = [
   { id: 'crew', label: 'Crew (not daily)' }, { id: 'cast', label: 'Cast (other)' }, { id: 'other', label: 'Other' },
 ];
 
-interface Row extends Unioned, Societied { key: string; group: 'Cast' | 'Crew' | 'Contacts'; name: string; role: string; company: string; phone: string; email: string; kind?: ContactKind }
+type Row = ContactRow;
 
 /** Minimal vCard reader (FN, ORG, TITLE, TEL, EMAIL, NOTE). */
 export function parseVCards(text: string): Omit<Contact, 'id'>[] {
@@ -36,11 +36,6 @@ export function parseVCards(text: string): Omit<Contact, 'id'>[] {
   });
 }
 
-function toVCard(r: Row): string {
-  const esc = (s: string) => s.replace(/,/g, '\\,').replace(/\n/g, '\\n');
-  return ['BEGIN:VCARD', 'VERSION:3.0', `FN:${esc(r.name)}`, r.company && `ORG:${esc(r.company)}`, r.role && `TITLE:${esc(r.role)}`, r.phone && `TEL:${r.phone}`, r.email && `EMAIL:${r.email}`, 'END:VCARD'].filter(Boolean).join('\r\n');
-}
-
 export function ContactsTab() {
   const p = useProject();
   const d = useDerived();
@@ -50,11 +45,7 @@ export function ContactsTab() {
   const [over, setOver] = useState(false);
   const sees = useSeesBudget();
 
-  const rows: Row[] = [
-    ...[...p.cast].sort((a, b) => a.castNumber - b.castNumber).map((c) => ({ key: 'cast:' + c.id, group: 'Cast' as const, name: c.actorName, role: `#${c.castNumber} ${c.characterName}`, company: '', phone: c.phone ?? '', email: c.email ?? '', union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, societies: c.societies, pgaCertified: c.pgaCertified })),
-    ...p.crew.map((c) => ({ key: 'crew:' + c.id, group: 'Crew' as const, name: c.name, role: c.role, company: '', phone: c.phone ?? '', email: '', union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, societies: c.societies, pgaCertified: c.pgaCertified })),
-    ...p.contacts.map((c) => ({ key: 'contact:' + c.id, group: 'Contacts' as const, name: c.name, role: c.role, company: c.company, phone: c.phone, email: c.email, kind: c.kind, union: c.union, unionStatus: c.unionStatus, unionLocal: c.unionLocal, societies: c.societies, pgaCertified: c.pgaCertified })),
-  ];
+  const rows = contactRows(p);
   const shown = rows.filter((r) => (group === 'all' || r.group === group) && (!q || `${r.name} ${r.role} ${r.company} ${r.phone} ${r.email}`.toLowerCase().includes(q.toLowerCase())));
 
   const set = (r: Row, field: 'name' | 'role' | 'company' | 'phone' | 'email' | 'kind', v: string) => update((dr) => {
@@ -122,8 +113,8 @@ export function ContactsTab() {
         <button onClick={() => add('Cast')}>+ Cast</button>
         <button onClick={() => add('Crew')}>+ Crew</button>
         <label className="button-like">Import .vcf<input type="file" accept=".vcf,text/vcard" multiple hidden onChange={(e) => { void importFiles([...(e.target.files ?? [])]); e.target.value = ''; }} /></label>
-        <button onClick={() => download(`${safeName(p.title)} contacts.vcf`, shown.map(toVCard).join('\r\n'), 'text/vcard')}>Export .vcf</button>
-        <button onClick={() => download(`${safeName(p.title)} contacts.csv`, csv([['Group', 'Name', 'Role', 'Company', 'Phone', 'Email', 'Union'], ...shown.map((r) => [r.group, r.name, r.role, r.company, r.phone, r.email, unionBadge(r)])]), 'text/csv')}>CSV</button>
+        <button onClick={() => download(`${safeName(p.title)} contacts.vcf`, contactsVcf(shown), 'text/vcard')}>Export .vcf</button>
+        <button onClick={() => download(`${safeName(p.title)} contacts.csv`, contactsCsv(shown), 'text/csv')}>CSV</button>
         </More>
       </div>
       <table className="table contacts cards-on-phone" onDoubleClick={(e) => { if ((e.target as HTMLElement).closest('tbody tr')) return; add(group === 'Cast' || group === 'Crew' ? group : 'Contacts'); }}>

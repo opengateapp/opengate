@@ -9,6 +9,7 @@ import { toast } from '../components/common';
 import { CallSheetsView } from './reports/CallSheetsView';
 import { DoodView } from './reports/DoodView';
 import { CreditsView } from './reports/CreditsView';
+import { ExportEverything } from './reports/ExportEverything';
 import { exportStoryboardPdf } from './storyboard/render';
 import { exportBudget } from './budget/BudgetTab';
 import { budgetVisible } from '../sync/state';
@@ -82,6 +83,7 @@ export function ShootTab() {
   return (
     <div className="shoot-tab pad scroll">
       <h2>Exports</h2>
+      <ExportEverything />
       <div className="report-grid">
         {reports.map((r) => (
           <div key={r.title} className="report-card">

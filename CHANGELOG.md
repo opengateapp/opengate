@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.0 — 2026-11-03
+
+- **Export everything:** one button on Shoot → Exports saves the whole project into one ZIP named after it, sorted into folders.
+  - **Folder layouts:** General Video, Resolve Cloud Team or Classic, with their empty folders ready for the shoot. Open Gate remembers your choice on this device.
+  - **What's inside:** scripts and drafts, documents, characters, storyboards and frame images, shot lists, breakdown, schedule, call sheets, contacts, locations and photos, budget, paperwork and signed files, mood board images, end credits, press kit, festivals and the social calendar, plus a separate copy of the project file and a `READ ME.txt`.
+  - **Choose what's included:** untick anything; items with nothing in them are greyed out with the reason. Large deliverable files start unticked if they'd push the ZIP past 500 MB.
+  - **While it builds:** progress and Cancel. If one part fails, the rest still build, and it tells you what was skipped.
+  - **Privacy:** the project file has no sharing access. If your access to a shared project is limited, you only get what you can see, with no fees and no project file.
+- **Docs:** the exported web page now escapes its title, so characters like `<` and `&` show correctly.
+
 ## v0.6.2 — 2026-10-24
 
 - **Help & FAQ:** the FAQ page keeps one width. It no longer widens when you open an answer.

@@ -6,7 +6,7 @@ import { newId } from '../../model/ids';
 import { money } from '../../budget/calc';
 import { GEAR_CATEGORIES, SOURCE_LABEL, gearCost, gearTotals, syncGearLines } from '../../budget/gear';
 import { budgetVisible, canEdit, useSync } from '../../sync/state';
-import { csv } from '../../io/reports';
+import { gearCsv } from '../../io/exports';
 import { download, safeName } from '../../io/files';
 import { deletedToast } from '../../components/deleted';
 import { openActions } from '../../components/ActionSheet';
@@ -41,11 +41,7 @@ export function GearTab() {
   const shown = gear.filter((g) => !cat || g.category === cat);
   const daysLabel = (g: GearItem) => (g.days != null ? 'typed' : g.sceneIds.length ? `${g.sceneIds.length} scene${g.sceneIds.length > 1 ? 's' : ''}` : 'whole shoot');
 
-  const exportCsv = () => download(`${safeName(p.title)} - gear.csv`, csv([
-    ['Item', 'Category', 'Qty', 'Own / rent', 'Rate', 'Per', 'Days', 'Cost', 'Notes'],
-    ...gear.map((g) => [g.name, GEAR_CATEGORIES.find((c) => c.id === g.category)?.label ?? g.category, String(g.qty), SOURCE_LABEL[g.source], String(g.rate), g.source === 'buy' ? 'purchase' : g.rateUnit, String(t.days.get(g.id) ?? 0),
-      g.source === 'rent' || g.source === 'buy' ? String(gearCost(g, t.days.get(g.id) ?? 0, p.budget.rentalWeekDays ?? 3)) : '0', g.notes ?? '']),
-  ]), 'text/csv');
+  const exportCsv = () => download(`${safeName(p.title)} - gear.csv`, gearCsv(p), 'text/csv');
   const exportPdf = async () => {
     const { gearPdf } = await import('../../pdf/gearPdf');
     download(`${safeName(p.title)} - gear manifest.pdf`, gearPdf(useStore.getState().project!, d, showCost).output('blob'), 'application/pdf');

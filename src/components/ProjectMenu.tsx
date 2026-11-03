@@ -4,9 +4,7 @@ import { session } from '../script/session';
 import { ImportDialog } from './ImportDialog';
 import { download, safeName } from '../io/files';
 import { saveToFile, saveIndependentCopy, setFileAutosave, reconnectFile, useFile, fileAccessSupported } from '../io/fileSave';
-import { toFountain } from '../io/fountain';
-import { toFDX } from '../io/fdx';
-import { blocksToLines } from '../script/schema';
+import { fdxText, fountainText } from '../io/exports';
 import { Logo } from './Logo';
 import { toast } from './common';
 
@@ -50,10 +48,8 @@ export function ProjectMenuItems({ onDone, onImport }: { onDone: () => void; onI
     const p = useStore.getState().project!;
     const d = getDerived();
     const name = safeName(p.title);
-    const lines = blocksToLines(d.blocks);
-    const nums = p.sceneNumbersLocked ? d.scenes.map((s) => s.number) : undefined;
-    if (kind === 'fountain') download(`${name}.fountain`, toFountain(lines, p.titlePage, nums), 'text/plain');
-    if (kind === 'fdx') download(`${name}.fdx`, toFDX(lines, p.titlePage, nums), 'application/xml');
+    if (kind === 'fountain') download(`${name}.fountain`, fountainText(p, d), 'text/plain');
+    if (kind === 'fdx') download(`${name}.fdx`, fdxText(p, d), 'application/xml');
     if (kind === 'pdf') {
       const { screenplayPdfAsync } = await import('../pdf/screenplayPdf');
       (await screenplayPdfAsync(p, d)).save(`${name}.pdf`);

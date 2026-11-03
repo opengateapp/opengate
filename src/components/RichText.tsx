@@ -6,7 +6,7 @@ import { history, undo, redo } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap, toggleMark } from 'prosemirror-commands';
 import { splitListItem, liftListItem, sinkListItem, wrapInList } from 'prosemirror-schema-list';
-import { docSchema } from '../tabs/DocsTab';
+import { docSchema } from '../script/docSchema';
 
 /** Small formatted-text box (bold, italic, underline, bullets). Reports the doc JSON and its plain text. */
 export function docFromText(text: string) {

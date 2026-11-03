@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Schema, Node as PMNode, DOMSerializer } from 'prosemirror-model';
-import { schema as basic } from 'prosemirror-schema-basic';
-import { addListNodes, splitListItem, liftListItem, sinkListItem, wrapInList } from 'prosemirror-schema-list';
+import { Node as PMNode } from 'prosemirror-model';
+import { splitListItem, liftListItem, sinkListItem, wrapInList } from 'prosemirror-schema-list';
 import { EditorState, type Command } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { history, undo, redo } from 'prosemirror-history';
@@ -11,6 +10,8 @@ import { inputRules, wrappingInputRule, textblockTypeInputRule } from 'prosemirr
 import { useProject, useStore } from '../store/project';
 import { newId } from '../model/ids';
 import { download, safeName } from '../io/files';
+import { docHtml } from '../io/exports';
+import { docSchema, templateDoc } from '../script/docSchema';
 import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
 import { Hint } from '../components/Hint';
@@ -18,26 +19,12 @@ import { Empty } from '../components/common';
 
 // Docs: treatments, synopses, director's notes, lookbook text — rich text saved in the project.
 
-export const docSchema = new Schema({
-  nodes: addListNodes(basic.spec.nodes, 'paragraph block*', 'block'),
-  marks: basic.spec.marks.addToEnd('underline', { parseDOM: [{ tag: 'u' }], toDOM: () => ['u', 0] }),
-});
-
 const TEMPLATES: { title: string; body: string[] }[] = [
   { title: 'Blank document', body: [] },
   { title: 'Treatment', body: ['# Treatment', '## Logline', '', '## Synopsis', '', '## Characters', '', '## Tone & style', ''] },
   { title: 'Director’s notes', body: ['# Director’s notes', '## Vision', '', '## Visual approach', '', '## Performance', '', '## Sound & music', ''] },
   { title: 'Production notes', body: ['# Production notes', '## Budget', '', '## Schedule', '', '## Risks', ''] },
 ];
-
-export function templateDoc(lines: string[]): unknown {
-  const nodes = lines.length ? lines.map((l) => {
-    const h = l.match(/^(#{1,3})\s+(.*)$/);
-    if (h) return docSchema.node('heading', { level: h[1].length }, [docSchema.text(h[2])]);
-    return docSchema.node('paragraph', null, l ? [docSchema.text(l)] : []);
-  }) : [docSchema.node('paragraph')];
-  return docSchema.node('doc', null, nodes).toJSON();
-}
 
 function plugins() {
   const s = docSchema;
@@ -141,12 +128,7 @@ function DocEditor({ id }: { id: string }) {
   };
   const s = docSchema;
 
-  const exportHtml = () => {
-    const frag = DOMSerializer.fromSchema(s).serializeFragment(view.current!.state.doc.content);
-    const div = document.createElement('div');
-    div.appendChild(frag);
-    download(`${safeName(doc.title)}.html`, `<!doctype html><meta charset="utf-8"><title>${doc.title}</title><style>body{font:16px/1.6 Georgia,serif;max-width:720px;margin:48px auto;padding:0 16px}</style>${div.innerHTML}`, 'text/html');
-  };
+  const exportHtml = () => download(`${safeName(doc.title)}.html`, docHtml(doc.title, view.current!.state.doc), 'text/html');
   const exportMd = () => {
     const out: string[] = [];
     view.current!.state.doc.forEach((n) => {

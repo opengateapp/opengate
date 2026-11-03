@@ -103,6 +103,10 @@ Fountain (and plain text or Markdown written in Fountain), Final Draft (.fdx), P
 
 Use “Set up my budget” in the Budget tab, which asks one question at a time, or start a project from “Start from a budget” on the Home screen. The sample production shows a finished example. (in the app: Budget)
 
+**Can I export the whole project at once?**
+
+Yes. Shoot → Exports → Export everything saves one ZIP named after the project: your script, schedules, call sheets, contacts, budget, paperwork, press kit and the rest, sorted into folders, plus a copy of the project file. Pick a folder layout, and untick anything you don’t want to include. It holds contracts, contact details and your budget unless you untick them, so check before sending it to someone. If your access to a shared project is limited, you only get what you can see, and no project file. (in the app: Open Exports)
+
 **What happens to my work if Open Gate stops being developed?**
 
 Your project files stay on your device and keep working. The format is open and the code is open source, so anyone can keep it going.

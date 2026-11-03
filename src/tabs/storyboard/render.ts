@@ -2,6 +2,7 @@ import type { Project, StoryboardFrame, StoryboardSettings } from '../../model/t
 import { drawGuides, drawLayer, formatOf, ghostAlpha } from './formats';
 import { blobToImage, getMedia } from '../../store/media';
 import { getDerived } from '../../store/project';
+import type { Derived } from '../../script/derive';
 import { download, safeName } from '../../io/files';
 
 export const FRAME_W = 1280;
@@ -54,12 +55,17 @@ export async function renderFrame(f: StoryboardFrame, size = 960, layer: 'frame'
   return c.toDataURL('image/jpeg', 0.85);
 }
 
-export async function exportStoryboardPdf(p: Project) {
+/** The board PDF. The renderer can be swapped where there's no canvas (tests). */
+export async function buildStoryboardPdf(p: Project, d: Derived, render: typeof renderFrame = renderFrame) {
   const images = new Map<string, string>();
   for (const f of p.storyboard) {
-    images.set(f.id, await renderFrame(f, 960, 'frame', p.storyboardSettings));
-    if (f.refImageId || f.refDrawingId) images.set('ref:' + f.id, await renderFrame(f, 720, 'ref'));
+    images.set(f.id, await render(f, 960, 'frame', p.storyboardSettings));
+    if (f.refImageId || f.refDrawingId) images.set('ref:' + f.id, await render(f, 720, 'ref'));
   }
   const { storyboardPdf } = await import('../../pdf/storyboardPdf');
-  download(`${safeName(p.title)} - storyboard.pdf`, storyboardPdf(p, getDerived(), images, p.storyboardSettings).output('blob'));
+  return storyboardPdf(p, d, images, p.storyboardSettings);
+}
+
+export async function exportStoryboardPdf(p: Project) {
+  download(`${safeName(p.title)} - storyboard.pdf`, (await buildStoryboardPdf(p, getDerived())).output('blob'));
 }

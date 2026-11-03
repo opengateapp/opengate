@@ -11,18 +11,11 @@ import { deletedToast } from '../components/deleted';
 import { More } from '../components/More';
 import { LongPress } from '../components/ActionSheet';
 import { Hint } from '../components/Hint';
-import { csv } from '../io/reports';
+import { avCsv, avPdf, avTime, avTotal } from '../io/exports';
 
 // A/V scripts: two-column Video | Audio scripts for commercials, documentaries and corporate work.
 
 const blankRow = (): AVRow => ({ id: newId(), video: '', audio: '', duration: '' });
-
-function seconds(d: string): number {
-  const m = d.trim().match(/^(?:(\d+):)?(\d+)(?:\.(\d+))?$/);
-  if (!m) return 0;
-  return (m[1] ? Number(m[1]) * 60 : 0) + Number(m[2]);
-}
-const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 export function AVScriptTab() {
   const p = useProject();
@@ -57,33 +50,10 @@ export function AVScriptTab() {
       </Empty>
     );
   }
-  const total = script.rows.reduce((a, r) => a + seconds(r.duration), 0);
+  const total = avTotal(script);
 
-  const exportCsv = () => download(`${safeName(script.title)}.csv`, csv([['#', 'Segment', 'Shot', 'Video', 'Audio', 'Duration'], ...script.rows.map((r, i) => [i + 1, r.segment ?? '', r.shotType ?? '', r.video, r.audio, r.duration])]), 'text/csv');
-  const exportPdf = async () => {
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ unit: 'in', format: 'letter' });
-    doc.setLineWidth(0.01);
-    let y = 0.8;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.text(script.title, 0.6, y);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.text(`${p.title} · Total ${fmt(total)}`, 7.9, y, { align: 'right' });
-    y += 0.3;
-    const head = () => { doc.setFont('helvetica', 'bold'); doc.text('VIDEO', 0.9, y); doc.text('AUDIO', 4.5, y); doc.text('TIME', 7.9, y, { align: 'right' }); doc.line(0.6, y + 0.06, 7.9, y + 0.06); y += 0.25; doc.setFont('helvetica', 'normal'); };
-    head();
-    script.rows.forEach((r, i) => {
-      const v = doc.splitTextToSize((r.shotType ? `[${r.shotType}] ` : '') + r.video, 3.3);
-      const a = doc.splitTextToSize(r.audio, 3.0);
-      const h = Math.max(v.length, a.length) * 0.17 + (r.segment ? 0.3 : 0) + 0.1;
-      if (y + h > 10.4) { doc.addPage(); y = 0.8; head(); }
-      if (r.segment) { doc.setFont('helvetica', 'bold'); doc.text(r.segment.toUpperCase(), 0.6, y); doc.setFont('helvetica', 'normal'); y += 0.25; }
-      doc.text(String(i + 1), 0.6, y);
-      doc.text(v, 0.9, y);
-      doc.text(a, 4.5, y);
-      if (r.duration) doc.text(r.duration, 7.9, y, { align: 'right' });
-      y += Math.max(v.length, a.length) * 0.17 + 0.1;
-    });
-    doc.save(`${safeName(script.title)}.pdf`);
-  };
+  const exportCsv = () => download(`${safeName(script.title)}.csv`, avCsv(script), 'text/csv');
+  const exportPdf = async () => (await avPdf(p.title, script)).save(`${safeName(script.title)}.pdf`);
 
   return (
     <div className="with-side av-tab">
@@ -100,7 +70,7 @@ export function AVScriptTab() {
       <section className="main">
         <div className="toolbar">
           <input className="doc-title" value={script.title} onChange={(e) => edit((s) => { s.title = e.target.value; })} />
-          <span className="muted small">{script.rows.length} rows · total {fmt(total)}</span>
+          <span className="muted small">{script.rows.length} rows · total {avTime(total)}</span>
           <span className="spacer" />
           <button onClick={() => addRow(undefined, 'NEW SEGMENT')}>+ Segment</button>
           <button onClick={() => addRow()}>+ Row</button>
