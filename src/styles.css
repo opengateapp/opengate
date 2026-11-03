@@ -837,7 +837,7 @@ a.home-get-link:hover { background: var(--accent-2); color: var(--accent-text); 
 .og-logo { display: inline-block; color: var(--logo); line-height: 0; }
 .og-logo svg { width: 100%; height: auto; display: block; }
 .og-logo.topbar-logo { width: 46px; }
-.og-logo.home-logo { width: 170px; max-width: 100%; }
+.og-logo.home-logo { width: 170px; max-width: 100%; align-self: center; }
 .project-menu .logo { padding: 3px 6px; display: flex; align-items: center; }
 .logo-preview { border: 1px solid var(--border); border-radius: 8px; padding: 18px; display: flex; justify-content: center; }
 .og-logo.preview-logo { width: 180px; }
