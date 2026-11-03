@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.0 — 2026-11-03
+
+- **A sidebar inside projects:** sections and tabs now live in a sidebar on the left, like the Home page, with Reference, Exports and Settings at the bottom.
+  - **Every tab in view:** open any section to see its tabs, without hovering.
+  - **More room when you need it:** collapse it to icons with ⇤; hover an icon to jump to a tab. It starts as icons on smaller windows and remembers your choice.
+- **Classic menus:** File, Edit, View and Help now sit next to the project title. File holds saving, importing and exports; View has Light, Dark and System, and hides the sidebar or side panel. The ↶ ↷ buttons, Share and the save status stay in the bar.
+- **The logo goes Home:** click it to save and go to the Home page. It replaces "All projects…". If saving fails, the project stays open.
+- **Phones and iPad portrait:** the ☰ menu starts with ← Home, then the sections, Reference, Exports, File, Settings and Help. ⋯ no longer repeats Exports, Settings and Help.
+
 ## v0.8.0 — 2026-11-03
 
 - **A new Home page:** a sidebar with Open Gate, Project Folders and Resources. On phones it becomes a compact bar at the top.
